@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Family Packing List – Single Page Tool</title>
+<style>
+  :root{
+    --bg:#0f172a;          /* dark slate */
+    --panel:#111827;       /* slightly lighter */
+    --muted:#94a3b8;       /* slate-300 */
+    --text:#e5e7eb;        /* gray-200 */
+    --accent:#60a5fa;      /* blue-400 */
+    --ok:#34d399;          /* green-400 */
+    --warn:#fbbf24;        /* amber-400 */
+    --danger:#f87171;      /* red-400 */
+    --border:#1f2937;      /* gray-800 */
+    --chip:#0b1224;
+  }
+  html,body{height:100%}
+  body{
+    margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+    background: linear-gradient(160deg,#0b1022, #0f172a 35%, #0b1224 100%);
+    color: var(--text);
+  }
+
+  .wrap{max-width:1100px;margin:24px auto;padding:0 16px;}
+  h1{margin:0 0 16px;font-size:clamp(22px,4vw,28px);font-weight:700;letter-spacing:.2px}
+  .grid{display:grid;grid-template-columns: 1fr 1fr;gap:18px}
+  @media (max-width: 960px){ .grid{grid-template-columns:1fr} }
+
+  .card{
+    background:rgba(17,24,39,.6);
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:14px;
+    backdrop-filter: blur(4px);
+    box-shadow: 0 6px 16px rgba(0,0,0,.30);
+  }
+  .card h2{margin:0 0 10px;font-size:18px}
+  .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+  .row > * { flex: 1 1 auto }
+
+  input[type="text"], input[type="number"], textarea, select{
+    background:#0b1224; border:1px solid var(--border); color:var(--text);
+    padding:10px 12px; border-radius:10px; outline:none; width:100%;
+  }
+  textarea{min-height:54px; resize:vertical}
+  label{font-size:13px;color:var(--muted)}
+  .btn{
+    background: var(--chip);
+    border:1px solid var(--border);
+    color: var(--text);
+    padding:10px 12px;
+    border-radius:10px;
+    cursor:pointer;
+    transition:.15s ease;
+    white-space:nowrap;
+  }
+  .btn:hover{transform: translateY(-1px); border-color:#2a3a55}
+  .btn.primary{background: linear-gradient(180deg,#1b3a6f,#15325f); border-color:#254a84; color:#dbeafe}
+  .btn.success{background: linear-gradient(180deg,#0f4b3a,#0c3a2d); border-color:#1f6b55; color:#d1fae5}
+  .btn.warn{background: linear-gradient(180deg,#5a4008,#4b3407); border-color:#8a6a19; color:#fff7ed}
+  .btn.danger{background: linear-gradient(180deg,#5a1515,#471010); border-color:#933; color:#fee2e2}
+  .btn.ghost{background:transparent;border-color:#233047}
+  .spacer{height:8px}
+
+  .pill{
+    display:inline-flex; align-items:center; gap:6px;
+    background:#0c1428; color:#cbd5e1;
+    border:1px solid #1f2b40; border-radius:999px; padding:6px 10px; font-size:12px
+  }
+  .muted{color:var(--muted)}
+  .tight{margin:0}
+
+  .list{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+  .item{
+    display:grid; grid-template-columns: auto 1fr auto auto 28px; gap:8px; align-items:center;
+    background: rgba(8,13,27,.6);
+    border:1px solid var(--border);
+    border-radius:12px; padding:8px 10px;
+  }
+  .item input[type="checkbox"]{transform: scale(1.1)}
+  .item .name{font-weight:600}
+  .qty{display:inline-flex;align-items:center;gap:6px}
+  .qty input{width:70px;text-align:center}
+  .notes{font-size:12px;color:#a5b4fc}
+  .xbtn{
+    background: transparent; border: none; color:#9fb3ff; padding:6px; cursor:pointer; border-radius:8px
+  }
+  .xbtn:hover{background:#0f1a35}
+  .table{width:100%; border-collapse: collapse; margin-top:8px}
+  .table th,.table td{border-bottom:1px solid var(--border); padding:8px; text-align:left; vertical-align:top}
+  .table th{color:#cbd5e1; font-size:13px}
+  .badge{display:inline-block; padding:3px 7px; border-radius:999px; border:1px solid #2a3a55; background:#0b1224; font-size:12px; margin-right:6px}
+  .small{font-size:12px}
+
+  .footer{
+    margin-top:14px; display:flex; gap:8px; flex-wrap:wrap; align-items:center; justify-content:space-between
+  }
+  .file{display:inline-block}
+  .hidden{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Family Packing List</h1>
+
+  <div class="grid">
+    <!-- Left: People & Person Items -->
+    <section class="card">
+      <h2>People</h2>
+      <div class="row">
+        <input id="personName" type="text" placeholder="Add person (e.g., Alice)" />
+        <button class="btn primary" id="addPersonBtn">Add Person</button>
+      </div>
+      <div class="spacer"></div>
+      <div class="row">
+        <label for="personSelect" class="tight">Selected person</label>
+        <select id="personSelect"></select>
+        <button class="btn ghost" id="renamePersonBtn" title="Rename selected person">Rename</button>
+        <button class="btn danger" id="deletePersonBtn" title="Delete selected person">Delete</button>
+      </div>
+
+      <div class="spacer"></div>
+      <h2 class="tight">Items for <span id="whoLabel">(none)</span></h2>
+
+      <div class="row">
+        <input id="itemName" type="text" placeholder="Item name (e.g., Socks)" />
+        <input id="itemQty" type="number" min="1" step="1" value="1" />
+      </div>
+      <div class="row">
+        <textarea id="itemNotes" placeholder="Notes (optional)"></textarea>
+      </div>
+      <div class="row">
+        <button class="btn primary" id="addItemBtn">Add Item</button>
+        <button class="btn warn" id="addToAllBtn" title="Add this item to everyone">Add to Everyone</button>
+        <span class="pill">Tip: Use Enter to quickly add.</span>
+      </div>
+
+      <div id="personStats" class="muted small" style="margin-top:8px"></div>
+      <div id="personList" class="list"></div>
+
+      <div class="footer">
+        <div class="row" style="gap:8px">
+          <button class="btn success" id="markAllPacked">Mark all packed</button>
+          <button class="btn ghost" id="unpackAll">Unpack all</button>
+          <button class="btn danger" id="clearPacked">Remove packed</button>
+        </div>
+        <span class="muted small">Autosaves locally.</span>
+      </div>
+    </section>
+
+    <!-- Right: Master List & Import/Export -->
+    <section class="card">
+      <h2>Master List (All People)</h2>
+      <div id="familyStats" class="muted small"></div>
+      <table class="table" id="masterTable">
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th>Total Qty</th>
+            <th>People</th>
+            <th>Packed</th>
+          </tr>
+        </thead>
+        <tbody id="masterBody"></tbody>
+      </table>
+
+      <div class="spacer"></div>
+      <h2>Import / Export</h2>
+      <div class="row">
+        <button class="btn" id="copyJsonBtn">Copy JSON</button>
+        <button class="btn" id="downloadJsonBtn">Download JSON</button>
+        <input class="file" type="file" id="fileInput" accept=".json,application/json" />
+        <button class="btn primary" id="importFileBtn">Import File</button>
+      </div>
+      <div class="spacer"></div>
+      <label for="jsonArea">Or paste JSON here and click Import</label>
+      <textarea id="jsonArea" placeholder='{"people":{"Alice":[...],"Bob":[...]}}'></textarea>
+      <div class="row">
+        <button class="btn primary" id="importTextBtn">Import from Text</button>
+        <button class="btn danger" id="resetAllBtn" title="Clear everything">Reset All</button>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+/** ---------------------------
+ * Data Model
+ * ----------------------------
+ * store = {
+ *   people: {
+ *     "Alice": [{id, name, qty, notes, packed}, ...],
+ *     "Bob":   [...]
+ *   }
+ * }
+ */
+const STORAGE_KEY = "family_packing_v1";
+
+let store = {
+  people: {}
+};
+
+// ---------- Utilities ----------
+const $ = sel => document.querySelector(sel);
+const uid = () => Math.random().toString(36).slice(2,10);
+
+function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(store)); }
+function load() {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (!raw) return;
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === "object" && parsed.people) {
+      store = parsed;
+    }
+  } catch(e){ console.warn("Failed to parse storage", e); }
+}
+
+function ensureSelectedPerson() {
+  const sel = $("#personSelect");
+  if (!sel.value || !store.people[sel.value]) {
+    const first = Object.keys(store.people)[0];
+    sel.value = first || "";
+  }
+  $("#whoLabel").textContent = $("#personSelect").value || "(none)";
+}
+
+function humanCountPacked(items){
+  const packed = items.filter(i=>i.packed).length;
+  return `${packed}/${items.length} packed`;
+}
+
+// ---------- Rendering ----------
+function renderPeopleSelect() {
+  const sel = $("#personSelect");
+  sel.innerHTML = "";
+  const names = Object.keys(store.people);
+  if (names.length === 0) {
+    const opt = document.createElement("option");
+    opt.value = "";
+    opt.textContent = "(no people yet)";
+    sel.appendChild(opt);
+  } else {
+    names.forEach(n=>{
+      const opt = document.createElement("option");
+      opt.value = n; opt.textContent = n;
+      sel.appendChild(opt);
+    });
+  }
+  ensureSelectedPerson();
+}
+
+function renderPersonList() {
+  const who = $("#personSelect").value;
+  $("#whoLabel").textContent = who || "(none)";
+  const root = $("#personList");
+  root.innerHTML = "";
+
+  if (!who || !store.people[who]) {
+    $("#personStats").textContent = "";
+    return;
+  }
+
+  const items = store.people[who];
+  $("#personStats").textContent = humanCountPacked(items);
+
+  items.forEach(it=>{
+    const row = document.createElement("div");
+    row.className = "item";
+    row.dataset.id = it.id;
+
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.checked = !!it.packed;
+    cb.addEventListener("change", ()=>{
+      it.packed = cb.checked;
+      save(); renderPersonList(); renderMaster();
+    });
+
+    const name = document.createElement("div");
+    name.className = "name";
+    name.textContent = it.name;
+
+    const notes = document.createElement("div");
+    notes.className = "notes";
+    notes.textContent = it.notes || "";
+
+    const nameBox = document.createElement("div");
+    nameBox.appendChild(name);
+    if (it.notes) nameBox.appendChild(notes);
+
+    const qtyWrap = document.createElement("div");
+    qtyWrap.className = "qty";
+    const minus = document.createElement("button"); minus.className="xbtn"; minus.textContent = "–";
+    const plus = document.createElement("button"); plus.className="xbtn"; plus.textContent = "+";
+    const qtyInput = document.createElement("input"); qtyInput.type="number"; qtyInput.min="1"; qtyInput.step="1"; qtyInput.value=it.qty||1;
+    minus.addEventListener("click", ()=>{
+      const v = Math.max(1, (parseInt(qtyInput.value)||1)-1);
+      qtyInput.value = v; it.qty = v; save(); renderMaster();
+    });
+    plus.addEventListener("click", ()=>{
+      const v = (parseInt(qtyInput.value)||1)+1;
+      qtyInput.value = v; it.qty = v; save(); renderMaster();
+    });
+    qtyInput.addEventListener("change", ()=>{
+      let v = parseInt(qtyInput.value); if (!Number.isFinite(v) || v<1) v = 1;
+      qtyInput.value = v; it.qty = v; save(); renderMaster();
+    });
+    qtyWrap.append(minus, qtyInput, plus);
+
+    const edit = document.createElement("button");
+    edit.className = "xbtn";
+    edit.title = "Edit name/notes";
+    edit.textContent = "✎";
+    edit.addEventListener("click", ()=>{
+      const newName = prompt("Item name:", it.name);
+      if (newName===null) return;
+      it.name = newName.trim() || it.name;
+      const newNotes = prompt("Notes (optional):", it.notes || "");
+      if (newNotes===null) return;
+      it.notes = (newNotes||"").trim();
+      save(); renderPersonList(); renderMaster();
+    });
+
+    const del = document.createElement("button");
+    del.className = "xbtn";
+    del.title = "Remove item";
+    del.textContent = "✕";
+    del.addEventListener("click", ()=>{
+      const idx = store.people[who].findIndex(x=>x.id===it.id);
+      if (idx>=0) {
+        store.people[who].splice(idx,1);
+        save(); renderPersonList(); renderMaster();
+      }
+    });
+
+    row.append(cb, nameBox, qtyWrap, edit, del);
+    root.appendChild(row);
+  });
+}
+
+function renderMaster() {
+  const body = $("#masterBody");
+  body.innerHTML = "";
+
+  const agg = {}; // { itemName: { totalQty, people: [{name, qty, packedCount, totalCount}] , packedCount, totalCount } }
+  for (const [person, items] of Object.entries(store.people)) {
+    items.forEach(it=>{
+      const key = it.name.trim().toLowerCase() || "(unnamed)";
+      if (!agg[key]) agg[key] = {display: it.name.trim() || "(unnamed)", totalQty:0, people:[], packedCount:0, totalCount:0};
+      agg[key].totalQty += (parseInt(it.qty)||1);
+      agg[key].totalCount += 1;
+      if (it.packed) agg[key].packedCount += 1;
+      agg[key].people.push({name: person, qty: (parseInt(it.qty)||1), packed: !!it.packed});
+    });
+  }
+
+  // Sort by name
+  const rows = Object.values(agg).sort((a,b)=>a.display.localeCompare(b.display));
+
+  // Family stats
+  let grandTotal = 0, grandPacked = 0, lineItems = 0;
+  for (const p of Object.values(store.people)) {
+    lineItems += p.length;
+    grandTotal += p.reduce((s,x)=> s + (parseInt(x.qty)||1), 0);
+    grandPacked += p.filter(x=>x.packed).reduce((s,x)=> s + (parseInt(x.qty)||1), 0);
+  }
+  $("#familyStats").textContent = `People: ${Object.keys(store.people).length} • Items: ${lineItems} • Qty packed: ${grandPacked}/${grandTotal}`;
+
+  for (const r of rows) {
+    const tr = document.createElement("tr");
+
+    const tdName = document.createElement("td");
+    tdName.textContent = r.display;
+
+    const tdTotal = document.createElement("td");
+    tdTotal.textContent = r.totalQty;
+
+    const tdPeople = document.createElement("td");
+    r.people.sort((a,b)=>a.name.localeCompare(b.name));
+    r.people.forEach(pp=>{
+      const span = document.createElement("span");
+      span.className = "badge";
+      span.textContent = `${pp.name}: ${pp.qty}${pp.packed ? " ✓" : ""}`;
+      tdPeople.appendChild(span);
+    });
+
+    const tdPacked = document.createElement("td");
+    tdPacked.textContent = `${r.packedCount}/${r.totalCount}`;
+
+    tr.append(tdName, tdTotal, tdPeople, tdPacked);
+    body.appendChild(tr);
+  }
+}
+
+// ---------- Actions ----------
+function addPerson(name){
+  const n = (name||"").trim();
+  if (!n) return;
+  if (!store.people[n]) {
+    store.people[n] = [];
+    save();
+    renderPeopleSelect();
+    $("#personSelect").value = n;
+    renderPersonList(); renderMaster();
+  } else {
+    alert("That person already exists.");
+  }
+}
+
+function renamePerson(oldName, newName){
+  const nn = (newName||"").trim();
+  if (!nn || !store.people[oldName]) return;
+  if (store.people[nn] && nn !== oldName) {
+    alert("Another person already has that name.");
+    return;
+  }
+  store.people[nn] = store.people[oldName];
+  delete store.people[oldName];
+  save();
+  renderPeopleSelect();
+  $("#personSelect").value = nn;
+  renderPersonList(); renderMaster();
+}
+
+function deletePerson(name){
+  if (!name || !store.people[name]) return;
+  if (!confirm(`Delete ${name} and all their items?`)) return;
+  delete store.people[name];
+  save();
+  renderPeopleSelect(); renderPersonList(); renderMaster();
+}
+
+function addItemTo(person, {name, qty, notes, packed=false}){
+  if (!person || !store.people[person]) return;
+  const nm = (name||"").trim();
+  if (!nm) return;
+  const it = { id: uid(), name: nm, qty: Math.max(1, parseInt(qty)||1), notes: (notes||"").trim(), packed: !!packed };
+  store.people[person].push(it);
+  save(); renderPersonList(); renderMaster();
+}
+
+function addItemToAll({name, qty, notes}){
+  const people = Object.keys(store.people);
+  if (people.length === 0) return;
+  people.forEach(p=> addItemTo(p, {name, qty, notes, packed:false}));
+}
+
+function setAllPacked(person, val){
+  if (!person || !store.people[person]) return;
+  store.people[person].forEach(i=> i.packed = !!val);
+  save(); renderPersonList(); renderMaster();
+}
+
+function removePacked(person){
+  if (!person || !store.people[person]) return;
+  store.people[person] = store.people[person].filter(i=>!i.packed);
+  save(); renderPersonList(); renderMaster();
+}
+
+// ---------- Import / Export ----------
+function exportJSON(){
+  return JSON.stringify(store, null, 2);
+}
+function download(filename, text){
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([text], {type: "application/json"}));
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 0);
+}
+function importFromObject(obj){
+  if (!obj || typeof obj !== "object" || !obj.people || typeof obj.people !== "object") {
+    alert("Invalid JSON format.");
+    return;
+  }
+  // Normalize items
+  for (const [person, items] of Object.entries(obj.people)) {
+    obj.people[person] = (items||[]).map(it=>({
+      id: it.id || uid(),
+      name: (it.name||"").toString(),
+      qty: Math.max(1, parseInt(it.qty)||1),
+      notes: (it.notes||"").toString(),
+      packed: !!it.packed
+    }));
+  }
+  store = obj;
+  save(); renderPeopleSelect(); renderPersonList(); renderMaster();
+}
+
+// ---------- Wire up ----------
+document.addEventListener("DOMContentLoaded", ()=>{
+  load();
+  renderPeopleSelect();
+  renderPersonList();
+  renderMaster();
+
+  // People
+  $("#addPersonBtn").addEventListener("click", ()=>{
+    addPerson($("#personName").value);
+    $("#personName").value = "";
+  });
+  $("#personName").addEventListener("keydown", (e)=>{
+    if (e.key==="Enter") $("#addPersonBtn").click();
+  });
+  $("#personSelect").addEventListener("change", ()=>{
+    renderPersonList();
+  });
+  $("#renamePersonBtn").addEventListener("click", ()=>{
+    const oldName = $("#personSelect").value;
+    if (!oldName) return;
+    const n = prompt("New name:", oldName);
+    if (n===null) return;
+    renamePerson(oldName, n);
+  });
+  $("#deletePersonBtn").addEventListener("click", ()=>{
+    const who = $("#personSelect").value;
+    if (!who) return;
+    deletePerson(who);
+  });
+
+  // Items
+  function addCurrentItem(toAll=false){
+    const who = $("#personSelect").value;
+    const name = $("#itemName").value;
+    const qty = $("#itemQty").value;
+    const notes = $("#itemNotes").value;
+    if (toAll) addItemToAll({name, qty, notes});
+    else addItemTo(who, {name, qty, notes});
+    $("#itemName").value = ""; $("#itemQty").value = 1; $("#itemNotes").value = "";
+  }
+  $("#addItemBtn").addEventListener("click", ()=> addCurrentItem(false));
+  $("#addToAllBtn").addEventListener("click", ()=> addCurrentItem(true));
+  $("#itemName").addEventListener("keydown", e=>{ if (e.key==="Enter") addCurrentItem(false); });
+  $("#itemQty").addEventListener("keydown", e=>{ if (e.key==="Enter") addCurrentItem(false); });
+  $("#itemNotes").addEventListener("keydown", e=>{ if (e.key==="Enter" && (e.ctrlKey||e.metaKey)) addCurrentItem(false); });
+
+  // Bulk actions
+  $("#markAllPacked").addEventListener("click", ()=>{
+    const who = $("#personSelect").value; setAllPacked(who, true);
+  });
+  $("#unpackAll").addEventListener("click", ()=>{
+    const who = $("#personSelect").value; setAllPacked(who, false);
+  });
+  $("#clearPacked").addEventListener("click", ()=>{
+    const who = $("#personSelect").value; removePacked(who);
+  });
+
+  // Export/Import
+  $("#copyJsonBtn").addEventListener("click", async ()=>{
+    try {
+      await navigator.clipboard.writeText(exportJSON());
+      alert("JSON copied to clipboard.");
+    } catch(e){
+      alert("Could not copy. Please use Download JSON instead.");
+    }
+  });
+  $("#downloadJsonBtn").addEventListener("click", ()=>{
+    const dt = new Date();
+    const stamp = dt.toISOString().slice(0,19).replace(/[:T]/g,'-');
+    download(`packing-${stamp}.json`, exportJSON());
+  });
+  $("#importFileBtn").addEventListener("click", ()=>{
+    const f = $("#fileInput").files[0];
+    if (!f) { alert("Choose a JSON file first."); return; }
+    const reader = new FileReader();
+    reader.onload = () => {
+      try { importFromObject(JSON.parse(reader.result)); }
+      catch(e){ alert("Invalid JSON."); }
+    };
+    reader.readAsText(f);
+  });
+  $("#importTextBtn").addEventListener("click", ()=>{
+    const txt = $("#jsonArea").value.trim();
+    if (!txt) { alert("Paste JSON first."); return; }
+    try { importFromObject(JSON.parse(txt)); }
+    catch(e){ alert("Invalid JSON."); }
+  });
+  $("#resetAllBtn").addEventListener("click", ()=>{
+    if (!confirm("Clear everything? This cannot be undone.")) return;
+    store = { people: {} };
+    save(); renderPeopleSelect(); renderPersonList(); renderMaster();
+  });
+});
+</script>
+</body>
+</html>
