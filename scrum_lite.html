@@ -1,0 +1,1169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ScrumLite — single-file MVP</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #171a21;
+    --muted: #8b93a7;
+    --text: #e6e9ef;
+    --accent: #6ea8fe;
+    --danger: #ff6b6b;
+    --ok: #44cf6c;
+    --warn: #f5a524;
+    --card: #1f2430;
+    --chip: #2a3140;
+    --border: #2b3244;
+    --shadow: rgba(0,0,0,.35);
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, "Helvetica Neue", Arial, "Apple Color Emoji","Segoe UI Emoji";
+    display: grid;
+    grid-template-rows: auto auto 1fr auto;
+    overflow: hidden;
+  }
+  header {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: .5rem;
+    align-items: center;
+    padding: .6rem .8rem;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+  }
+  header h1 { margin: 0; font-size: 16px; font-weight: 600; letter-spacing: .3px; }
+  header .sub { color: var(--muted); font-weight: 400; }
+  header .row { display: flex; gap: .4rem; align-items: center; }
+  input[type="text"], input[type="number"], input[type="date"], input[type="url"], textarea, select {
+    background: #0c0f14; color: var(--text); border: 1px solid var(--border);
+    padding: .45rem .55rem; border-radius: 8px; outline: none; width: 100%;
+  }
+  textarea { min-height: 70px; resize: vertical; }
+  .btn {
+    background: #1b2332; color: var(--text); border: 1px solid var(--border);
+    padding: .45rem .6rem; border-radius: 8px; cursor: pointer; user-select: none;
+  }
+  .btn:hover { background: #212a3d; }
+  .btn.primary { border-color: #3961ff55; background: #1c2440; }
+  .btn.accent { background: #18223a; border: 1px solid #2d3e6e; color: #bcd0ff; }
+  .btn.ok { border-color: #2f8f4c55; background: #112516; color: #aaf0c0; }
+  .btn.warn { border-color: #8a5d1a55; background: #241a0f; color: #ffd49a; }
+  .btn.danger { border-color: #8f2f2f55; background: #2a1313; color: #ffc2c2; }
+  .chip {
+    display: inline-flex; gap: .35rem; align-items: center;
+    background: var(--chip); border: 1px solid var(--border); color: #cbd5e1;
+    padding: .15rem .45rem; border-radius: 999px; font-size: 12px;
+  }
+  .sep { height: 1px; background: var(--border); margin: .5rem 0; }
+
+  /* filters */
+  .toolbar {
+    display: grid; grid-template-columns: 1fr auto auto auto; gap: .5rem;
+    padding: .5rem .8rem; background: #0b0e13; border-bottom: 1px solid var(--border);
+  }
+  .toolbar .filters { display: flex; gap: .4rem; align-items: center; flex-wrap: wrap; }
+
+  /* board */
+  .board {
+    display: grid; grid-auto-flow: column; grid-auto-columns: minmax(280px, 1fr);
+    gap: .6rem; padding: .6rem .6rem 1rem; overflow: auto;
+  }
+  .column {
+    display: grid; grid-template-rows: auto 1fr; background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+    min-height: 60vh;
+  }
+  .col-head {
+    padding: .5rem .6rem; border-bottom: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .col-head .title { font-weight: 600; }
+  .col-body { padding: .5rem; overflow: auto; }
+  .dropzone { min-height: 40px; padding-bottom: .2rem; }
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    box-shadow: 0 4px 10px var(--shadow); padding: .5rem .55rem; margin-bottom: .5rem;
+    cursor: grab;
+  }
+  .card.dragging { opacity: .6; }
+  .card .sum { font-weight: 600; }
+  .badges { display: flex; gap: .3rem; flex-wrap: wrap; margin-top: .3rem; }
+  .badge { font-size: 11px; padding: .05rem .4rem; background: #121722; border: 1px solid var(--border); border-radius: 999px; color: #aabde6; }
+  .badge.due { color: #ffe2b5; border-color: #8a5d1a55; }
+  .badge.blocked { color: #ffc2c2; border-color: #8f2f2f55; }
+  .selected { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  /* drawer */
+  .drawer {
+    position: fixed; top: 0; right: 0; bottom: 0; width: 420px; max-width: 100%;
+    background: #0b0e13; border-left: 1px solid var(--border);
+    transform: translateX(100%); transition: transform .25s ease;
+    display: grid; grid-template-rows: auto 1fr auto;
+    z-index: 10;
+  }
+  .drawer.open { transform: translateX(0); }
+  .drawer header { background: #0b0e13; border-bottom: 1px solid var(--border); }
+  .drawer .content { overflow: auto; padding: .8rem; display: grid; gap: .6rem; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
+  .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: .5rem; }
+  .kv { display: grid; gap: .35rem; }
+  .list { display: grid; gap: .4rem; }
+  .list-item { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: .45rem; }
+  .note-head { display:flex; justify-content: space-between; gap:.4rem; color: var(--muted); font-size: 12px; }
+  .drawer footer { padding: .6rem .8rem; border-top: 1px solid var(--border); display:flex; gap:.5rem; justify-content: space-between; }
+
+  /* modals */
+  dialog {
+    border: 1px solid var(--border); background: #0b0e13; color: var(--text); border-radius: 12px;
+    box-shadow: 0 10px 40px var(--shadow); padding: .8rem; width: 640px; max-width: calc(100% - 2rem);
+  }
+  dialog::backdrop { background: rgba(0,0,0,.5); }
+  .modal-head { font-weight: 700; margin-bottom: .5rem; }
+  .modal-actions { display:flex; gap:.5rem; justify-content: flex-end; margin-top: .6rem; }
+
+  /* footer add */
+  .adder {
+    display: grid; grid-template-columns: 1fr auto auto; gap: .5rem;
+    padding: .6rem .8rem; background: var(--panel); border-top: 1px solid var(--border);
+  }
+
+  /* analytics */
+  .analytics {
+    display: grid; grid-template-columns: 220px 1fr; gap: .8rem;
+    padding: .5rem .8rem; background: #0b0e13; border-top: 1px solid var(--border);
+  }
+  canvas { display: block; width: 100%; height: 100%; }
+
+  /* small */
+  @media (max-width: 1000px){
+    .analytics { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>ScrumLite <span class="sub">• <span id="projectKey">DP</span> • <span id="sprintLabel"></span></span></h1>
+  <div class="row">
+    <input id="searchInput" type="text" placeholder="Search summary, labels, assignee, comments ( / )" />
+    <button class="btn" id="clearSearchBtn" title="Clear search">Clear</button>
+  </div>
+  <div class="row">
+    <button class="btn" id="chooseFolderBtn" title="Save JSON to a chosen folder (Brave File System Access)">Choose Folder</button>
+    <button class="btn" id="exportBtn" title="Export current month JSON">Export</button>
+    <button class="btn" id="importBtn" title="Import a month JSON">Import</button>
+    <button class="btn ok" id="carryBtn" title="Start new month and carry unfinished tasks">New Month</button>
+    <button class="btn" id="settingsBtn">Settings</button>
+  </div>
+</header>
+
+<div class="toolbar">
+  <div class="filters">
+    <span class="chip">Filter:</span>
+    <select id="statusFilter">
+      <option value="">All Statuses</option>
+    </select>
+    <input id="assigneeFilter" type="text" placeholder="Assignee" style="max-width: 160px;">
+    <input id="labelFilter" type="text" placeholder="Label" style="max-width: 160px;">
+    <select id="sprintPicker" title="Switch month (read-only unless it's current)">
+    </select>
+  </div>
+  <div class="filters">
+    <span class="chip">Stats:</span>
+    <span id="openCount" class="chip">Open: 0</span>
+    <span id="blockedCount" class="chip">Blocked: 0</span>
+    <span id="reviewCount" class="chip">In Review: 0</span>
+  </div>
+  <div class="filters">
+    <span class="chip">Mode:</span>
+    <span id="storageModeChip" class="chip">Browser</span>
+  </div>
+  <div class="filters">
+    <span class="chip">Author:</span>
+    <span id="authorChip" class="chip">Me</span>
+  </div>
+</div>
+
+<div class="board" id="board"></div>
+
+<div class="analytics">
+  <div>
+    <canvas id="donut" width="220" height="220"></canvas>
+  </div>
+  <div style="display:grid; gap:.5rem;">
+    <canvas id="bars" height="120"></canvas>
+    <small style="color:var(--muted)">Completion is by <b>count</b> for MVP. You can switch to story points later.</small>
+  </div>
+</div>
+
+<div class="adder">
+  <input id="quickAdd" type="text" placeholder="N — Quick add summary (60 char limit). Enter to add to Backlog." maxlength="60">
+  <select id="quickPriority">
+    <option value="P3">P3</option>
+    <option value="P2">P2</option>
+    <option value="P1">P1</option>
+    <option value="P4">P4</option>
+  </select>
+  <button class="btn primary" id="addBtn">Add</button>
+</div>
+
+<!-- Task drawer -->
+<aside id="drawer" class="drawer" aria-hidden="true">
+  <header>
+    <div style="display:flex; align-items:center; gap:.5rem; padding:.6rem .8rem;">
+      <span id="drawerId" class="chip">ID</span>
+      <span id="drawerStatus" class="chip"></span>
+      <button class="btn" id="closeDrawer" style="margin-left:auto">Close</button>
+    </div>
+  </header>
+  <div class="content">
+    <div class="kv">
+      <label>Summary</label>
+      <input id="d_summary" type="text" maxlength="60" />
+      <small id="sumWarn" style="color:var(--warn); display:none;">60 char limit reached</small>
+    </div>
+    <div class="row3">
+      <div class="kv">
+        <label>Status</label>
+        <select id="d_status"></select>
+      </div>
+      <div class="kv">
+        <label>Priority</label>
+        <select id="d_priority">
+          <option>P1</option><option selected>P2</option><option>P3</option><option>P4</option>
+        </select>
+      </div>
+      <div class="kv">
+        <label>Assignee</label>
+        <input id="d_assignee" type="text" />
+      </div>
+    </div>
+    <div class="row3">
+      <div class="kv">
+        <label>Labels (comma)</label>
+        <input id="d_labels" type="text" placeholder="build,infra" />
+      </div>
+      <div class="kv">
+        <label>Epic</label>
+        <input id="d_epic" type="text" />
+      </div>
+      <div class="kv">
+        <label>Story Points</label>
+        <input id="d_points" type="number" min="0" step="1" />
+      </div>
+    </div>
+    <div class="row2">
+      <div class="kv">
+        <label>Due Date</label>
+        <input id="d_due" type="date" />
+      </div>
+      <div class="kv">
+        <label>Sprint (code)</label>
+        <input id="d_sprint" type="text" />
+      </div>
+    </div>
+
+    <div class="kv">
+      <label>Description</label>
+      <textarea id="d_desc" placeholder="Details… You can reference #TASKID to link internally."></textarea>
+    </div>
+
+    <div class="row2">
+      <div class="kv">
+        <label>Primary Link (title + URL)</label>
+        <div class="row2">
+          <input id="d_link_title" type="text" placeholder="Spec / PR / Doc" />
+          <input id="d_link_url" type="url" placeholder="https://…" />
+        </div>
+      </div>
+      <div class="kv">
+        <label>Blocked By (IDs or text)</label>
+        <input id="d_blocked" type="text" placeholder="DP-20250823-112233, …" />
+      </div>
+    </div>
+
+    <div class="kv">
+      <label>Acceptance Criteria</label>
+      <div id="acList" class="list"></div>
+      <div class="row2">
+        <input id="acNew" type="text" placeholder="Add criterion text…" />
+        <button class="btn" id="acAdd">Add</button>
+      </div>
+    </div>
+
+    <div class="kv">
+      <label>Notes & Comments</label>
+      <div id="notesList" class="list"></div>
+      <div class="row2">
+        <input id="noteNew" type="text" placeholder=" . — Add a comment…" />
+        <button class="btn" id="noteAdd">Comment</button>
+      </div>
+    </div>
+
+    <div class="kv">
+      <label>Activity</label>
+      <div id="activityList" class="list"></div>
+    </div>
+  </div>
+  <footer>
+    <div class="row" style="gap:.4rem">
+      <button class="btn danger" id="deleteTaskBtn">Delete</button>
+    </div>
+    <div class="row" style="gap:.4rem">
+      <button class="btn ok" id="saveTaskBtn">Save</button>
+    </div>
+  </footer>
+</aside>
+
+<!-- Settings -->
+<dialog id="settingsDlg">
+  <div class="modal-head">Settings</div>
+  <div class="kv">
+    <label>Display Name (author for comments)</label>
+    <input id="displayNameInput" type="text" placeholder="Me" />
+  </div>
+  <div class="sep"></div>
+  <div class="kv">
+    <label>Project Key</label>
+    <input id="projectKeyInput" type="text" placeholder="DP" />
+  </div>
+  <div class="kv">
+    <label>Retention Window</label>
+    <select id="retentionSelect">
+      <option value="12" selected>Keep last 12 months (including current)</option>
+      <option value="6">Keep last 6 months</option>
+      <option value="24">Keep last 24 months</option>
+    </select>
+  </div>
+  <div class="modal-actions">
+    <button class="btn" id="settingsCancel">Cancel</button>
+    <button class="btn ok" id="settingsSave">Save</button>
+  </div>
+</dialog>
+
+<!-- Carry Over -->
+<dialog id="carryDlg">
+  <div class="modal-head">Start New Month & Carry Unfinished</div>
+  <div id="carryText" style="color:var(--muted); margin-bottom:.5rem;"></div>
+  <div id="carryList" class="list" style="max-height: 40vh; overflow:auto;"></div>
+  <div class="modal-actions">
+    <button class="btn" id="carryCancel">Cancel</button>
+    <button class="btn ok" id="carryConfirm">Create New Month</button>
+  </div>
+</dialog>
+
+<input id="fileInput" type="file" accept="application/json" hidden />
+
+<script>
+/* =======================
+   ScrumLite MVP (single-file)
+   ======================= */
+
+/* --- Constants & helpers --- */
+const STATUSES = ["Backlog","Ready","In Progress","In Review","Blocked","Prototyping","Done"];
+const STATUS_OPEN = new Set(["Backlog","Ready","In Progress","In Review","Blocked","Prototyping"]);
+const MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
+
+const $ = sel => document.querySelector(sel);
+const $$ = sel => Array.from(document.querySelectorAll(sel));
+const nowIso = () => new Date().toISOString();
+
+function pad(n){ return n.toString().padStart(2,'0'); }
+function yyyymmdd_hhmmss(date=new Date()){
+  const y = date.getFullYear();
+  const m = pad(date.getMonth()+1);
+  const d = pad(date.getDate());
+  const h = pad(date.getHours());
+  const mi = pad(date.getMinutes());
+  const s = pad(date.getSeconds());
+  return `${y}${m}${d}-${h}${mi}${s}`;
+}
+function monthKeyFromDate(d=new Date()){
+  return `${d.getFullYear()}-${MONTHS[d.getMonth()]}`;
+}
+function prevMonthKey(key){
+  const [y, mon] = key.split("-");
+  let year = parseInt(y,10);
+  let m = MONTHS.indexOf(mon);
+  m--; if(m<0){ m=11; year--; }
+  return `${year}-${MONTHS[m]}`;
+}
+function nextMonthKey(key){
+  const [y, mon] = key.split("-");
+  let year = parseInt(y,10);
+  let m = MONTHS.indexOf(mon);
+  m++; if(m>11){ m=0; year++; }
+  return `${year}-${MONTHS[m]}`;
+}
+function cmpMonth(a,b){
+  const [ya, ma] = a.split("-"); const [yb, mb] = b.split("-");
+  const ia = parseInt(ya,10)*12 + MONTHS.indexOf(ma);
+  const ib = parseInt(yb,10)*12 + MONTHS.indexOf(mb);
+  return ia-ib;
+}
+function withinLastNMonths(key, current, n){
+  // keep current and previous n-1 if n includes current
+  let k=key, i=0;
+  while(i<n){
+    if(k===key && k===current) return true;
+    if(k===key) return true;
+    if(k===current) return true;
+    if(k===key) return true;
+    if(k===current) return true;
+    k = prevMonthKey(k);
+    i++;
+  }
+  // Evaluate via difference:
+  const diff = Math.abs(cmpMonth(key, current));
+  return diff < n;
+}
+function generateTaskId(projectKey){
+  return `${projectKey}-${yyyymmdd_hhmmss()}-${(Math.random()*1000|0).toString().padStart(3,'0')}`;
+}
+function parseLabels(s){ return s.split(",").map(x=>x.trim()).filter(Boolean); }
+function renderLabels(arr){ return arr && arr.length ? arr.join(", ") : ""; }
+function linkifyIds(text){
+  if(!text) return "";
+  // simple: #DP-YYYYMMDD-HHMMSS-###
+  return text.replace(/#([A-Z]{1,10}-\d{8}-\d{6}-\d{3})/g, (m,id)=>`<a href="#" data-goto="${id}" class="inline-link">${m}</a>`);
+}
+
+/* --- Persistent settings --- */
+const SETTINGS_KEY = "scrumlite:settings";
+const STORE_PREFIX = "scrumlite:board_";
+let settings = loadSettings();
+function loadSettings(){
+  const s = localStorage.getItem(SETTINGS_KEY);
+  if(s){ try { return JSON.parse(s); } catch{} }
+  return {
+    displayName: "Me",
+    projectKey: "DP",
+    retention: 12
+  };
+}
+function saveSettings(){
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  $('#authorChip').textContent = settings.displayName || "Me";
+  $('#projectKey').textContent = settings.projectKey || "DP";
+}
+
+/* --- Storage backends: Browser (localStorage) + optional Folder (FS Access) --- */
+let folderHandle = null;
+let storageMode = "browser"; // 'browser' or 'folder'
+function setStorageMode(m){
+  storageMode = m;
+  $('#storageModeChip').textContent = (m==='folder'?'Folder':'Browser');
+}
+
+/* Local browser storage */
+async function browserReadMonth(key){
+  const raw = localStorage.getItem(STORE_PREFIX+key);
+  if(!raw) return null;
+  try { return JSON.parse(raw); } catch { return null; }
+}
+async function browserWriteMonth(key, data){
+  localStorage.setItem(STORE_PREFIX+key, JSON.stringify(data));
+}
+async function browserListMonths(){
+  return Object.keys(localStorage)
+    .filter(k=>k.startsWith(STORE_PREFIX))
+    .map(k=>k.replace(STORE_PREFIX,""))
+    .sort(cmpMonth);
+}
+async function browserDeleteMonth(key){
+  localStorage.removeItem(STORE_PREFIX+key);
+}
+
+/* File System Access (optional) */
+async function ensureFolder(){
+  if(!folderHandle) throw new Error("No folder selected");
+}
+async function folderReadMonth(key){
+  await ensureFolder();
+  try {
+    const f = await folderHandle.getFileHandle(`board_${key}.json`, { create: false });
+    const file = await f.getFile();
+    const text = await file.text();
+    return JSON.parse(text);
+  } catch(e){ return null; }
+}
+async function folderWriteMonth(key, data){
+  await ensureFolder();
+  const fh = await folderHandle.getFileHandle(`board_${key}.json`, { create: true });
+  const ws = await fh.createWritable();
+  await ws.write(JSON.stringify(data, null, 2));
+  await ws.close();
+}
+async function folderListMonths(){
+  await ensureFolder();
+  const months = [];
+  for await (const entry of folderHandle.values()){
+    if(entry.kind === "file" && /^board_\d{4}-(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\.json$/.test(entry.name)){
+      months.push(entry.name.replace("board_","").replace(".json",""));
+    }
+  }
+  months.sort(cmpMonth);
+  return months;
+}
+async function folderDeleteMonth(key){
+  await ensureFolder();
+  await folderHandle.removeEntry(`board_${key}.json`, { recursive: false });
+}
+
+/* unified */
+async function readMonth(key){ return storageMode==='folder' ? folderReadMonth(key) : browserReadMonth(key); }
+async function writeMonth(key, data){ return storageMode==='folder' ? folderWriteMonth(key,data) : browserWriteMonth(key,data); }
+async function listMonths(){ return storageMode==='folder' ? folderListMonths() : browserListMonths(); }
+async function deleteMonth(key){ return storageMode==='folder' ? folderDeleteMonth(key) : browserDeleteMonth(key); }
+
+/* --- App state --- */
+let currentMonth = monthKeyFromDate();
+let state = null; // { meta, sprint, tasks: [] }
+let currentTaskId = null;
+
+/* --- Init UI pieces --- */
+function fillStatusSelects(){
+  const sel = $('#statusFilter');
+  sel.innerHTML = '<option value="">All Statuses</option>';
+  STATUSES.forEach(s=> sel.innerHTML += `<option>${s}</option>`);
+  const editSel = $('#d_status');
+  editSel.innerHTML = '';
+  STATUSES.forEach(s=> editSel.innerHTML += `<option>${s}</option>`);
+}
+fillStatusSelects();
+$('#sprintLabel').textContent = currentMonth;
+
+/* --- Render board --- */
+function renderBoard(){
+  const board = $('#board');
+  board.innerHTML = '';
+  const search = $('#searchInput').value.trim().toLowerCase();
+  const fStatus = $('#statusFilter').value;
+  const fAssignee = $('#assigneeFilter').value.trim().toLowerCase();
+  const fLabel = $('#labelFilter').value.trim().toLowerCase();
+
+  let open=0, blocked=0, inrev=0;
+
+  STATUSES.forEach(status=>{
+    const col = document.createElement('section');
+    col.className = 'column';
+    col.dataset.status = status;
+    col.innerHTML = `
+      <div class="col-head">
+        <div class="title">${status}</div>
+        <div class="chip">${state.tasks.filter(t=>t.status===status).length}</div>
+      </div>
+      <div class="col-body">
+        <div class="dropzone" data-status="${status}"></div>
+      </div>
+    `;
+    const zone = col.querySelector('.dropzone');
+    zone.addEventListener('dragover', e=>{ e.preventDefault(); });
+    zone.addEventListener('drop', e=>{
+      e.preventDefault();
+      const id = e.dataTransfer.getData('text/plain');
+      moveTaskStatus(id, status);
+    });
+
+    state.tasks
+      .filter(t=>t.status===status)
+      .filter(t=>{
+        if(search){
+          const hay = [
+            t.summary, t.description, (t.assignee||""), (t.epic||""),
+            (t.labels||[]).join(','), (t.notes_and_comments||[]).map(n=>n.text).join(' ')
+          ].join(' ').toLowerCase();
+          if(!hay.includes(search)) return false;
+        }
+        if(fStatus && t.status!==fStatus) return false;
+        if(fAssignee && (t.assignee||"").toLowerCase()!==fAssignee) return false;
+        if(fLabel && !(t.labels||[]).some(l=>l.toLowerCase()===fLabel)) return false;
+        return true;
+      })
+      .forEach(t=>{
+        const card = document.createElement('article');
+        card.className = 'card';
+        card.draggable = true;
+        card.dataset.id = t.id;
+        card.addEventListener('dragstart', e=>{
+          card.classList.add('dragging');
+          e.dataTransfer.setData('text/plain', t.id);
+        });
+        card.addEventListener('dragend', ()=>card.classList.remove('dragging'));
+        card.addEventListener('click', ()=> openDrawer(t.id));
+
+        const dueBadge = t.due_at ? `<span class="badge due">Due ${t.due_at}</span>` : '';
+        const blockedBadge = (t.blocked_by && t.blocked_by.length) ? `<span class="badge blocked">Blocked</span>` : '';
+        const prBadge = t.priority ? `<span class="badge">${t.priority}</span>` : '';
+        const assBadge = t.assignee ? `<span class="badge">@${t.assignee}</span>` : '';
+        const lbBadge = (t.labels||[]).map(l=>`<span class="badge">#${l}</span>`).join('');
+
+        card.innerHTML = `
+          <div class="sum">${t.summary}</div>
+          <div class="badges">
+            ${prBadge}${assBadge}${lbBadge}${dueBadge}${blockedBadge}
+          </div>
+        `;
+        zone.appendChild(card);
+
+        if(STATUS_OPEN.has(t.status)) open++;
+        if(t.status==="Blocked") blocked++;
+        if(t.status==="In Review") inrev++;
+      });
+
+    board.appendChild(col);
+  });
+
+  $('#openCount').textContent = `Open: ${open}`;
+  $('#blockedCount').textContent = `Blocked: ${blocked}`;
+  $('#reviewCount').textContent = `In Review: ${inrev}`;
+  renderCharts();
+}
+
+/* --- Charts (simple Canvas) --- */
+function renderCharts(){
+  // Donut: Done vs Not Done (by count)
+  const done = state.tasks.filter(t=>t.status==="Done").length;
+  const total = state.tasks.length || 1;
+  const notDone = total - done;
+
+  const c = $('#donut');
+  const ctx = c.getContext('2d');
+  const W = c.width, H=c.height, cx=W/2, cy=H/2, r=Math.min(W,H)/2-10, thick=26;
+
+  ctx.clearRect(0,0,W,H);
+  const drawArc = (start, frac, color)=>{
+    ctx.beginPath();
+    ctx.lineWidth = thick;
+    ctx.strokeStyle = color;
+    ctx.arc(cx,cy,r,start, start+frac*2*Math.PI);
+    ctx.stroke();
+  };
+  drawArc(-Math.PI/2, 1, "#1e2a3f"); // bg ring
+  const fracDone = done/total;
+  drawArc(-Math.PI/2, fracDone, "#4cc2ff");
+  ctx.fillStyle = "#cbd5e1";
+  ctx.textAlign="center";
+  ctx.font="bold 20px system-ui";
+  ctx.fillText(`${Math.round(fracDone*100)}%`, cx, cy+6);
+
+  // Bars: per assignee completion by count
+  const b = $('#bars');
+  const bctx = b.getContext('2d');
+  const BW = b.width = b.clientWidth || 600;
+  const BH = b.height;
+  bctx.clearRect(0,0,BW,BH);
+
+  const assignees = Array.from(new Set(state.tasks.map(t=>t.assignee||"Unassigned")));
+  const rows = assignees.map(a=>{
+    const mine = state.tasks.filter(t=>(t.assignee||"Unassigned")===a);
+    const d = mine.filter(t=>t.status==="Done").length;
+    const pct = mine.length? (d/mine.length):0;
+    return { a, pct, d, total: mine.length };
+  }).sort((x,y)=> y.pct - x.pct);
+
+  const rowH = 22, gap=8, left=90, right=12, top=8;
+  rows.forEach((r, i)=>{
+    const y = top + i*(rowH+gap);
+    // label
+    bctx.fillStyle = "#aabde6"; bctx.font="12px system-ui"; bctx.textAlign="right";
+    bctx.fillText(r.a, left-6, y+rowH-6);
+    // bar bg
+    const w = BW - left - right;
+    bctx.fillStyle = "#1e2a3f";
+    bctx.fillRect(left, y, w, rowH);
+    // bar fg
+    bctx.fillStyle = "#4cc2ff";
+    bctx.fillRect(left, y, Math.round(w*r.pct), rowH);
+    // pct text
+    bctx.fillStyle = "#cbd5e1"; bctx.textAlign="left";
+    bctx.fillText(`${Math.round(r.pct*100)}% (${r.d}/${r.total})`, left+6, y+rowH-6);
+  });
+}
+
+/* --- CRUD helpers --- */
+function ensureStateForMonth(key){
+  if(!state){
+    state = {
+      meta: {
+        project_key: settings.projectKey,
+        board_id: "default",
+        month: key,
+        generated_at: nowIso(),
+        version: 1
+      },
+      sprint: {
+        code: key,
+        start: `${key}-01`,
+        end: key, // cosmetic
+        goal: ""
+      },
+      tasks: []
+    };
+  }
+}
+function touchUpdated(t){
+  t.updated_at = nowIso();
+  state.meta.generated_at = nowIso();
+}
+
+/* --- Persistence (save current month) --- */
+async function saveCurrent(){
+  ensureStateForMonth(currentMonth);
+  await writeMonth(currentMonth, state);
+  // update month list and picker
+  await refreshMonthPicker();
+}
+
+/* --- Load a month into memory --- */
+async function loadMonthIntoState(key){
+  const data = await readMonth(key);
+  if(data){ state = data; }
+  else {
+    state = null;
+    ensureStateForMonth(key);
+    await saveCurrent();
+  }
+  currentMonth = key;
+  $('#sprintLabel').textContent = currentMonth;
+  $('#d_sprint').value = currentMonth;
+  await refreshMonthPicker();
+  renderBoard();
+}
+
+/* --- Month picker & retention --- */
+async function refreshMonthPicker(){
+  const months = await listMonths();
+  const picker = $('#sprintPicker');
+  picker.innerHTML = '';
+  months.forEach(m=>{
+    const opt = document.createElement('option');
+    opt.value = m; opt.textContent = m + (m===currentMonth?" • current":"");
+    picker.appendChild(opt);
+  });
+  if(!months.includes(currentMonth)){
+    const opt = document.createElement('option');
+    opt.value = currentMonth; opt.textContent = currentMonth + " • current";
+    picker.appendChild(opt);
+  }
+  picker.value = currentMonth;
+}
+
+/* --- Retention: keep last N incl. current --- */
+async function enforceRetention(){
+  const months = await listMonths();
+  const sorted = months.concat(currentMonth).filter((v,i,a)=>a.indexOf(v)===i).sort(cmpMonth);
+  const keep = new Set();
+  // last settings.retention months including current
+  let k = currentMonth;
+  for(let i=0;i<settings.retention;i++){
+    keep.add(k);
+    k = prevMonthKey(k);
+  }
+  const toDelete = sorted.filter(m=>!keep.has(m) && cmpMonth(m, currentMonth)<0);
+  for(const m of toDelete){
+    await deleteMonth(m);
+  }
+}
+
+/* --- Task operations --- */
+function moveTaskStatus(id, status){
+  const t = state.tasks.find(x=>x.id===id);
+  if(!t) return;
+  if(t.status!==status){
+    const from = t.status;
+    t.status = status;
+    (t.activity ||= []).push({ ts: nowIso(), type: "status", from, to: status });
+    touchUpdated(t);
+    saveCurrent().then(renderBoard);
+  }
+}
+function upsertTask(task){
+  const i = state.tasks.findIndex(x=>x.id===task.id);
+  if(i>=0) state.tasks[i] = task; else state.tasks.push(task);
+  touchUpdated(task);
+  return saveCurrent().then(renderBoard);
+}
+function deleteTask(id){
+  state.tasks = state.tasks.filter(t=>t.id!==id);
+  return saveCurrent().then(()=>{
+    closeDrawer();
+    renderBoard();
+  });
+}
+
+/* --- Drawer --- */
+function openDrawer(id){
+  currentTaskId = id;
+  const t = state.tasks.find(x=>x.id===id);
+  if(!t) return;
+  $('#drawerId').textContent = t.id;
+  $('#drawerStatus').textContent = t.status;
+  $('#d_summary').value = t.summary || "";
+  $('#d_status').value = t.status || "Backlog";
+  $('#d_priority').value = t.priority || "P2";
+  $('#d_assignee').value = t.assignee || "";
+  $('#d_labels').value = renderLabels(t.labels||[]);
+  $('#d_epic').value = t.epic || "";
+  $('#d_points').value = t.story_points ?? "";
+  $('#d_due').value = t.due_at || "";
+  $('#d_sprint').value = t.sprint || currentMonth;
+  $('#d_desc').value = t.description || "";
+  $('#d_link_title').value = (t.links && t.links.title) || "";
+  $('#d_link_url').value = (t.links && t.links.url) || "";
+  $('#d_blocked').value = (t.blocked_by||[]).join(", ");
+
+  // AC
+  const acList = $('#acList'); acList.innerHTML = '';
+  (t.acceptance_criteria||[]).forEach((ac, idx)=>{
+    const item = document.createElement('div');
+    item.className = 'list-item';
+    item.innerHTML = `<label style="display:flex; gap:.5rem; align-items:center">
+      <input type="checkbox" ${ac.done?'checked':''} data-ac="${idx}" />
+      <span>${ac.text}</span>
+      <button class="btn" data-delac="${idx}" style="margin-left:auto">Remove</button>
+    </label>`;
+    acList.appendChild(item);
+  });
+
+  // Notes
+  const notesList = $('#notesList'); notesList.innerHTML = '';
+  (t.notes_and_comments||[]).slice().reverse().forEach(n=>{
+    const item = document.createElement('div');
+    item.className = 'list-item';
+    item.innerHTML = `
+      <div class="note-head"><span>${n.author||"Me"}</span><span>${new Date(n.ts).toLocaleString()}</span></div>
+      <div class="note-body">${linkifyIds(escapeHtml(n.text))}</div>
+    `;
+    notesList.appendChild(item);
+  });
+
+  // Activity
+  const act = $('#activityList'); act.innerHTML = '';
+  (t.activity||[]).slice().reverse().forEach(a=>{
+    let txt = '';
+    if(a.type==="status") txt = `Moved ${a.from} → ${a.to}`;
+    else if(a.type==="edit") txt = `Edited ${a.field}: "${a.from}" → "${a.to}"`;
+    else txt = a.type;
+    const item = document.createElement('div');
+    item.className = 'list-item';
+    item.textContent = `${new Date(a.ts).toLocaleString()} — ${txt}`;
+    act.appendChild(item);
+  });
+
+  $('#drawer').classList.add('open');
+  $('#drawer').setAttribute('aria-hidden','false');
+}
+function closeDrawer(){
+  $('#drawer').classList.remove('open');
+  $('#drawer').setAttribute('aria-hidden','true');
+  currentTaskId = null;
+}
+$('#closeDrawer').addEventListener('click', closeDrawer);
+
+function escapeHtml(s){
+  return (s||"").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[c]));
+}
+
+/* --- Quick add --- */
+$('#addBtn').addEventListener('click', ()=>{
+  const sum = $('#quickAdd').value.trim();
+  if(!sum) return;
+  const t = {
+    id: generateTaskId(settings.projectKey),
+    summary: sum,
+    description: "",
+    status: "Backlog",
+    priority: $('#quickPriority').value || "P3",
+    assignee: "",
+    labels: [],
+    epic: "",
+    sprint: currentMonth,
+    story_points: null,
+    due_at: null,
+    links: { title: "", url: "" },
+    blocked_by: [],
+    acceptance_criteria: [],
+    notes_and_comments: [],
+    activity: [{ ts: nowIso(), type: "created" }],
+    created_at: nowIso(),
+    updated_at: nowIso()
+  };
+  $('#quickAdd').value = "";
+  upsertTask(t);
+});
+$('#quickAdd').addEventListener('keydown', e=>{
+  if(e.key==='Enter'){ e.preventDefault(); $('#addBtn').click(); }
+});
+
+/* --- Save task from drawer --- */
+$('#saveTaskBtn').addEventListener('click', ()=>{
+  if(!currentTaskId) return;
+  const t = state.tasks.find(x=>x.id===currentTaskId);
+  const prev = JSON.parse(JSON.stringify(t));
+
+  t.summary = $('#d_summary').value.trim();
+  t.status = $('#d_status').value;
+  t.priority = $('#d_priority').value;
+  t.assignee = $('#d_assignee').value.trim();
+  t.labels = parseLabels($('#d_labels').value);
+  t.epic = $('#d_epic').value.trim();
+  t.story_points = $('#d_points').value ? parseInt($('#d_points').value,10) : null;
+  t.due_at = $('#d_due').value || null;
+  t.sprint = $('#d_sprint').value.trim() || currentMonth;
+  t.description = $('#d_desc').value;
+
+  t.links = { title: $('#d_link_title').value.trim(), url: $('#d_link_url').value.trim() };
+  t.blocked_by = parseLabels($('#d_blocked').value); // accept comma-separated
+
+  // AC
+  const ac = [];
+  $$('#acList input[type=checkbox]').forEach((chk,i)=>{
+    const txt = $$('#acList .list-item span')[i].textContent;
+    ac.push({ text: txt, done: chk.checked });
+  });
+  t.acceptance_criteria = ac;
+
+  // No direct edit to notes/activity here
+  (t.activity ||= []);
+  if(prev.status !== t.status){
+    t.activity.push({ ts: nowIso(), type: "status", from: prev.status, to: t.status });
+  }
+  // minimal change logging for a few fields
+  const fields = ["summary","priority","assignee","labels","epic","story_points","due_at","sprint","description","links","blocked_by"];
+  fields.forEach(f=>{
+    if(JSON.stringify(prev[f]) !== JSON.stringify(t[f])){
+      t.activity.push({ ts: nowIso(), type: "edit", field: f, from: JSON.stringify(prev[f]??""), to: JSON.stringify(t[f]??"") });
+    }
+  });
+
+  upsertTask(t).then(()=>{
+    $('#drawerStatus').textContent = t.status;
+  });
+});
+
+/* Delete task */
+$('#deleteTaskBtn').addEventListener('click', ()=>{
+  if(currentTaskId && confirm("Delete this task?")){
+    deleteTask(currentTaskId);
+  }
+});
+
+/* Acceptance criteria add/remove/toggle */
+$('#acAdd').addEventListener('click', ()=>{
+  if(!currentTaskId) return;
+  const txt = $('#acNew').value.trim();
+  if(!txt) return;
+  const t = state.tasks.find(x=>x.id===currentTaskId);
+  (t.acceptance_criteria ||= []).push({ text: txt, done: false });
+  $('#acNew').value = "";
+  openDrawer(t.id); // re-render
+});
+$('#acList').addEventListener('click', (e)=>{
+  const delIdx = e.target.getAttribute('data-delac');
+  if(delIdx!==null){
+    const t = state.tasks.find(x=>x.id===currentTaskId);
+    t.acceptance_criteria.splice(parseInt(delIdx,10),1);
+    openDrawer(t.id);
+  }
+});
+$('#acList').addEventListener('change', (e)=>{
+  if(e.target.type==='checkbox'){
+    const idx = parseInt(e.target.getAttribute('data-ac'),10);
+    const t = state.tasks.find(x=>x.id===currentTaskId);
+    t.acceptance_criteria[idx].done = e.target.checked;
+  }
+});
+
+/* Notes & comments */
+$('#noteAdd').addEventListener('click', ()=>{
+  if(!currentTaskId) return;
+  const txt = $('#noteNew').value.trim();
+  if(!txt) return;
+  const t = state.tasks.find(x=>x.id===currentTaskId);
+  (t.notes_and_comments ||= []).push({ ts: nowIso(), author: settings.displayName || "Me", text: txt });
+  (t.activity ||= []).push({ ts: nowIso(), type: "comment" });
+  $('#noteNew').value = "";
+  openDrawer(t.id); // re-render
+  saveCurrent();
+});
+
+/* Inline ID links (in notes) */
+document.addEventListener('click', (e)=>{
+  const a = e.target.closest('a.inline-link');
+  if(a){
+    e.preventDefault();
+    const id = a.getAttribute('data-goto');
+    const t = state.tasks.find(x=>x.id===id);
+    if(t) openDrawer(t.id);
+    else alert(`Task ${id} not in current month. Use month picker or search.`);
+  }
+});
+
+/* --- Filters & search --- */
+$('#searchInput').addEventListener('input', renderBoard);
+$('#clearSearchBtn').addEventListener('click', ()=>{ $('#searchInput').value=''; renderBoard(); });
+$('#statusFilter').addEventListener('change', renderBoard);
+$('#assigneeFilter').addEventListener('input', renderBoard);
+$('#labelFilter').addEventListener('input', renderBoard);
+
+/* --- Month picker --- */
+$('#sprintPicker').addEventListener('change', async (e)=>{
+  const m = e.target.value;
+  if(m === currentMonth) return;
+  // Only current month is editable in this MVP; viewing others is read-only
+  await loadMonthIntoState(m);
+  renderBoard();
+});
+
+/* --- Export / Import --- */
+$('#exportBtn').addEventListener('click', ()=>{
+  const blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `board_${currentMonth}.json`;
+  a.click();
+});
+$('#importBtn').addEventListener('click', ()=> $('#fileInput').click());
+$('#fileInput').addEventListener('change', async (e)=>{
+  const f = e.target.files[0]; if(!f) return;
+  const text = await f.text();
+  try {
+    const data = JSON.parse(text);
+    // import into its month key
+    const key = data?.meta?.month || currentMonth;
+    await writeMonth(key, data);
+    await loadMonthIntoState(key);
+  } catch { alert('Invalid JSON'); }
+  e.target.value = "";
+});
+
+/* --- Folder mode --- */
+$('#chooseFolderBtn').addEventListener('click', async ()=>{
+  try {
+    const handle = await window.showDirectoryPicker();
+    folderHandle = handle;
+    setStorageMode('folder');
+    await refreshMonthPicker();
+    await saveCurrent();
+    alert('Folder selected. Files will be saved as board_YYYY-MMM.json in that folder.');
+  } catch(e){
+    console.warn(e);
+    alert('Folder selection was cancelled or not supported.');
+  }
+});
+
+/* --- Settings --- */
+$('#settingsBtn').addEventListener('click', ()=>{
+  $('#displayNameInput').value = settings.displayName||"Me";
+  $('#projectKeyInput').value = settings.projectKey||"DP";
+  $('#retentionSelect').value = String(settings.retention||12);
+  $('#settingsDlg').showModal();
+});
+$('#settingsCancel').addEventListener('click', ()=> $('#settingsDlg').close());
+$('#settingsSave').addEventListener('click', async ()=>{
+  settings.displayName = $('#displayNameInput').value.trim() || "Me";
+  settings.projectKey = $('#projectKeyInput').value.trim() || "DP";
+  settings.retention = parseInt($('#retentionSelect').value,10) || 12;
+  saveSettings();
+  // Update IDs only for new tasks; existing keep their IDs
+  $('#settingsDlg').close();
+  renderBoard();
+});
+
+/* --- New Month Carry-Over --- */
+$('#carryBtn').addEventListener('click', async ()=>{
+  const newKey = nextMonthKey(currentMonth);
+  const prevKey = currentMonth;
+
+  // Load previous month state (already in memory) and propose carry
+  const unfinished = state.tasks.filter(t=>t.status!=="Done");
+  const dlg = $('#carryDlg');
+  $('#carryText').innerHTML = `Create <b>${newKey}</b> and carry <b>${unfinished.length}</b> unfinished tasks from <b>${prevKey}</b>. Uncheck anything you do not want to continue.`;
+  const list = $('#carryList'); list.innerHTML='';
+  unfinished.forEach(t=>{
+    const item = document.createElement('div');
+    item.className='list-item';
+    item.innerHTML = `<label style="display:flex; align-items:center; gap:.6rem;">
+      <input type="checkbox" checked data-carry="${t.id}">
+      <span class="chip">${t.priority||'P3'}</span>
+      <span>${escapeHtml(t.summary)}</span>
+      <span class="chip" style="margin-left:auto">${t.status}</span>
+    </label>`;
+    list.appendChild(item);
+  });
+
+  dlg.showModal();
+
+  const confirm = async ()=>{
+    dlg.close();
+    // Build new month state
+    const newState = {
+      meta: { project_key: settings.projectKey, board_id:"default", month: newKey, generated_at: nowIso(), version: 1 },
+      sprint: { code: newKey, start: `${newKey}-01`, end: newKey, goal: "" },
+      tasks: []
+    };
+    // carry selected
+    $$('#carryList input[type=checkbox]:checked').forEach(chk=>{
+      const id = chk.getAttribute('data-carry');
+      const t = state.tasks.find(x=>x.id===id);
+      if(!t) return;
+      const copy = JSON.parse(JSON.stringify(t));
+      // keep same ID, reset sprint & log carry activity
+      copy.sprint = newKey;
+      (copy.activity ||= []).push({ ts: nowIso(), type: "carry", from: prevKey, to: newKey });
+      copy.updated_at = nowIso();
+      newState.tasks.push(copy);
+    });
+
+    // Save new month and switch
+    await writeMonth(newKey, newState);
+    currentMonth = newKey;
+    state = newState;
+    $('#sprintLabel').textContent = currentMonth;
+    await refreshMonthPicker();
+    renderBoard();
+
+    // Retention
+    await enforceRetention();
+  };
+  const cancel=()=> dlg.close();
+
+  $('#carryConfirm').onclick = confirm;
+  $('#carryCancel').onclick = cancel;
+});
+
+/* --- Keyboard shortcuts --- */
+document.addEventListener('keydown', (e)=>{
+  const tag = (e.target.tagName||'').toLowerCase();
+  const typing = tag==='input' || tag==='textarea' || tag==='select' || e.target.isContentEditable;
+  if(e.key==='/' && !typing){ e.preventDefault(); $('#searchInput').focus(); }
+  if(e.key==='n' && !typing){ e.preventDefault(); $('#quickAdd').focus(); }
+  if(e.key==='.' && currentTaskId && !typing){ e.preventDefault(); $('#noteNew').focus(); }
+  if(e.key==='Escape'){ if($('#drawer').classList.contains('open')) closeDrawer(); }
+  if(e.key==='s' && (e.ctrlKey||e.metaKey)){ e.preventDefault(); saveCurrent(); }
+});
+
+/* --- Summary length warning --- */
+$('#d_summary').addEventListener('input', ()=>{
+  const s = $('#d_summary').value;
+  $('#sumWarn').style.display = (s.length>=60?'block':'none');
+});
+
+/* --- Boot --- */
+async function boot(){
+  saveSettings();
+  setStorageMode('browser');
+  await loadMonthIntoState(currentMonth);
+}
+boot();
+</script>
+</body>
+</html>
