@@ -6,24 +6,16 @@
 <title>Family Packing List – Single Page Tool</title>
 <style>
   :root{
-    --bg:#0f172a;          /* dark slate */
-    --panel:#111827;       /* slightly lighter */
-    --muted:#94a3b8;       /* slate-300 */
-    --text:#e5e7eb;        /* gray-200 */
-    --accent:#60a5fa;      /* blue-400 */
-    --ok:#34d399;          /* green-400 */
-    --warn:#fbbf24;        /* amber-400 */
-    --danger:#f87171;      /* red-400 */
-    --border:#1f2937;      /* gray-800 */
-    --chip:#0b1224;
+    --bg:#0f172a; --panel:#111827; --muted:#94a3b8; --text:#e5e7eb;
+    --accent:#60a5fa; --ok:#34d399; --warn:#fbbf24; --danger:#f87171;
+    --border:#1f2937; --chip:#0b1224;
   }
   html,body{height:100%}
   body{
-    margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+    margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial;
     background: linear-gradient(160deg,#0b1022, #0f172a 35%, #0b1224 100%);
     color: var(--text);
   }
-
   .wrap{max-width:1100px;margin:24px auto;padding:0 16px;}
   h1{margin:0 0 16px;font-size:clamp(22px,4vw,28px);font-weight:700;letter-spacing:.2px}
   .grid{display:grid;grid-template-columns: 1fr 1fr;gap:18px}
@@ -41,7 +33,7 @@
   .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
   .row > * { flex: 1 1 auto }
 
-  input[type="text"], input[type="number"], textarea, select{
+  input[type="text"], input[type="search"], input[type="number"], textarea, select{
     background:#0b1224; border:1px solid var(--border); color:var(--text);
     padding:10px 12px; border-radius:10px; outline:none; width:100%;
   }
@@ -65,11 +57,7 @@
   .btn.ghost{background:transparent;border-color:#233047}
   .spacer{height:8px}
 
-  .pill{
-    display:inline-flex; align-items:center; gap:6px;
-    background:#0c1428; color:#cbd5e1;
-    border:1px solid #1f2b40; border-radius:999px; padding:6px 10px; font-size:12px
-  }
+  .pill{display:inline-flex; align-items:center; gap:6px; background:#0c1428; color:#cbd5e1; border:1px solid #1f2b40; border-radius:999px; padding:6px 10px; font-size:12px}
   .muted{color:var(--muted)}
   .tight{margin:0}
 
@@ -85,9 +73,7 @@
   .qty{display:inline-flex;align-items:center;gap:6px}
   .qty input{width:70px;text-align:center}
   .notes{font-size:12px;color:#a5b4fc}
-  .xbtn{
-    background: transparent; border: none; color:#9fb3ff; padding:6px; cursor:pointer; border-radius:8px
-  }
+  .xbtn{background: transparent; border: none; color:#9fb3ff; padding:6px; cursor:pointer; border-radius:8px}
   .xbtn:hover{background:#0f1a35}
   .table{width:100%; border-collapse: collapse; margin-top:8px}
   .table th,.table td{border-bottom:1px solid var(--border); padding:8px; text-align:left; vertical-align:top}
@@ -95,11 +81,37 @@
   .badge{display:inline-block; padding:3px 7px; border-radius:999px; border:1px solid #2a3a55; background:#0b1224; font-size:12px; margin-right:6px}
   .small{font-size:12px}
 
-  .footer{
-    margin-top:14px; display:flex; gap:8px; flex-wrap:wrap; align-items:center; justify-content:space-between
+  .footer{margin-top:14px; display:flex; gap:8px; flex-wrap:wrap; align-items:center; justify-content:space-between}
+
+  /* --- Charts --- */
+  .charts{
+    display:grid;
+    grid-template-columns: 220px 1fr;
+    gap:16px;
+    align-items:center;
+    margin-top:8px;
   }
-  .file{display:inline-block}
-  .hidden{display:none}
+  @media (max-width: 720px){ .charts{grid-template-columns: 1fr} }
+  .donut-wrap{display:flex; align-items:center; justify-content:center}
+  .donut-label{font-size:16px; fill:#cbd5e1}
+  .bars{display:flex; flex-direction:column; gap:10px}
+  .bar-row{display:grid; grid-template-columns: 140px 1fr 60px; gap:10px; align-items:center}
+  .bar-name{color:#e5e7eb; font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .bar-track{height:14px; background:#0b1224; border:1px solid var(--border); border-radius:999px; overflow:hidden}
+  .bar-fill{height:100%; background:linear-gradient(90deg, #3b82f6, #22c55e)}
+  .bar-pct{font-size:12px; color:#cbd5e1; text-align:right}
+
+  /* --- Multi-select chips --- */
+  .chipset{display:flex; flex-wrap:wrap; gap:8px}
+  .chip{
+    display:inline-flex; align-items:center; gap:6px;
+    background:#0c1428; border:1px solid #1f2b40; padding:6px 10px; border-radius:999px; font-size:13px
+  }
+  .chip input{accent-color:#60a5fa}
+  .chip-controls{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+
+  /* highlight */
+  mark{background:#fde68a; color:#111827; padding:0 .15em; border-radius:4px}
 </style>
 </head>
 <body>
@@ -114,6 +126,11 @@
         <input id="personName" type="text" placeholder="Add person (e.g., Alice)" />
         <button class="btn primary" id="addPersonBtn">Add Person</button>
       </div>
+
+      <!-- NEW: People panel search -->
+      <div class="spacer"></div>
+      <input id="personSearch" type="search" placeholder="Search this person's items (name or notes)..." />
+
       <div class="spacer"></div>
       <div class="row">
         <label for="personSelect" class="tight">Selected person</label>
@@ -132,10 +149,22 @@
       <div class="row">
         <textarea id="itemNotes" placeholder="Notes (optional)"></textarea>
       </div>
-      <div class="row">
-        <button class="btn primary" id="addItemBtn">Add Item</button>
+
+      <!-- Multi-select row -->
+      <div class="spacer"></div>
+      <div class="chip-controls">
+        <strong class="small">Quick-select people:</strong>
+        <button class="btn ghost" id="selectAllBtn" title="Select all people chips">All</button>
+        <button class="btn ghost" id="selectNoneBtn" title="Deselect all">None</button>
+        <button class="btn warn" id="addToSelectedBtn" title="Add current item to selected people">Add to Selected</button>
+        <span class="pill">Tip: Fill item fields, tick who gets it, then Add to Selected.</span>
+      </div>
+      <div class="spacer"></div>
+      <div id="multiSelect" class="chipset"></div>
+
+      <div class="row" style="margin-top:8px">
+        <button class="btn primary" id="addItemBtn">Add Item (selected person)</button>
         <button class="btn warn" id="addToAllBtn" title="Add this item to everyone">Add to Everyone</button>
-        <span class="pill">Tip: Use Enter to quickly add.</span>
       </div>
 
       <div id="personStats" class="muted small" style="margin-top:8px"></div>
@@ -154,8 +183,26 @@
     <!-- Right: Master List & Import/Export -->
     <section class="card">
       <h2>Master List (All People)</h2>
-      <div id="familyStats" class="muted small"></div>
-      <table class="table" id="masterTable">
+
+      <!-- NEW: Master panel search -->
+      <input id="masterSearch" type="search" placeholder="Search master list (item or person)..." />
+
+      <!-- Charts -->
+      <div class="charts">
+        <div class="donut-wrap">
+          <svg id="donutChart" width="200" height="200" viewBox="0 0 200 200" role="img" aria-label="Family packing completion">
+            <circle cx="100" cy="100" r="80" stroke="#1f2937" stroke-width="24" fill="none"></circle>
+            <circle id="donutProgress" cx="100" cy="100" r="80" stroke="#60a5fa" stroke-width="24" fill="none"
+                    stroke-linecap="round" transform="rotate(-90 100 100)" stroke-dasharray="0 999"></circle>
+            <text id="donutText" x="100" y="100" text-anchor="middle" dominant-baseline="middle" class="donut-label">0%</text>
+          </svg>
+        </div>
+        <div class="bars" id="personBars"></div>
+      </div>
+
+      <div id="familyStats" class="muted small" style="margin-top:8px"></div>
+
+      <table class="table" id="masterTable" style="margin-top:8px">
         <thead>
           <tr>
             <th>Item</th>
@@ -187,38 +234,24 @@
 </div>
 
 <script>
-/** ---------------------------
- * Data Model
- * ----------------------------
- * store = {
- *   people: {
- *     "Alice": [{id, name, qty, notes, packed}, ...],
- *     "Bob":   [...]
- *   }
- * }
- */
 const STORAGE_KEY = "family_packing_v1";
+let store = { people: {} };
 
-let store = {
-  people: {}
-};
-
-// ---------- Utilities ----------
 const $ = sel => document.querySelector(sel);
 const uid = () => Math.random().toString(36).slice(2,10);
 
-function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(store)); }
-function load() {
+// --- Storage ---
+function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(store)); }
+function load(){
   const raw = localStorage.getItem(STORAGE_KEY);
   if (!raw) return;
   try {
     const parsed = JSON.parse(raw);
-    if (parsed && typeof parsed === "object" && parsed.people) {
-      store = parsed;
-    }
+    if (parsed && typeof parsed === "object" && parsed.people) store = parsed;
   } catch(e){ console.warn("Failed to parse storage", e); }
 }
 
+// --- Helpers ---
 function ensureSelectedPerson() {
   const sel = $("#personSelect");
   if (!sel.value || !store.people[sel.value]) {
@@ -227,21 +260,25 @@ function ensureSelectedPerson() {
   }
   $("#whoLabel").textContent = $("#personSelect").value || "(none)";
 }
-
 function humanCountPacked(items){
   const packed = items.filter(i=>i.packed).length;
   return `${packed}/${items.length} packed`;
 }
+function escapeRegExp(s){ return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+function highlight(html, query){
+  if (!query) return html;
+  const re = new RegExp(`(${escapeRegExp(query)})`, 'ig');
+  return html.replace(re, '<mark>$1</mark>');
+}
 
-// ---------- Rendering ----------
+// --- UI: People select + Multiselect chips ---
 function renderPeopleSelect() {
   const sel = $("#personSelect");
   sel.innerHTML = "";
   const names = Object.keys(store.people);
   if (names.length === 0) {
     const opt = document.createElement("option");
-    opt.value = "";
-    opt.textContent = "(no people yet)";
+    opt.value = ""; opt.textContent = "(no people yet)";
     sel.appendChild(opt);
   } else {
     names.forEach(n=>{
@@ -251,8 +288,40 @@ function renderPeopleSelect() {
     });
   }
   ensureSelectedPerson();
+  renderMultiSelect(); // keep chips in sync
 }
 
+function renderMultiSelect(){
+  const box = $("#multiSelect");
+  box.innerHTML = "";
+  const names = Object.keys(store.people);
+  if (names.length === 0){
+    const muted = document.createElement("div");
+    muted.className = "muted small";
+    muted.textContent = "Add people to enable multi-select.";
+    box.appendChild(muted);
+    return;
+  }
+  names.forEach(name=>{
+    const chip = document.createElement("label");
+    chip.className = "chip";
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.value = name;
+    chip.appendChild(cb);
+    const span = document.createElement("span");
+    span.textContent = name;
+    chip.appendChild(span);
+    box.appendChild(chip);
+  });
+}
+
+function getSelectedChipNames(){
+  return Array.from($("#multiSelect").querySelectorAll('input[type="checkbox"]:checked'))
+    .map(cb=>cb.value);
+}
+
+// --- Left: Person items list ---
 function renderPersonList() {
   const who = $("#personSelect").value;
   $("#whoLabel").textContent = who || "(none)";
@@ -264,17 +333,22 @@ function renderPersonList() {
     return;
   }
 
+  const q = ($("#personSearch").value || "").trim().toLowerCase();
   const items = store.people[who];
-  $("#personStats").textContent = humanCountPacked(items);
+  const vis = items.filter(it=>{
+    if (!q) return true;
+    return (it.name||"").toLowerCase().includes(q) || (it.notes||"").toLowerCase().includes(q);
+  });
 
-  items.forEach(it=>{
+  $("#personStats").textContent = `${humanCountPacked(items)}${q ? ` • Showing ${vis.length}/${items.length}` : ""}`;
+
+  vis.forEach(it=>{
     const row = document.createElement("div");
     row.className = "item";
     row.dataset.id = it.id;
 
     const cb = document.createElement("input");
-    cb.type = "checkbox";
-    cb.checked = !!it.packed;
+    cb.type = "checkbox"; cb.checked = !!it.packed;
     cb.addEventListener("change", ()=>{
       it.packed = cb.checked;
       save(); renderPersonList(); renderMaster();
@@ -282,21 +356,21 @@ function renderPersonList() {
 
     const name = document.createElement("div");
     name.className = "name";
-    name.textContent = it.name;
+    name.innerHTML = highlight(escapeHtml(it.name), q);
 
     const notes = document.createElement("div");
     notes.className = "notes";
-    notes.textContent = it.notes || "";
+    if (it.notes) notes.innerHTML = highlight(escapeHtml(it.notes), q);
 
     const nameBox = document.createElement("div");
     nameBox.appendChild(name);
     if (it.notes) nameBox.appendChild(notes);
 
-    const qtyWrap = document.createElement("div");
-    qtyWrap.className = "qty";
+    const qtyWrap = document.createElement("div"); qtyWrap.className = "qty";
     const minus = document.createElement("button"); minus.className="xbtn"; minus.textContent = "–";
     const plus = document.createElement("button"); plus.className="xbtn"; plus.textContent = "+";
     const qtyInput = document.createElement("input"); qtyInput.type="number"; qtyInput.min="1"; qtyInput.step="1"; qtyInput.value=it.qty||1;
+
     minus.addEventListener("click", ()=>{
       const v = Math.max(1, (parseInt(qtyInput.value)||1)-1);
       qtyInput.value = v; it.qty = v; save(); renderMaster();
@@ -311,10 +385,7 @@ function renderPersonList() {
     });
     qtyWrap.append(minus, qtyInput, plus);
 
-    const edit = document.createElement("button");
-    edit.className = "xbtn";
-    edit.title = "Edit name/notes";
-    edit.textContent = "✎";
+    const edit = document.createElement("button"); edit.className = "xbtn"; edit.title = "Edit name/notes"; edit.textContent = "✎";
     edit.addEventListener("click", ()=>{
       const newName = prompt("Item name:", it.name);
       if (newName===null) return;
@@ -325,10 +396,7 @@ function renderPersonList() {
       save(); renderPersonList(); renderMaster();
     });
 
-    const del = document.createElement("button");
-    del.className = "xbtn";
-    del.title = "Remove item";
-    del.textContent = "✕";
+    const del = document.createElement("button"); del.className = "xbtn"; del.title = "Remove item"; del.textContent = "✕";
     del.addEventListener("click", ()=>{
       const idx = store.people[who].findIndex(x=>x.id===it.id);
       if (idx>=0) {
@@ -342,39 +410,127 @@ function renderPersonList() {
   });
 }
 
+// --- Charts + Master Table ---
+function computeProgress(){
+  let totalQty = 0, packedQty = 0;
+  const perPerson = [];
+
+  for (const [person, items] of Object.entries(store.people)) {
+    let t = 0, p = 0;
+    items.forEach(it=>{
+      const q = Math.max(1, parseInt(it.qty)||1);
+      t += q;
+      if (it.packed) p += q;
+    });
+    const pct = t ? Math.round((p / t) * 100) : 0;
+    perPerson.push({ name: person, total: t, packed: p, pct });
+    totalQty += t; packedQty += p;
+  }
+  const familyPct = totalQty ? Math.round((packedQty / totalQty) * 100) : 0;
+
+  return { totalQty, packedQty, familyPct, perPerson };
+}
+
+function renderCharts(){
+  const { familyPct, perPerson } = computeProgress();
+
+  // Donut
+  const r = 80;
+  const circumference = 2 * Math.PI * r;
+  const progressLen = circumference * (familyPct/100);
+  const remainder = Math.max(0, circumference - progressLen);
+  const ring = $("#donutProgress");
+  ring.setAttribute("stroke-dasharray", `${progressLen} ${remainder}`);
+  ring.setAttribute("stroke", familyPct>=100 ? "#34d399" : (familyPct>=50 ? "#60a5fa" : "#fbbf24"));
+  $("#donutText").textContent = `${familyPct}%`;
+
+  // Bars
+  const bars = $("#personBars");
+  bars.innerHTML = "";
+  const sorted = perPerson.sort((a,b)=> a.pct - b.pct || a.name.localeCompare(b.name));
+  if (sorted.length === 0) {
+    const none = document.createElement("div");
+    none.className = "muted small";
+    none.textContent = "Add people to see progress.";
+    bars.appendChild(none);
+  } else {
+    sorted.forEach(row=>{
+      const wrap = document.createElement("div");
+      wrap.className = "bar-row";
+
+      const name = document.createElement("div");
+      name.className = "bar-name";
+      name.textContent = row.name;
+
+      const track = document.createElement("div");
+      track.className = "bar-track";
+      const fill = document.createElement("div");
+      fill.className = "bar-fill";
+      fill.style.width = Math.min(100, row.pct) + "%";
+      fill.style.background = row.pct>=100
+        ? "linear-gradient(90deg,#10b981,#34d399)"
+        : row.pct>=50
+          ? "linear-gradient(90deg,#3b82f6,#22c55e)"
+          : "linear-gradient(90deg,#f59e0b,#fbbf24)";
+      track.appendChild(fill);
+
+      const pct = document.createElement("div");
+      pct.className = "bar-pct";
+      pct.textContent = `${row.pct}%`;
+
+      wrap.append(name, track, pct);
+      bars.appendChild(wrap);
+    });
+  }
+}
+
 function renderMaster() {
   const body = $("#masterBody");
   body.innerHTML = "";
 
-  const agg = {}; // { itemName: { totalQty, people: [{name, qty, packedCount, totalCount}] , packedCount, totalCount } }
+  const search = ($("#masterSearch").value || "").trim().toLowerCase();
+
+  // aggregate
+  const agg = {};
   for (const [person, items] of Object.entries(store.people)) {
     items.forEach(it=>{
       const key = it.name.trim().toLowerCase() || "(unnamed)";
       if (!agg[key]) agg[key] = {display: it.name.trim() || "(unnamed)", totalQty:0, people:[], packedCount:0, totalCount:0};
-      agg[key].totalQty += (parseInt(it.qty)||1);
+      const q = Math.max(1, parseInt(it.qty)||1);
+      agg[key].totalQty += q;
       agg[key].totalCount += 1;
       if (it.packed) agg[key].packedCount += 1;
-      agg[key].people.push({name: person, qty: (parseInt(it.qty)||1), packed: !!it.packed});
+      agg[key].people.push({name: person, qty: q, packed: !!it.packed});
     });
   }
 
-  // Sort by name
-  const rows = Object.values(agg).sort((a,b)=>a.display.localeCompare(b.display));
+  let rows = Object.values(agg);
+
+  // filter by item name or any person name
+  if (search) {
+    rows = rows.filter(r=>{
+      const inItem = r.display.toLowerCase().includes(search);
+      const inPeople = r.people.some(p => p.name.toLowerCase().includes(search));
+      return inItem || inPeople;
+    });
+  }
+
+  rows.sort((a,b)=>a.display.localeCompare(b.display));
 
   // Family stats
   let grandTotal = 0, grandPacked = 0, lineItems = 0;
   for (const p of Object.values(store.people)) {
     lineItems += p.length;
-    grandTotal += p.reduce((s,x)=> s + (parseInt(x.qty)||1), 0);
-    grandPacked += p.filter(x=>x.packed).reduce((s,x)=> s + (parseInt(x.qty)||1), 0);
+    grandTotal += p.reduce((s,x)=> s + (Math.max(1, parseInt(x.qty)||1)), 0);
+    grandPacked += p.filter(x=>x.packed).reduce((s,x)=> s + (Math.max(1, parseInt(x.qty)||1)), 0);
   }
-  $("#familyStats").textContent = `People: ${Object.keys(store.people).length} • Items: ${lineItems} • Qty packed: ${grandPacked}/${grandTotal}`;
+  $("#familyStats").textContent = `People: ${Object.keys(store.people).length} • Items: ${lineItems} • Qty packed: ${grandPacked}/${grandTotal}${search ? ` • Showing ${rows.length} item group(s)` : ""}`;
 
   for (const r of rows) {
     const tr = document.createElement("tr");
 
     const tdName = document.createElement("td");
-    tdName.textContent = r.display;
+    tdName.innerHTML = highlight(escapeHtml(r.display), search);
 
     const tdTotal = document.createElement("td");
     tdTotal.textContent = r.totalQty;
@@ -384,7 +540,10 @@ function renderMaster() {
     r.people.forEach(pp=>{
       const span = document.createElement("span");
       span.className = "badge";
-      span.textContent = `${pp.name}: ${pp.qty}${pp.packed ? " ✓" : ""}`;
+      const label = `${pp.name}: ${pp.qty}${pp.packed ? " ✓" : ""}`;
+      // highlight only the person name portion
+      const personHighlighted = highlight(escapeHtml(pp.name), search);
+      span.innerHTML = `${personHighlighted}: ${pp.qty}${pp.packed ? " ✓" : ""}`;
       tdPeople.appendChild(span);
     });
 
@@ -394,9 +553,11 @@ function renderMaster() {
     tr.append(tdName, tdTotal, tdPeople, tdPacked);
     body.appendChild(tr);
   }
+
+  renderCharts();
 }
 
-// ---------- Actions ----------
+// --- Actions ---
 function addPerson(name){
   const n = (name||"").trim();
   if (!n) return;
@@ -410,14 +571,10 @@ function addPerson(name){
     alert("That person already exists.");
   }
 }
-
 function renamePerson(oldName, newName){
   const nn = (newName||"").trim();
   if (!nn || !store.people[oldName]) return;
-  if (store.people[nn] && nn !== oldName) {
-    alert("Another person already has that name.");
-    return;
-  }
+  if (store.people[nn] && nn !== oldName) { alert("Another person already has that name."); return; }
   store.people[nn] = store.people[oldName];
   delete store.people[oldName];
   save();
@@ -425,7 +582,6 @@ function renamePerson(oldName, newName){
   $("#personSelect").value = nn;
   renderPersonList(); renderMaster();
 }
-
 function deletePerson(name){
   if (!name || !store.people[name]) return;
   if (!confirm(`Delete ${name} and all their items?`)) return;
@@ -442,11 +598,15 @@ function addItemTo(person, {name, qty, notes, packed=false}){
   store.people[person].push(it);
   save(); renderPersonList(); renderMaster();
 }
-
 function addItemToAll({name, qty, notes}){
   const people = Object.keys(store.people);
   if (people.length === 0) return;
   people.forEach(p=> addItemTo(p, {name, qty, notes, packed:false}));
+}
+function addItemToSelected({name, qty, notes}){
+  const targets = getSelectedChipNames();
+  if (targets.length === 0) { alert("Select at least one person."); return; }
+  targets.forEach(p=> addItemTo(p, {name, qty, notes, packed:false}));
 }
 
 function setAllPacked(person, val){
@@ -454,17 +614,14 @@ function setAllPacked(person, val){
   store.people[person].forEach(i=> i.packed = !!val);
   save(); renderPersonList(); renderMaster();
 }
-
 function removePacked(person){
   if (!person || !store.people[person]) return;
   store.people[person] = store.people[person].filter(i=>!i.packed);
   save(); renderPersonList(); renderMaster();
 }
 
-// ---------- Import / Export ----------
-function exportJSON(){
-  return JSON.stringify(store, null, 2);
-}
+// --- Import / Export ---
+function exportJSON(){ return JSON.stringify(store, null, 2); }
 function download(filename, text){
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([text], {type: "application/json"}));
@@ -475,10 +632,8 @@ function download(filename, text){
 }
 function importFromObject(obj){
   if (!obj || typeof obj !== "object" || !obj.people || typeof obj.people !== "object") {
-    alert("Invalid JSON format.");
-    return;
+    alert("Invalid JSON format."); return;
   }
-  // Normalize items
   for (const [person, items] of Object.entries(obj.people)) {
     obj.people[person] = (items||[]).map(it=>({
       id: it.id || uid(),
@@ -492,7 +647,14 @@ function importFromObject(obj){
   save(); renderPeopleSelect(); renderPersonList(); renderMaster();
 }
 
-// ---------- Wire up ----------
+// --- Security: escape text for highlight insertion ---
+function escapeHtml(str){
+  return (str ?? "").toString()
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;").replace(/'/g,"&#039;");
+}
+
+// --- Wire up ---
 document.addEventListener("DOMContentLoaded", ()=>{
   load();
   renderPeopleSelect();
@@ -504,22 +666,18 @@ document.addEventListener("DOMContentLoaded", ()=>{
     addPerson($("#personName").value);
     $("#personName").value = "";
   });
-  $("#personName").addEventListener("keydown", (e)=>{
-    if (e.key==="Enter") $("#addPersonBtn").click();
-  });
+  $("#personName").addEventListener("keydown", (e)=>{ if (e.key==="Enter") $("#addPersonBtn").click(); });
   $("#personSelect").addEventListener("change", ()=>{
     renderPersonList();
+    // keep search scoped to new person; don't clear
   });
   $("#renamePersonBtn").addEventListener("click", ()=>{
-    const oldName = $("#personSelect").value;
-    if (!oldName) return;
-    const n = prompt("New name:", oldName);
-    if (n===null) return;
+    const oldName = $("#personSelect").value; if (!oldName) return;
+    const n = prompt("New name:", oldName); if (n===null) return;
     renamePerson(oldName, n);
   });
   $("#deletePersonBtn").addEventListener("click", ()=>{
-    const who = $("#personSelect").value;
-    if (!who) return;
+    const who = $("#personSelect").value; if (!who) return;
     deletePerson(who);
   });
 
@@ -535,29 +693,36 @@ document.addEventListener("DOMContentLoaded", ()=>{
   }
   $("#addItemBtn").addEventListener("click", ()=> addCurrentItem(false));
   $("#addToAllBtn").addEventListener("click", ()=> addCurrentItem(true));
-  $("#itemName").addEventListener("keydown", e=>{ if (e.key==="Enter") addCurrentItem(false); });
-  $("#itemQty").addEventListener("keydown", e=>{ if (e.key==="Enter") addCurrentItem(false); });
-  $("#itemNotes").addEventListener("keydown", e=>{ if (e.key==="Enter" && (e.ctrlKey||e.metaKey)) addCurrentItem(false); });
+
+  // Multi-select controls
+  $("#selectAllBtn").addEventListener("click", ()=>{
+    $("#multiSelect").querySelectorAll('input[type="checkbox"]').forEach(cb=> cb.checked = true);
+  });
+  $("#selectNoneBtn").addEventListener("click", ()=>{
+    $("#multiSelect").querySelectorAll('input[type="checkbox"]').forEach(cb=> cb.checked = false);
+  });
+  $("#addToSelectedBtn").addEventListener("click", ()=>{
+    const name = $("#itemName").value.trim();
+    const qty  = $("#itemQty").value;
+    const notes= $("#itemNotes").value;
+    if (!name){ alert("Enter an item name first."); return; }
+    addItemToSelected({name, qty, notes});
+    $("#itemName").value = ""; $("#itemQty").value = 1; $("#itemNotes").value = "";
+  });
 
   // Bulk actions
-  $("#markAllPacked").addEventListener("click", ()=>{
-    const who = $("#personSelect").value; setAllPacked(who, true);
-  });
-  $("#unpackAll").addEventListener("click", ()=>{
-    const who = $("#personSelect").value; setAllPacked(who, false);
-  });
-  $("#clearPacked").addEventListener("click", ()=>{
-    const who = $("#personSelect").value; removePacked(who);
-  });
+  $("#markAllPacked").addEventListener("click", ()=> setAllPacked($("#personSelect").value, true));
+  $("#unpackAll").addEventListener("click", ()=> setAllPacked($("#personSelect").value, false));
+  $("#clearPacked").addEventListener("click", ()=> removePacked($("#personSelect").value));
+
+  // Search live updates
+  $("#personSearch").addEventListener("input", ()=> renderPersonList());
+  $("#masterSearch").addEventListener("input", ()=> renderMaster());
 
   // Export/Import
   $("#copyJsonBtn").addEventListener("click", async ()=>{
-    try {
-      await navigator.clipboard.writeText(exportJSON());
-      alert("JSON copied to clipboard.");
-    } catch(e){
-      alert("Could not copy. Please use Download JSON instead.");
-    }
+    try { await navigator.clipboard.writeText(exportJSON()); alert("JSON copied to clipboard."); }
+    catch(e){ alert("Could not copy. Please use Download JSON instead."); }
   });
   $("#downloadJsonBtn").addEventListener("click", ()=>{
     const dt = new Date();
