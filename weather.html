@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>32640 Weather (Offline)</title>
+<style>
+  :root{
+    --bg:#0b1220;
+    --panel:#121a2b;
+    --muted:#8aa0c8;
+    --text:#eaf0ff;
+    --accent:#6ea8fe;
+    --ok:#80e27e;
+    --warn:#ffd166;
+    --bad:#ff7b7b;
+    --card:#0f1626;
+    --chip:#1a2338;
+    --shadow:0 10px 30px rgba(0,0,0,.35);
+    --radius:16px;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;background:linear-gradient(160deg,#0a1020,#0b182f 45%,#0a1020);
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+    color:var(--text);
+  }
+  header{
+    position:sticky;top:0;z-index:10;
+    background:rgba(9,13,24,.7);backdrop-filter:blur(6px);
+    border-bottom:1px solid rgba(255,255,255,.06);
+  }
+  .wrap{max-width:1100px;margin:0 auto;padding:18px}
+  .title{
+    display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between
+  }
+  .title h1{margin:0;font-size:clamp(18px,2.5vw,24px);font-weight:700;letter-spacing:.3px}
+  .meta{display:flex;gap:14px;flex-wrap:wrap;color:var(--muted);font-size:14px}
+  .chip{
+    padding:6px 10px;border-radius:999px;background:var(--chip);color:#cfe1ff;border:1px solid rgba(255,255,255,.06)
+  }
+
+  /* Controls */
+  .controls{
+    display:flex;flex-wrap:wrap;gap:10px;margin-top:12px
+  }
+  button, .file-label{
+    background:var(--accent);color:#06122a;border:none;padding:10px 12px;
+    border-radius:10px;font-weight:600;cursor:pointer;box-shadow:var(--shadow);
+  }
+  button.ghost{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+  button.warn{background:transparent;color:var(--warn);border:1px solid var(--warn)}
+  button.red{background:transparent;color:var(--bad);border:1px solid var(--bad)}
+  input[type="file"]{display:none}
+  .file-label{display:inline-block}
+  .units{margin-left:auto;display:flex;gap:8px;align-items:center}
+
+  /* Current */
+  .current{
+    margin:18px auto 0;display:grid;gap:16px;
+    grid-template-columns:1.2fr .8fr;
+  }
+  @media (max-width:900px){.current{grid-template-columns:1fr}}
+  .panel{
+    background:var(--panel);
+    border:1px solid rgba(255,255,255,.06);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow);
+  }
+  .panel .inner{padding:18px}
+  .big{
+    display:flex;gap:18px;align-items:center;justify-content:flex-start
+  }
+  .wx-emoji{font-size:56px;filter:drop-shadow(0 6px 16px rgba(0,0,0,.6))}
+  .reading{
+    display:flex;gap:18px;align-items:baseline;flex-wrap:wrap
+  }
+  .temp{font-size:56px;font-weight:800;letter-spacing:-.5px}
+  .feels{color:var(--muted)}
+  .desc{font-size:16px;color:#cfe1ff}
+  .grid{
+    display:grid;gap:10px;grid-template-columns:repeat(2,minmax(0,1fr))
+  }
+  .kv{padding:10px;background:var(--card);border-radius:12px;color:#dbe7ff;border:1px solid rgba(255,255,255,.05)}
+  .kv small{display:block;color:var(--muted)}
+  /* Daily */
+  .section h2{font-size:18px;margin:20px 0 10px;color:#cfe1ff}
+  .daily{
+    display:grid;gap:12px;grid-template-columns:repeat(7,minmax(0,1fr))
+  }
+  @media (max-width:1000px){.daily{grid-template-columns:repeat(4,minmax(0,1fr))}}
+  @media (max-width:700px){.daily{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  .day{
+    background:var(--panel);border:1px solid rgba(255,255,255,.06);
+    border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:8px
+  }
+  .day .name{font-weight:700}
+  .day .em{font-size:28px}
+  .hl{display:flex;align-items:center;justify-content:space-between}
+  .hl .hi{color:var(--ok);font-weight:700}
+  .hl .lo{color:#9ec7ff}
+
+  /* Hourly chart */
+  .chart-card{padding:12px;background:var(--panel);border-radius:16px;border:1px solid rgba(255,255,255,.06)}
+  canvas{width:100%;height:260px;display:block}
+
+  /* Editor */
+  details{
+    margin-top:16px;border:1px solid rgba(255,255,255,.08);border-radius:12px;background:rgba(255,255,255,.02)
+  }
+  details > summary{
+    padding:12px 14px;cursor:pointer;font-weight:700;list-style:none
+  }
+  details[open] > summary{border-bottom:1px solid rgba(255,255,255,.08)}
+  textarea{
+    width:100%;min-height:280px;background:#0b1220;color:#eaf0ff;border:none;
+    border-radius:0 0 12px 12px;padding:14px;font-family:ui-monospace,Consolas,Monaco,monospace
+  }
+  footer{color:var(--muted);font-size:12px;margin:20px 0;text-align:center}
+  .note{color:#b8c7e8}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="title">
+      <h1>32640 Weather (Offline)</h1>
+      <div class="meta">
+        <span class="chip" id="locChip">Hawthorne, FL · ZIP 32640</span>
+        <span class="chip" id="updatedChip">Sample data · never fetches the web</span>
+      </div>
+    </div>
+    <div class="controls">
+      <label class="file-label">
+        <input type="file" id="fileInput" accept="application/json"/>
+        Import JSON
+      </label>
+      <button class="ghost" id="exportBtn">Export JSON</button>
+      <button class="warn" id="saveBtn">Save to Browser</button>
+      <button class="red" id="resetBtn" title="Restore the built-in sample dataset">Reset to Sample</button>
+      <div class="units">
+        <span class="chip">Units</span>
+        <button id="fBtn">°F</button>
+        <button class="ghost" id="cBtn">°C</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <!-- Current conditions -->
+  <section class="current">
+    <div class="panel">
+      <div class="inner">
+        <div class="big">
+          <div class="wx-emoji" id="currentEmoji">⛅</div>
+          <div>
+            <div class="reading">
+              <div class="temp" id="currentTemp">82°</div>
+              <div class="feels" id="feelsLike">Feels like 86°</div>
+            </div>
+            <div class="desc" id="currentDesc">Partly sunny; PM storms possible</div>
+          </div>
+        </div>
+        <div class="grid" style="margin-top:14px">
+          <div class="kv"><small>Wind</small><span id="windNow">NE 7 mph</span></div>
+          <div class="kv"><small>Humidity</small><span id="humidityNow">68%</span></div>
+          <div class="kv"><small>Today’s High</small><span id="hiNow" class="hi">92°</span></div>
+          <div class="kv"><small>Tonight’s Low</small><span id="loNow" class="lo">75°</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="inner">
+        <div class="section">
+          <h2>At-a-glance</h2>
+          <div class="grid">
+            <div class="kv"><small>Sunrise</small><span id="sunrise">06:57</span></div>
+            <div class="kv"><small>Sunset</small><span id="sunset">20:00</span></div>
+            <div class="kv"><small>Pressure</small><span id="pressure">1015 hPa</span></div>
+            <div class="kv"><small>UV Index</small><span id="uv">8 (High)</span></div>
+          </div>
+          <p class="note" style="margin-top:10px">
+            This app runs fully offline. Update the forecast by importing a JSON file
+            or editing the data below, then “Save to Browser.”
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Daily -->
+  <section class="section">
+    <h2>7-Day Forecast</h2>
+    <div class="daily" id="daily"></div>
+  </section>
+
+  <!-- Hourly -->
+  <section class="section">
+    <h2>Next 24 Hours</h2>
+    <div class="chart-card">
+      <canvas id="hourlyChart" width="1200" height="320" aria-label="Hourly temperatures chart"></canvas>
+    </div>
+  </section>
+
+  <!-- Editor -->
+  <details id="editorBlock">
+    <summary>Open JSON data editor</summary>
+    <textarea id="jsonArea" spellcheck="false"></textarea>
+  </details>
+
+  <footer>
+    <div>No APIs. No network calls. Your data stays in your browser.</div>
+  </footer>
+</main>
+
+<script>
+/* ========= Built-in SAMPLE dataset (you can import/overwrite) ========= */
+const SAMPLE_DATA = {
+  schema: "offline-weather-v1",
+  location: { zip: "32640", city: "Hawthorne", state: "FL", lat: 29.59, lon: -82.09, tz: "America/New_York" },
+  updatedISO: "2025-08-23T10:00:00-04:00",
+  units: "F",
+  current: {
+    emoji: "⛅",
+    desc: "Partly sunny, scattered PM storms",
+    tempF: 82,
+    humidity: 68,
+    wind: { dir: "NE", mph: 7 },
+    pressure_hPa: 1015,
+    uv: 8
+  },
+  astronomy: { sunrise: "06:57", sunset: "20:00" },
+
+  /* Seven days (hi/lo, emoji, text). Feel free to edit. */
+  daily: [
+    { date: "2025-08-23", name: "Sat", hiF: 92, loF: 75, emoji: "⛅", text: "Partly sunny; storms late" },
+    { date: "2025-08-24", name: "Sun", hiF: 93, loF: 75, emoji: "⛈️", text: "Hot, scattered thunderstorms" },
+    { date: "2025-08-25", name: "Mon", hiF: 92, loF: 74, emoji: "🌦️", text: "Showers, muggy" },
+    { date: "2025-08-26", name: "Tue", hiF: 91, loF: 74, emoji: "🌤️", text: "Partly sunny, humid" },
+    { date: "2025-08-27", name: "Wed", hiF: 92, loF: 75, emoji: "⛈️", text: "PM thunderstorms likely" },
+    { date: "2025-08-28", name: "Thu", hiF: 93, loF: 75, emoji: "🌦️", text: "Hot with a few showers" },
+    { date: "2025-08-29", name: "Fri", hiF: 92, loF: 74, emoji: "⛅", text: "Mix of sun and clouds" }
+  ]
+};
+
+/* ====== Storage keys ====== */
+const LS_KEY = "offline_weather_32640_data";
+const LS_UNITS = "offline_weather_32640_units";
+
+/* ====== State ====== */
+let data = null;
+let units = localStorage.getItem(LS_UNITS) || "F";
+
+/* ====== Helpers ====== */
+const $ = sel => document.querySelector(sel);
+
+function deepClone(obj){ return JSON.parse(JSON.stringify(obj)); }
+
+function toC(f){ return Math.round((f - 32) * 5/9); }
+function toF(c){ return Math.round((c * 9/5) + 32); }
+
+function fmtTemp(val){
+  if(units === "F") return `${Math.round(val)}°`;
+  // incoming data is in F by default
+  return `${toC(val)}°`;
+}
+
+function pickEmojiFromText(text){
+  const t = (text||"").toLowerCase();
+  if(t.includes("thunder")) return "⛈️";
+  if(t.includes("storm")) return "⛈️";
+  if(t.includes("showers") || t.includes("rain")) return "🌦️";
+  if(t.includes("sunny")) return "☀️";
+  if(t.includes("cloud")) return "⛅";
+  if(t.includes("wind")) return "🌬️";
+  return "🌤️";
+}
+
+/* Hourly synthesizer: creates 24 temps from day hi/lo using a smooth curve */
+function synthHourlyFor(day){
+  const hi = day.hiF, lo = day.loF;
+  const hours = [];
+  for(let h=0; h<24; h++){
+    // Sinusoidal curve: min around 6 AM, max around 3 PM
+    const rad = ((h - 15) / 24) * 2 * Math.PI; // shift peak to 15 (3pm)
+    const norm = (Math.cos(rad) + 1) / 2; // 0..1 with peak at h=15
+    const t = lo + (hi - lo) * norm;
+    hours.push({ hour: h, tempF: Math.round(t), emoji: (h>=13&&h<=19 && (day.text||"").includes("storm")) ? "⛈️":"🌤️" });
+  }
+  return hours;
+}
+
+/* Build 24hr window from first daily item */
+function build24h(){
+  const base = data.daily?.[0] || SAMPLE_DATA.daily[0];
+  return synthHourlyFor(base);
+}
+
+/* ====== Rendering ====== */
+function render(){
+  // header chips
+  $("#locChip").textContent = `${data.location.city}, ${data.location.state} · ZIP ${data.location.zip}`;
+  $("#updatedChip").textContent = `Updated: ${new Date(data.updatedISO || Date.now()).toLocaleString()}`;
+
+  // current
+  const cur = data.current || SAMPLE_DATA.current;
+  $("#currentEmoji").textContent = cur.emoji || pickEmojiFromText(cur.desc);
+  $("#currentTemp").textContent = fmtTemp(cur.tempF);
+  $("#feelsLike").textContent = `Feels like ${fmtTemp(cur.tempF + 4)}`;
+  $("#currentDesc").textContent = cur.desc || "—";
+  $("#windNow").textContent = `${cur.wind?.dir || "N"} ${cur.wind?.mph ?? 0} mph`;
+  $("#humidityNow").textContent = `${cur.humidity ?? 0}%`;
+  $("#hiNow").textContent = fmtTemp(data.daily?.[0]?.hiF ?? 0);
+  $("#loNow").textContent = fmtTemp(data.daily?.[0]?.loF ?? 0);
+
+  // astro + misc
+  $("#sunrise").textContent = data.astronomy?.sunrise || "—";
+  $("#sunset").textContent  = data.astronomy?.sunset || "—";
+  $("#pressure").textContent = (cur.pressure_hPa ? `${cur.pressure_hPa} hPa` : "—");
+  $("#uv").textContent = (cur.uv ? `${cur.uv} (High)` : "—");
+
+  // daily cards
+  const dailyEl = $("#daily");
+  dailyEl.innerHTML = "";
+  (data.daily || []).slice(0,7).forEach(d=>{
+    const card = document.createElement("div");
+    card.className = "day";
+    card.innerHTML = `
+      <div class="name">${d.name} <span style="opacity:.7">(${d.date})</span></div>
+      <div class="em">${d.emoji || pickEmojiFromText(d.text)}</div>
+      <div class="hl"><div class="hi">${fmtTemp(d.hiF)}</div><div class="lo">${fmtTemp(d.loF)}</div></div>
+      <div class="text" style="color:#cfe1ff">${d.text || ""}</div>
+    `;
+    dailyEl.appendChild(card);
+  });
+
+  // hourly chart
+  drawHourly(build24h());
+  // editor JSON
+  $("#jsonArea").value = JSON.stringify(data, null, 2);
+}
+
+function drawHourly(points){
+  const canvas = $("#hourlyChart");
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0,0,W,H);
+
+  // margins
+  const m = {l:50,r:20,t:20,b:40};
+  const plotW = W - m.l - m.r;
+  const plotH = H - m.t - m.b;
+
+  // values
+  const tempsF = points.map(p=>p.tempF);
+  const tMin = Math.min(...tempsF)-2, tMax = Math.max(...tempsF)+2;
+
+  // axes
+  ctx.strokeStyle = "rgba(255,255,255,.12)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  // y gridlines (4)
+  for(let i=0;i<=4;i++){
+    const y = m.t + plotH*(i/4);
+    ctx.moveTo(m.l, y); ctx.lineTo(W - m.r, y);
+  }
+  ctx.stroke();
+
+  // labels
+  ctx.fillStyle = "rgba(200,215,255,.85)";
+  ctx.font = "12px ui-monospace, Consolas, Monaco, monospace";
+  for(let i=0;i<=4;i++){
+    const val = tMax - (tMax - tMin)*(i/4);
+    const y = m.t + plotH*(i/4);
+    ctx.fillText(units==="F" ? `${Math.round(val)}°` : `${toC(val)}°`, 8, y+4);
+  }
+
+  // line
+  ctx.beginPath();
+  points.forEach((p,idx)=>{
+    const x = m.l + (plotW*(idx/(points.length-1)));
+    const y = m.t + plotH*(1 - (p.tempF - tMin)/(tMax - tMin));
+    if(idx===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  });
+  ctx.strokeStyle = "#7fb3ff";
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+
+  // points + hour ticks
+  ctx.fillStyle = "#cfe1ff";
+  points.forEach((p,idx)=>{
+    const x = m.l + (plotW*(idx/(points.length-1)));
+    const y = m.t + plotH*(1 - (p.tempF - tMin)/(tMax - tMin));
+    ctx.beginPath(); ctx.arc(x,y,3.2,0,Math.PI*2); ctx.fill();
+    // hour labels every 3 hours
+    if(idx%3===0){
+      ctx.fillStyle = "rgba(200,215,255,.75)";
+      const h = p.hour;
+      const label = h===0?"12a":h<12?`${h}a`:h===12?"12p":`${h-12}p`;
+      ctx.fillText(label, x-10, H-12);
+      ctx.fillStyle = "#cfe1ff";
+    }
+  });
+}
+
+/* ====== Load / Save ====== */
+function loadData(){
+  const raw = localStorage.getItem(LS_KEY);
+  if(raw){
+    try{
+      const parsed = JSON.parse(raw);
+      // sanity check
+      if(parsed?.location?.zip === "32640"){
+        return parsed;
+      }
+    }catch{}
+  }
+  return deepClone(SAMPLE_DATA);
+}
+
+function saveToLocal(){
+  try{
+    const parsed = JSON.parse($("#jsonArea").value);
+    if(parsed?.location?.zip !== "32640"){
+      alert("This page is locked to ZIP 32640.\nPlease keep location.zip as \"32640\".");
+      return;
+    }
+    data = parsed;
+    localStorage.setItem(LS_KEY, JSON.stringify(data));
+    localStorage.setItem(LS_UNITS, units);
+    render();
+    alert("Saved to your browser (localStorage).");
+  }catch(e){
+    alert("Invalid JSON. Please fix and try again.\n\n"+e.message);
+  }
+}
+
+function resetSample(){
+  if(!confirm("Restore the built-in sample dataset?")) return;
+  data = deepClone(SAMPLE_DATA);
+  localStorage.removeItem(LS_KEY);
+  render();
+}
+
+/* ====== Import / Export ====== */
+function exportJson(){
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `weather_${data.location.zip}_${(new Date()).toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
+function importJson(file){
+  const reader = new FileReader();
+  reader.onload = e=>{
+    try{
+      const obj = JSON.parse(e.target.result);
+      if(obj?.location?.zip !== "32640"){
+        alert("Imported JSON is not for ZIP 32640. Please adjust and try again.");
+        return;
+      }
+      data = obj;
+      $("#jsonArea").value = JSON.stringify(data, null, 2);
+      render();
+    }catch(err){
+      alert("Could not parse JSON: "+err.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+/* ====== Units toggle ====== */
+function setUnits(u){
+  units = u;
+  localStorage.setItem(LS_UNITS, units);
+  $("#fBtn").classList.toggle("ghost", units!=="F");
+  $("#cBtn").classList.toggle("ghost", units!=="C");
+  render();
+}
+
+/* ====== Init ====== */
+(function init(){
+  data = loadData();
+  if(units!=="F" && units!=="C") units="F";
+  $("#jsonArea").value = JSON.stringify(data, null, 2);
+  $("#fBtn").addEventListener("click", ()=>setUnits("F"));
+  $("#cBtn").addEventListener("click", ()=>setUnits("C"));
+  $("#saveBtn").addEventListener("click", saveToLocal);
+  $("#resetBtn").addEventListener("click", resetSample);
+  $("#exportBtn").addEventListener("click", exportJson);
+  $("#fileInput").addEventListener("change", (e)=>{
+    if(e.target.files?.[0]) importJson(e.target.files[0]);
+    e.target.value = "";
+  });
+  render();
+})();
+</script>
+</body>
+</html>
