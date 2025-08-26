@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>What Your Browser Shares</title>
+<style>
+  :root { --bg:#0b1320; --card:#121a2b; --muted:#97a1b1; --txt:#e8eef7; --accent:#4ea1ff; --ok:#2ecc71; --warn:#f1c40f; --bad:#e74c3c; }
+  * { box-sizing:border-box; }
+  html, body { margin:0; background:linear-gradient(180deg,#0b1320,#0a0f1a); color:var(--txt); font:16px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; }
+  header { padding:28px 18px 10px; text-align:center; }
+  h1 { margin:0 0 6px; font-size:28px; letter-spacing:.2px; }
+  p.lead { margin:0 auto; max-width:820px; color:var(--muted); }
+  .wrap { max-width:1200px; padding:18px; margin:0 auto 40px; }
+  .controls { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin:18px 0 24px; }
+  button {
+    background:var(--accent); color:#051327; border:none; padding:10px 14px; border-radius:10px;
+    font-weight:600; cursor:pointer; transition:.15s transform, .15s filter; box-shadow:0 4px 18px rgba(78,161,255,.25);
+  }
+  button.secondary { background:#1f2a44; color:var(--txt); box-shadow:none; }
+  button:hover { filter:brightness(1.1); transform:translateY(-1px); }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(320px,1fr)); gap:16px; }
+  .card {
+    background:radial-gradient(1200px 400px at 70% -10%, rgba(78,161,255,.08), transparent) , var(--card);
+    border:1px solid #1e2a42; border-radius:16px; padding:16px 16px 12px; box-shadow:0 10px 28px rgba(0,0,0,.25);
+  }
+  .card h2 { margin:0 0 10px; font-size:18px; }
+  .explain { color:var(--muted); font-size:13px; margin:0 0 10px; }
+  .kv { display:grid; grid-template-columns: 1fr 2fr; gap:6px 10px; font-size:14px; }
+  .kv div { padding:6px 8px; background:#101829; border:1px solid #1e2a42; border-radius:10px; overflow:auto; }
+  .kv div.key { color:#b4bfd3; background:#0e1526; }
+  code, pre { background:#0e1526; color:#cfe4ff; border:1px solid #1e2a42; border-radius:10px; padding:10px; overflow:auto; }
+  pre { margin:0; max-height:260px; }
+  details { border:1px dashed #223455; border-radius:12px; padding:10px 12px; }
+  details + details { margin-top:10px; }
+  summary { cursor:pointer; }
+  .pill { display:inline-block; font-size:12px; padding:2px 8px; border-radius:999px; margin-left:8px; background:#1f2a44; color:var(--muted); }
+  .ok { color:var(--ok) } .warn { color:var(--warn) } .bad { color:var(--bad) }
+  footer { color:var(--muted); text-align:center; margin:28px 0 40px; font-size:13px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>What Your Browser Shares</h1>
+  <p class="lead">
+    This page shows data a typical website can read from your browser and device <em>without</em> external requests.
+    Anything that needs permission (like your location) will ask first.
+  </p>
+</header>
+
+<div class="wrap">
+  <div class="controls">
+    <button id="scan">Scan / Refresh</button>
+    <button id="getGeo" class="secondary">Request Geolocation</button>
+    <button id="copyJson" class="secondary">Copy JSON</button>
+    <button id="downloadJson" class="secondary">Download JSON</button>
+  </div>
+
+  <div class="grid">
+    <section class="card">
+      <h2>Identity Hints <span class="pill">User agent, platform, languages</span></h2>
+      <p class="explain">These are strings your browser sends (or exposes) to help sites tailor content and debug compatibility.</p>
+      <div class="kv" id="identity"></div>
+    </section>
+
+    <section class="card">
+      <h2>Device & Screen <span class="pill">Viewport, pixel ratio, touch</span></h2>
+      <p class="explain">Sizing helps sites lay out pages; pixel ratio & touch indicate density and input methods.</p>
+      <div class="kv" id="screen"></div>
+    </section>
+
+    <section class="card">
+      <h2>Locale & Time <span class="pill">Timezone, locale, offsets</span></h2>
+      <p class="explain">Used for date/time formatting and language preferences.</p>
+      <div class="kv" id="locale"></div>
+    </section>
+
+    <section class="card">
+      <h2>Performance & Memory <span class="pill">Navigation timing</span></h2>
+      <p class="explain">High-level signals to understand page loads. Fine-grained values vary by browser.</p>
+      <pre id="perf"></pre>
+    </section>
+
+    <section class="card">
+      <h2>Storage & State <span class="pill">localStorage, cookies, quota</span></h2>
+      <p class="explain">Web apps store data in your browser. This shows capacity and what’s currently set for this page.</p>
+      <div class="kv" id="storage"></div>
+      <details>
+        <summary>View localStorage/sessionStorage keys</summary>
+        <pre id="storageDump"></pre>
+      </details>
+    </section>
+
+    <section class="card">
+      <h2>Battery & Network <span class="pill">May be approximate</span></h2>
+      <p class="explain">Hints for power-saving and adaptive quality (e.g., video bitrate). Some browsers restrict this.</p>
+      <div class="kv" id="powerNet"></div>
+    </section>
+
+    <section class="card">
+      <h2>Hardware Hints <span class="pill">CPU threads, RAM (approx)</span></h2>
+      <p class="explain">Coarse details help choose efficient code paths. Values are rounded for privacy.</p>
+      <div class="kv" id="hardware"></div>
+    </section>
+
+    <section class="card">
+      <h2>Permissions & Sensors <span class="pill">Geolocation, clipboard</span></h2>
+      <p class="explain">Shows whether this page <em>would</em> be allowed to use certain APIs if requested.</p>
+      <div class="kv" id="perms"></div>
+    </section>
+
+    <section class="card">
+      <h2>WebGL Renderer <span class="pill">Graphics adapter (if exposed)</span></h2>
+      <p class="explain">Some browsers reveal GPU vendor/renderer via WebGL. Useful for graphics debugging, can be privacy-sensitive.</p>
+      <div class="kv" id="webgl"></div>
+    </section>
+
+    <section class="card">
+      <h2>Media Devices <span class="pill">Camera/Mic device counts</span></h2>
+      <p class="explain">Labels are hidden until you grant camera/mic permission elsewhere. We only show counts.</p>
+      <div class="kv" id="media"></div>
+    </section>
+
+    <section class="card">
+      <h2>Plugins & Referrer <span class="pill">Legacy plugin list</span></h2>
+      <p class="explain">Modern browsers deprecate plugins; referrer is the page that linked here (often empty when opened directly).</p>
+      <div class="kv" id="plugins"></div>
+    </section>
+
+    <section class="card">
+      <h2>Raw JSON</h2>
+      <p class="explain">Everything the page gathered in one object. You can copy or download it.</p>
+      <pre id="json"></pre>
+    </section>
+  </div>
+</div>
+
+<footer>
+  Notes: Public IP requires a server or third-party service (not used here). Some fields are hidden or rounded by browsers for privacy.
+</footer>
+
+<script>
+(async function(){
+  const els = {
+    identity: document.getElementById('identity'),
+    screen: document.getElementById('screen'),
+    locale: document.getElementById('locale'),
+    perf: document.getElementById('perf'),
+    storage: document.getElementById('storage'),
+    storageDump: document.getElementById('storageDump'),
+    powerNet: document.getElementById('powerNet'),
+    hardware: document.getElementById('hardware'),
+    perms: document.getElementById('perms'),
+    webgl: document.getElementById('webgl'),
+    media: document.getElementById('media'),
+    plugins: document.getElementById('plugins'),
+    json: document.getElementById('json')
+  };
+
+  function addKV(container, key, val){
+    const k = document.createElement('div'); k.className = 'key'; k.textContent = key;
+    const v = document.createElement('div'); v.textContent = (val ?? '—');
+    container.appendChild(k); container.appendChild(v);
+  }
+
+  function getViewport(){
+    return { width: Math.max(document.documentElement.clientWidth, window.innerWidth || 0),
+             height: Math.max(document.documentElement.clientHeight, window.innerHeight || 0) };
+  }
+
+  function getWebGLInfo(){
+    try {
+      const canvas = document.createElement('canvas');
+      const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+      if(!gl) return { supported:false };
+      const dbgInfo = gl.getExtension('WEBGL_debug_renderer_info');
+      if(!dbgInfo) return { supported:true, vendor: gl.getParameter(gl.VENDOR), renderer:'(masked)' };
+      return {
+        supported:true,
+        vendor: gl.getParameter(dbgInfo.UNMASKED_VENDOR_WEBGL),
+        renderer: gl.getParameter(dbgInfo.UNMASKED_RENDERER_WEBGL)
+      };
+    } catch(e){ return { supported:false, error: String(e) }; }
+  }
+
+  async function getBattery(){
+    try {
+      if(!navigator.getBattery) return null;
+      const b = await navigator.getBattery();
+      return {
+        charging: b.charging, level: b.level, chargingTime: b.chargingTime, dischargingTime: b.dischargingTime
+      };
+    } catch { return null; }
+  }
+
+  function storageSizes(){
+    function sizeOfStorage(storage){
+      let total = 0, keys=[], sample={};
+      for(let i=0;i<storage.length;i++){
+        const k = storage.key(i);
+        const v = storage.getItem(k) || '';
+        total += k.length + v.length;
+        keys.push(k);
+        sample[k] = (v.length>120 ? v.slice(0,120)+'…' : v);
+      }
+      // rough bytes in UTF-16
+      return { keys, approxBytes: total*2, sample };
+    }
+    const ls = sizeOfStorage(localStorage);
+    const ss = sizeOfStorage(sessionStorage);
+    return { localStorage: ls, sessionStorage: ss };
+  }
+
+  async function getPermissions(){
+    if(!('permissions' in navigator)) return null;
+    const names = ['geolocation','notifications','clipboard-read','clipboard-write','camera','microphone'];
+    const res = {};
+    await Promise.all(names.map(async name=>{
+      try { const st = await navigator.permissions.query({ name });
+            res[name] = st.state;
+      } catch { res[name] = 'unknown'; }
+    }));
+    return res;
+  }
+
+  async function getMediaDevices(){
+    try {
+      if(!navigator.mediaDevices?.enumerateDevices) return null;
+      const list = await navigator.mediaDevices.enumerateDevices();
+      const counts = list.reduce((acc,d)=>{
+        acc[d.kind] = (acc[d.kind]||0)+1; return acc;
+      },{});
+      return { counts };
+    } catch { return null; }
+  }
+
+  function getPerf(){
+    const nav = performance.getEntriesByType('navigation')[0];
+    const mem = performance.memory || null;
+    return { navigation: nav ? {
+              type: nav.type,
+              startTime: nav.startTime,
+              domContentLoaded: nav.domContentLoadedEventEnd,
+              loadEventEnd: nav.loadEventEnd,
+              transferSize: nav.transferSize,
+              encodedBodySize: nav.encodedBodySize,
+              decodedBodySize: nav.decodedBodySize
+            } : null,
+            memory: mem ? {
+              jsHeapSizeLimit: mem.jsHeapSizeLimit,
+              totalJSHeapSize: mem.totalJSHeapSize,
+              usedJSHeapSize: mem.usedJSHeapSize
+            } : null };
+  }
+
+  function bytesToNice(n){
+    if(n==null) return '—';
+    const u = ['B','KB','MB','GB','TB']; let i=0; let x=Number(n);
+    while(x>=1024 && i<u.length-1){ x/=1024; i++; }
+    return x.toFixed(2)+' '+u[i];
+  }
+
+  async function collect(geo){
+    const dtf = Intl.DateTimeFormat();
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const vp = getViewport();
+
+    const webgl = getWebGLInfo();
+    const battery = await getBattery();
+    const net = navigator.connection || navigator.webkitConnection || navigator.mozConnection || null;
+    const media = await getMediaDevices();
+    const perms = await getPermissions();
+    const perf = getPerf();
+    const storageEst = navigator.storage?.estimate ? await navigator.storage.estimate() : null;
+    const storSizes = storageSizes();
+
+    const data = {
+      identity: {
+        userAgent: navigator.userAgent,
+        uaData: navigator.userAgentData ? await navigator.userAgentData.getHighEntropyValues(['platform','platformVersion','architecture','bitness','model','uaFullVersion']) : null,
+        platform: navigator.platform,
+        languages: navigator.languages,
+        referrer: document.referrer || ''
+      },
+      screen: {
+        viewport: vp,
+        screen: { width: screen.width, height: screen.height, availWidth: screen.availWidth, availHeight: screen.availHeight, colorDepth: screen.colorDepth, pixelDepth: screen.pixelDepth },
+        devicePixelRatio: window.devicePixelRatio || 1,
+        touchPoints: (navigator.maxTouchPoints ?? 0)
+      },
+      locale: {
+        timeZone: tz,
+        localeExample: dtf.resolvedOptions(),
+        timezoneOffsetMinutes: new Date().getTimezoneOffset()
+      },
+      hardware: {
+        hardwareConcurrency: navigator.hardwareConcurrency ?? null,
+        deviceMemoryGB: navigator.deviceMemory ?? null
+      },
+      storage: {
+        cookiesEnabled: navigator.cookieEnabled,
+        doNotTrack: navigator.doNotTrack || navigator.msDoNotTrack || 'unspecified',
+        quota: storageEst ? storageEst.quota : null,
+        usage: storageEst ? storageEst.usage : null,
+        localStorage: { keys: storSizes.localStorage.keys, approxBytes: storSizes.localStorage.approxBytes },
+        sessionStorage: { keys: storSizes.sessionStorage.keys, approxBytes: storSizes.sessionStorage.approxBytes }
+      },
+      powerNetwork: {
+        battery,
+        network: net ? {
+          effectiveType: net.effectiveType, downlink: net.downlink, rtt: net.rtt, saveData: net.saveData
+        } : null
+      },
+      permissions: perms,
+      mediaDevices: media,
+      webgl,
+      plugins: (()=>{ try {
+        return Array.from(navigator.plugins || []).map(p=>({name:p.name, filename:p.filename, description:p.description}));
+      } catch { return null; } })(),
+      performance: perf,
+      geolocation: geo || null,
+      timestamp: new Date().toISOString()
+    };
+    return data;
+  }
+
+  function render(data){
+    // Identity
+    els.identity.innerHTML = '';
+    addKV(els.identity,'userAgent', data.identity.userAgent);
+    addKV(els.identity,'platform', data.identity.platform);
+    addKV(els.identity,'languages', (data.identity.languages||[]).join(', '));
+    addKV(els.identity,'referrer', data.identity.referrer || '(none)');
+    addKV(els.identity,'uaData', data.identity.uaData ? JSON.stringify(data.identity.uaData) : 'not available');
+
+    // Screen
+    els.screen.innerHTML = '';
+    addKV(els.screen,'viewport', data.screen.viewport.width+' × '+data.screen.viewport.height);
+    addKV(els.screen,'screen', data.screen.screen.width+' × '+data.screen.screen.height);
+    addKV(els.screen,'avail', data.screen.screen.availWidth+' × '+data.screen.screen.availHeight);
+    addKV(els.screen,'colorDepth', data.screen.screen.colorDepth);
+    addKV(els.screen,'pixelDepth', data.screen.screen.pixelDepth);
+    addKV(els.screen,'devicePixelRatio', data.screen.devicePixelRatio);
+    addKV(els.screen,'touchPoints', data.screen.touchPoints);
+
+    // Locale
+    els.locale.innerHTML = '';
+    addKV(els.locale,'timeZone', data.locale.timeZone);
+    addKV(els.locale,'locale', data.locale.localeExample?.locale || '(unknown)');
+    addKV(els.locale,'calendar', data.locale.localeExample?.calendar || '(unknown)');
+    addKV(els.locale,'numberingSystem', data.locale.localeExample?.numberingSystem || '(unknown)');
+    addKV(els.locale,'timezoneOffsetMinutes', data.locale.timezoneOffsetMinutes);
+
+    // Performance
+    els.perf.textContent = JSON.stringify(data.performance, null, 2);
+
+    // Storage
+    els.storage.innerHTML = '';
+    addKV(els.storage,'cookiesEnabled', data.storage.cookiesEnabled);
+    addKV(els.storage,'Do Not Track', data.storage.doNotTrack);
+    addKV(els.storage,'quota (approx)', data.storage.quota ? bytesToNice(data.storage.quota) : 'n/a');
+    addKV(els.storage,'usage (approx)', data.storage.usage ? bytesToNice(data.storage.usage) : 'n/a');
+    addKV(els.storage,'localStorage keys', data.storage.localStorage.keys.length);
+    addKV(els.storage,'localStorage size (approx)', bytesToNice(data.storage.localStorage.approxBytes));
+    addKV(els.storage,'sessionStorage keys', data.storage.sessionStorage.keys.length);
+    addKV(els.storage,'sessionStorage size (approx)', bytesToNice(data.storage.sessionStorage.approxBytes));
+
+    els.storageDump.textContent = JSON.stringify({
+      localStorage: JSON.parse(JSON.stringify(localStorage)),
+      sessionStorage: JSON.parse(JSON.stringify(sessionStorage))
+    }, null, 2);
+
+    // Battery & Network
+    els.powerNet.innerHTML = '';
+    const b = data.powerNetwork.battery;
+    addKV(els.powerNet, 'battery.supported', !!b);
+    if(b){
+      addKV(els.powerNet, 'battery.charging', b.charging);
+      addKV(els.powerNet, 'battery.level', (b.level*100).toFixed(0)+'%');
+      addKV(els.powerNet, 'chargingTime(s)', b.chargingTime);
+      addKV(els.powerNet, 'dischargingTime(s)', b.dischargingTime);
+    }
+    const n = data.powerNetwork.network;
+    addKV(els.powerNet, 'network.supported', !!n);
+    if(n){
+      addKV(els.powerNet, 'effectiveType', n.effectiveType);
+      addKV(els.powerNet, 'downlink(Mbps est)', n.downlink);
+      addKV(els.powerNet, 'rtt(ms est)', n.rtt);
+      addKV(els.powerNet, 'saveData', n.saveData);
+    }
+
+    // Hardware
+    els.hardware.innerHTML = '';
+    addKV(els.hardware,'hardwareConcurrency', data.hardware.hardwareConcurrency);
+    addKV(els.hardware,'deviceMemoryGB', data.hardware.deviceMemoryGB);
+
+    // Permissions
+    els.perms.innerHTML = '';
+    if(data.permissions){
+      Object.entries(data.permissions).forEach(([k,v])=> addKV(els.perms, k, v));
+    } else {
+      addKV(els.perms,'permissions API','not available');
+    }
+
+    // WebGL
+    els.webgl.innerHTML = '';
+    addKV(els.webgl,'supported', data.webgl.supported);
+    if(data.webgl.supported){
+      addKV(els.webgl,'vendor', data.webgl.vendor || '(masked)');
+      addKV(els.webgl,'renderer', data.webgl.renderer || '(masked)');
+    } else if (data.webgl.error){
+      addKV(els.webgl,'error', data.webgl.error);
+    }
+
+    // Media Devices
+    els.media.innerHTML = '';
+    if(data.mediaDevices?.counts){
+      Object.entries(data.mediaDevices.counts).forEach(([k,v])=> addKV(els.media, k, v));
+    } else {
+      addKV(els.media,'enumerateDevices','not available');
+    }
+
+    // Plugins & Referrer
+    els.plugins.innerHTML = '';
+    addKV(els.plugins,'referrer', data.identity.referrer || '(none)');
+    if(data.plugins && data.plugins.length){
+      addKV(els.plugins,'plugins.count', data.plugins.length);
+      data.plugins.slice(0,12).forEach((p,i)=> addKV(els.plugins, `plugin[${i}]`, `${p.name} (${p.filename})`));
+      if(data.plugins.length>12) addKV(els.plugins,'plugins.more','…');
+    } else {
+      addKV(els.plugins,'plugins','none / restricted');
+    }
+
+    // Raw JSON
+    els.json.textContent = JSON.stringify(data, null, 2);
+  }
+
+  let latest = null;
+
+  async function run(geo=null){
+    latest = await collect(geo);
+    render(latest);
+  }
+
+  // Buttons
+  document.getElementById('scan').addEventListener('click', ()=> run());
+  document.getElementById('getGeo').addEventListener('click', ()=>{
+    if(!navigator.geolocation){ alert('Geolocation not supported'); return; }
+    navigator.geolocation.getCurrentPosition(
+      pos => run({ status:'granted', coords: {
+        lat: pos.coords.latitude, lon: pos.coords.longitude,
+        accuracy: pos.coords.accuracy, altitude: pos.coords.altitude,
+        heading: pos.coords.heading, speed: pos.coords.speed
+      }}),
+      err => run({ status:'denied_or_error', message: err.message })
+    );
+  });
+  document.getElementById('copyJson').addEventListener('click', async ()=>{
+    try {
+      await navigator.clipboard.writeText(els.json.textContent);
+      alert('JSON copied to clipboard.');
+    } catch { alert('Clipboard permission denied.'); }
+  });
+  document.getElementById('downloadJson').addEventListener('click', ()=>{
+    const blob = new Blob([els.json.textContent], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'browser-data.json'; a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  // Initial run
+  run();
+})();
+</script>
+</body>
+</html>
