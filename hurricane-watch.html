@@ -8,27 +8,40 @@
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <style>
+  :root{
+    color-scheme: dark;
+  }
   body{background:#0b1320;color:#e9eef8}
   a{color:#9fd2ff}
   header{padding:1rem 0}
-  .badge-pill{border-radius:2rem}
-  #map{height:55vh;border-radius:1rem;border:1px solid rgba(255,255,255,.1)}
+  #map{height:56vh;border-radius:1rem;border:1px solid rgba(255,255,255,.1)}
   .card{background:#111a2e;border-color:rgba(255,255,255,.08)}
   .storm-pill{font-weight:600}
-  .footer-note{opacity:.7;font-size:.9rem}
+  .footer-note{opacity:.75;font-size:.9rem}
   .spinner{display:none}
+  .legend {background:#111a2e;border:1px solid rgba(255,255,255,.1);padding:.5rem .75rem;border-radius:.5rem;font-size:.9rem}
+  .legend span.badge{margin-right:.5rem}
 </style>
 </head>
 <body class="container py-3">
   <header class="d-flex align-items-center justify-content-between">
-    <h1 class="h3 m-0">Hurricane Watch</h1>
+    <h1 class="h4 m-0">Hurricane Watch</h1>
     <span class="spinner-border spinner-border-sm text-info spinner" id="spinner" role="status" aria-hidden="true"></span>
   </header>
 
-  <p class="mb-3">This page checks official NOAA/NHC data for any active tropical cyclones and plots their current positions. No API key required.</p>
+  <p class="mb-3">Checks official NOAA/NHC data for any active tropical cyclones and plots their current positions. No API key required.</p>
 
   <div id="status" class="alert alert-secondary py-2 px-3 small mb-3" role="alert">Loading latest storm positions…</div>
   <div id="map" class="mb-3"></div>
+
+  <div class="d-flex justify-content-end mb-3">
+    <div class="legend">
+      <span class="badge text-bg-danger">Hurricane</span>
+      <span class="badge text-bg-info text-dark">Tropical Storm</span>
+      <span class="badge text-bg-secondary">Tropical Depression</span>
+      <span class="badge text-bg-light text-dark">Other</span>
+    </div>
+  </div>
 
   <div class="card mb-4">
     <div class="card-header">Active Systems</div>
@@ -38,8 +51,8 @@
   </div>
 
   <p class="footer-note">
-    Data: NOAA/NHC Tropical Weather Summary (Forecast Points, current positions). Updates typically with each advisory cycle.
-    See also the NHC “Active Cyclones” page for context. 
+    Data source: NOAA/NHC Tropical Weather Summary (Forecast Points). If loading fails, check the
+    <a href="https://www.nhc.noaa.gov/cyclones/" target="_blank" rel="noopener">NHC Active Cyclones</a> page.
   </p>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -49,13 +62,13 @@
   const SPINNER = document.getElementById('spinner');
   const LIST = document.getElementById('storms-list');
 
-  // NOAA NHC tropical summary → Forecast Points (ID 5), current positions only (fcstprd = 0)
+  // NOAA NHC tropical summary → Forecast Points (ID 5)
   const ENDPOINT = 'https://mapservices.weather.noaa.gov/tropical/rest/services/tropical/NHC_tropical_weather_summary/MapServer/5/query';
   const params = new URLSearchParams({
-    where: 'fcstprd=0',
+    where: '1=1',
     outFields: [
       'stormname','stormtype','basin','advdate','advisnum','maxwind','mslp',
-      'ssnum','tcdvlp','tcspd','tcdir','lat','lon','idp_source','validtime'
+      'ssnum','tcdvlp','tcspd','tcdir','lat','lon','validtime','fcstprd','tau'
     ].join(','),
     returnGeometry: 'true',
     f: 'geojson'
@@ -70,51 +83,50 @@
 
   function stormBadge(type) {
     const t = (type || '').toLowerCase();
-    if (t.includes('hurricane')) return '<span class="badge bg-danger-subtle text-danger-emphasis storm-pill">HURRICANE</span>';
-    if (t.includes('strong') || t.includes('severe')) return '<span class="badge bg-warning text-dark storm-pill">SEVERE TS</span>';
-    if (t.includes('tropical storm')) return '<span class="badge bg-info text-dark storm-pill">Tropical Storm</span>';
-    if (t.includes('tropical depression')) return '<span class="badge bg-secondary storm-pill">Tropical Depression</span>';
-    return `<span class="badge bg-light text-dark storm-pill">${type || 'System'}</span>`;
+    if (t.includes('hurricane')) return '<span class="badge text-bg-danger storm-pill">Hurricane</span>';
+    if (t.includes('tropical storm')) return '<span class="badge text-bg-info text-dark storm-pill">Tropical Storm</span>';
+    if (t.includes('tropical depression')) return '<span class="badge text-bg-secondary storm-pill">Tropical Depression</span>';
+    return `<span class="badge text-bg-light text-dark storm-pill">${type || 'System'}</span>`;
+  }
+
+  function markerStyle(type) {
+    const t = (type || '').toLowerCase();
+    if (t.includes('hurricane')) return { radius: 8, weight: 2 };
+    if (t.includes('tropical storm')) return { radius: 7, weight: 2 };
+    if (t.includes('tropical depression')) return { radius: 6, weight: 2 };
+    return { radius: 6, weight: 1 };
   }
 
   function round(n, d=1){ return (typeof n==='number') ? Number(n.toFixed(d)) : n; }
 
   try {
     SPINNER.style.display = 'inline-block';
-    const res = await fetch(ENDPOINT + '?' + params.toString(), {
-      headers: { 'Accept': 'application/geo+json' }
-    });
+    const res = await fetch(ENDPOINT + '?' + params.toString());
     if (!res.ok) throw new Error('Network response was not ok: ' + res.status);
     const geo = await res.json();
 
-    // Deduplicate by storm name + basin in case multiple points slip in
-    const storms = [];
-    const seen = new Set();
-
-    (geo.features || []).forEach(f => {
+    // Choose one "current" point per storm:
+    // Preference: fcstprd === 0 (analysis point), else tau === 0, else latest validtime/advdate.
+    const byStorm = new Map();
+    for (const f of (geo.features || [])) {
       const p = f.properties || {};
-      const key = (p.stormname || 'Unknown') + '|' + (p.basin || '');
-      if (!seen.has(key)) {
-        seen.add(key);
-        storms.push({
-          name: p.stormname || 'Unnamed',
-          type: p.stormtype || p.tcdvlp || 'Tropical Cyclone',
-          basin: p.basin || '',
-          lat: p.lat ?? (f.geometry && f.geometry.coordinates ? f.geometry.coordinates[1] : null),
-          lon: p.lon ?? (f.geometry && f.geometry.coordinates ? f.geometry.coordinates[0] : null),
-          maxwind: p.maxwind,
-          cat: (typeof p.ssnum === 'number' && p.ssnum >= 1) ? p.ssnum : null,
-          adv: p.advisnum || '',
-          advdate: p.advdate || p.validtime || '',
-          dir: p.tcdir,
-          spd: p.tcspd
-        });
+      const key = `${p.stormname || 'Unknown'}|${p.basin || ''}`;
+      const score = (p.fcstprd === 0 ? 3 : (p.tau === 0 ? 2 : 1));
+      const prev = byStorm.get(key);
+      const prevScore = prev?.score ?? 0;
+      if (score > prevScore) {
+        byStorm.set(key, { f, score });
+      } else if (score === prevScore) {
+        const a = (p.validtime || p.advdate || '');
+        const b = (prev?.f.properties.validtime || prev?.f.properties.advdate || '');
+        if (a > b) byStorm.set(key, { f, score });
       }
-    });
+    }
+    const currentFeatures = Array.from(byStorm.values()).map(x => x.f);
 
     layerGroup.clearLayers();
 
-    if (storms.length === 0) {
+    if (currentFeatures.length === 0) {
       STATUS.className = 'alert alert-success py-2 px-3 small';
       STATUS.textContent = 'No active tropical cyclones at this time.';
       map.setView([23, -60], 3);
@@ -123,31 +135,38 @@
     }
 
     STATUS.className = 'alert alert-warning py-2 px-3 small';
-    STATUS.textContent = `Active systems detected: ${storms.length}`;
+    STATUS.textContent = `Active systems detected: ${currentFeatures.length}`;
 
     const bounds = [];
-    storms.forEach(s => {
-      if (typeof s.lat === 'number' && typeof s.lon === 'number') {
-        const marker = L.circleMarker([s.lat, s.lon], { radius: 7 })
-          .bindPopup(`
-            <div><strong>${s.name}</strong> ${stormBadge(s.type)}</div>
-            <div>${s.basin ? 'Basin: ' + s.basin : ''}</div>
-            <div>${(s.cat ? 'Category ' + s.cat + ' · ' : '')}${s.maxwind ? 'Max wind: ' + s.maxwind + ' kt' : ''}</div>
-            <div>${s.dir && s.spd ? 'Motion: ' + round(s.dir) + '° @ ' + round(s.spd) + ' kt' : ''}</div>
-            <div>${s.adv ? 'Advisory ' + s.adv : ''}${s.advdate ? ' · ' + s.advdate : ''}</div>
-            <div>Lat/Lon: ${round(s.lat,2)}, ${round(s.lon,2)}</div>
-          `);
-        marker.addTo(layerGroup);
-        bounds.push([s.lat, s.lon]);
-      }
 
-      // List card
-      const pill = stormBadge(s.type);
-      const cat = s.cat ? `Category ${s.cat}` : (s.maxwind ? `${s.maxwind} kt` : '');
-      const motion = (s.dir && s.spd) ? ` · Motion ${round(s.dir)}° @ ${round(s.spd)} kt` : '';
-      const when = s.adv ? `Advisory ${s.adv}` : '';
-      const time = s.advdate ? ` · ${s.advdate}` : '';
-      const coord = (typeof s.lat==='number' && typeof s.lon==='number') ? ` · ${round(s.lat,2)}, ${round(s.lon,2)}` : '';
+    for (const f of currentFeatures) {
+      const p = f.properties || {};
+      const g = f.geometry || {};
+      const coords = Array.isArray(g.coordinates) ? g.coordinates : [null, null];
+      const lon = (typeof p.lon === 'number') ? p.lon : coords[0];
+      const lat = (typeof p.lat === 'number') ? p.lat : coords[1];
+
+      const name = p.stormname || 'Unnamed';
+      const type = p.stormtype || p.tcdvlp || 'Tropical Cyclone';
+      const badge = stormBadge(type);
+      const cat = (typeof p.ssnum === 'number' && p.ssnum >= 1) ? `Category ${p.ssnum}` : (p.maxwind ? `${p.maxwind} kt` : '');
+      const motion = (p.tcdir != null && p.tcspd != null) ? ` · Motion ${round(p.tcdir)}° @ ${round(p.tcspd)} kt` : '';
+      const when = p.advisnum ? `Advisory ${p.advisnum}` : '';
+      const time = p.validtime || p.advdate || '';
+      const coordTxt = (typeof lat==='number' && typeof lon==='number') ? ` · ${round(lat,2)}, ${round(lon,2)}` : '';
+
+      if (typeof lat === 'number' && typeof lon === 'number') {
+        const mrk = L.circleMarker([lat, lon], markerStyle(type))
+          .bindPopup(`
+            <div><strong>${name}</strong> ${badge}</div>
+            <div>${p.basin ? 'Basin: ' + p.basin : ''}</div>
+            <div>${cat}${motion}</div>
+            <div>${when}${time ? ' · ' + time : ''}</div>
+            <div>Lat/Lon: ${round(lat,2)}, ${round(lon,2)}</div>
+          `);
+        mrk.addTo(layerGroup);
+        bounds.push([lat, lon]);
+      }
 
       const col = document.createElement('div');
       col.className = 'col-12 col-md-6';
@@ -155,26 +174,25 @@
         <div class="p-3 border rounded">
           <div class="d-flex justify-content-between align-items-start">
             <div>
-              <div class="h5 mb-1">${s.name}</div>
-              <div class="mb-1">${pill}</div>
+              <div class="h5 mb-1">${name}</div>
+              <div class="mb-1">${badge}</div>
               <div class="small text-white-50">
-                ${s.basin || ''} · ${cat}${motion}${coord}
+                ${p.basin || ''} · ${cat}${motion}${coordTxt}
               </div>
-              <div class="small text-white-50">${when}${time}</div>
+              <div class="small text-white-50">${when}${time ? ' · ' + time : ''}</div>
             </div>
-            <button class="btn btn-sm btn-outline-info" ${ (typeof s.lat==='number' && typeof s.lon==='number') ? '' : 'disabled' }>
+            <button class="btn btn-sm btn-outline-info" ${ (typeof lat==='number' && typeof lon==='number') ? '' : 'disabled' }>
               Zoom
             </button>
           </div>
         </div>`;
-      const btn = col.querySelector('button');
-      btn?.addEventListener('click', () => {
-        if (typeof s.lat==='number' && typeof s.lon==='number') {
-          map.setView([s.lat, s.lon], 6, { animate: true });
+      col.querySelector('button')?.addEventListener('click', () => {
+        if (typeof lat==='number' && typeof lon==='number') {
+          map.setView([lat, lon], 6, { animate: true });
         }
       });
       LIST.appendChild(col);
-    });
+    }
 
     if (bounds.length) {
       const b = L.latLngBounds(bounds);
