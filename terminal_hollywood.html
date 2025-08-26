@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Hollywood Terminal (Fake)</title>
+<style>
+  :root{
+    --bg:#020302;
+    --fg:#8cff8c;
+    --muted:#4ee14e;
+    --accent:#a2f3a2;
+    --danger:#ff6a6a;
+    --glow:0 0 8px rgba(0,255,100,.35),0 0 20px rgba(0,255,100,.15);
+  }
+
+  html,body{height:100%}
+  body{
+    margin:0;
+    background: radial-gradient(1200px 800px at 50% 20%, #051a05 0%, #031003 30%, var(--bg) 70%);
+    color:var(--fg);
+    font: 15px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    overflow:hidden;
+  }
+
+  /* Top bar controls */
+  .topbar{
+    position:relative;
+    z-index:2;
+    background: linear-gradient(180deg, #041804, #031103);
+    border-bottom:1px solid #0b2f0b;
+    display:flex;
+    gap:.75rem;
+    align-items:center;
+    padding:.5rem .75rem;
+    user-select:none;
+  }
+  .badge{
+    font-size:.75rem;
+    padding:.2rem .5rem;
+    border:1px solid #1f5a1f;
+    border-radius:.4rem;
+    color:var(--accent);
+    box-shadow: var(--glow);
+  }
+  .controls{display:flex; gap: .75rem; align-items:center; margin-left:auto}
+  label{font-size:.85rem; color:var(--accent); opacity:.85}
+  input[type="range"]{width:160px}
+  button{
+    background:#072107; color:var(--fg);
+    border:1px solid #144614; border-radius:.45rem; padding:.35rem .65rem;
+    cursor:pointer; box-shadow:var(--glow);
+  }
+  button:active{transform:translateY(1px)}
+  .danger{border-color:#3b1515; color:#ffb9b9; background:#170808; box-shadow:0 0 8px rgba(255,0,60,.25)}
+  .muted{opacity:.8}
+
+  /* Screen */
+  .frame{
+    position:relative;
+    height:calc(100% - 52px);
+    padding:14px;
+  }
+
+  .screen{
+    position:relative;
+    height:100%;
+    border:1px solid #0e360e;
+    border-radius:14px;
+    padding:14px 14px 0 14px;
+    overflow:auto;
+    box-shadow: inset 0 0 40px rgba(0,0,0,.8), 0 0 40px rgba(0,255,120,.05);
+    backdrop-filter: blur(.2px) saturate(1.1);
+    background:
+      repeating-linear-gradient(180deg, rgba(0,0,0,0) 0px, rgba(0,0,0,0) 2px, rgba(0,0,0,.08) 3px),
+      radial-gradient(1000px 600px at 50% 0%, rgba(0,255,120,.07), rgba(0,0,0,0));
+  }
+
+  /* Horizontal scanlines + subtle flicker */
+  .screen::after{
+    content:"";
+    position:absolute; inset:0;
+    background: repeating-linear-gradient(180deg, rgba(255,255,255,.03) 0px, rgba(0,0,0,0) 2px, rgba(0,0,0,0) 3px);
+    mix-blend-mode: overlay;
+    opacity:.35;
+    pointer-events:none;
+    animation: flicker 4s infinite steps(60, end);
+  }
+  @keyframes flicker{
+    0%,100%{opacity:.30}
+    48%{opacity:.37}
+    50%{opacity:.25}
+    52%{opacity:.38}
+  }
+
+  /* Left-to-right sweep glow */
+  .screen::before{
+    content:"";
+    position:absolute; top:0; bottom:0; left:-40%;
+    width:40%;
+    background: linear-gradient(90deg, rgba(160,255,200,0) 0%, rgba(160,255,200,.08) 50%, rgba(160,255,200,0) 100%);
+    filter: blur(6px);
+    animation: sweep 9s linear infinite;
+    pointer-events:none;
+  }
+  @keyframes sweep{
+    0%{transform: translateX(0)}
+    100%{transform: translateX(250%)}
+  }
+
+  /* Output area */
+  #output{
+    white-space:pre-wrap;
+    padding-bottom:68px; /* leave room for prompt */
+    text-shadow: 0 0 3px rgba(0,255,120,.35);
+  }
+  .line{margin:0 0 .2rem 0}
+  .dim{opacity:.75; color:var(--muted)}
+  .warn{color:#ffe28c; text-shadow:0 0 6px rgba(255,225,140,.25)}
+  .err{color:var(--danger); text-shadow:0 0 6px rgba(255,60,60,.25)}
+  .ok{color:#b2ffb2}
+  .tag{color:#9ef39e}
+
+  /* Progress bar */
+  .bar-wrap{
+    margin:.15rem 0 .35rem 0;
+    border:1px solid #1d531d; border-radius:8px; padding:3px;
+    background: rgba(0,0,0,.25);
+    width:min(640px, 100%);
+  }
+  .bar{
+    height:10px; border-radius:6px; width:0%;
+    background: linear-gradient(90deg, #47e647, #9eff9e);
+    box-shadow: 0 0 10px rgba(0,255,100,.4);
+    transition: width .12s linear;
+  }
+  .bar-label{
+    font-size:.8rem; margin-top:.25rem; opacity:.85
+  }
+
+  /* Prompt */
+  .prompt{
+    position:sticky; bottom:0; left:0; right:0;
+    background: linear-gradient(180deg, rgba(0,0,0,0), rgba(0,0,0,.6) 30%, rgba(0,0,0,.9));
+    padding:8px 0 12px 0;
+  }
+  .row{
+    display:flex; align-items:center; gap:.5rem;
+  }
+  .caret{color:var(--accent)}
+  input[type="text"]{
+    flex:1;
+    background:#061c06; color:var(--fg);
+    border:1px solid #1f5a1f; border-radius:.45rem;
+    padding:.5rem .65rem; font:inherit;
+    box-shadow: var(--glow);
+    outline:none;
+  }
+
+  /* Help cheatsheet */
+  details{
+    margin-top:.35rem; opacity:.85;
+  }
+  summary{cursor:pointer}
+  kbd{
+    background:#173617; color:var(--fg);
+    padding:.1rem .35rem; border:1px solid #1f5a1f; border-radius:.25rem;
+    box-shadow:var(--glow); font-size:.85rem;
+  }
+
+  /* Fullscreen helper */
+  .fs-tip{
+    position:absolute; top:10px; right:14px; opacity:.7; font-size:.8rem
+  }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <span class="badge">FAKE TERMINAL • for fun only</span>
+    <span class="badge muted">CRT mode</span>
+    <div class="controls">
+      <label>Speed <small>(ms/char)</small>:
+        <input id="speed" type="range" min="25" max="200" step="5" value="110" />
+      </label>
+      <button id="pauseBtn" title="Pause/Resume typing">⏸️ Pause</button>
+      <button id="clearBtn" class="danger" title="Clear screen">🧹 Clear</button>
+      <button id="fsBtn" title="Fullscreen">⛶ Fullscreen</button>
+    </div>
+  </div>
+
+  <div class="frame">
+    <div class="screen" id="screen">
+      <div class="fs-tip dim">Tip: press <kbd>F11</kbd> for browser fullscreen</div>
+      <div id="output" aria-live="polite"></div>
+
+      <div class="prompt">
+        <div class="row">
+          <span class="caret">guest@demo:/sim$</span>
+          <input id="cmd" type="text" placeholder="type a fake command and press Enter (e.g., trace, scan, dump, breach)" autocomplete="off" />
+        </div>
+        <details>
+          <summary>help</summary>
+          <div class="dim">Try: <kbd>scan</kbd>, <kbd>trace</kbd>, <kbd>dump</kbd>, <kbd>handshake</kbd>, <kbd>breach</kbd>, <kbd>keys</kbd>, <kbd>gpu</kbd>, <kbd>matrix</kbd>, <kbd>clear</kbd></div>
+        </details>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const out = document.getElementById('output');
+  const speedSlider = document.getElementById('speed');
+  const pauseBtn = document.getElementById('pauseBtn');
+  const clearBtn = document.getElementById('clearBtn');
+  const fsBtn = document.getElementById('fsBtn');
+  const cmd = document.getElementById('cmd');
+  const screen = document.getElementById('screen');
+
+  let MS_PER_CHAR = +speedSlider.value; // default slower
+  let paused = false;
+
+  speedSlider.addEventListener('input', () => { MS_PER_CHAR = +speedSlider.value; });
+
+  pauseBtn.addEventListener('click', () => {
+    paused = !paused;
+    pauseBtn.textContent = paused ? '▶️ Resume' : '⏸️ Pause';
+  });
+
+  clearBtn.addEventListener('click', () => {
+    out.textContent = '';
+    line(dim(ts()+' [sys] screen cleared'));
+  });
+
+  fsBtn.addEventListener('click', () => {
+    const el = document.documentElement;
+    if(!document.fullscreenElement){
+      el.requestFullscreen?.();
+    } else {
+      document.exitFullscreen?.();
+    }
+  });
+
+  cmd.addEventListener('keydown', async (e) => {
+    if(e.key === 'Enter'){
+      const value = cmd.value.trim();
+      if(!value) return;
+      line(`guest@demo:/sim$ ${value}`, 'tag');
+      cmd.value = '';
+      await handleCommand(value.toLowerCase());
+      scrollBottom();
+    }
+  });
+
+  function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
+  async function waitWhilePaused(){
+    while(paused){ await sleep(60); }
+  }
+  function ts(){
+    const d = new Date();
+    const hh = String(d.getHours()).padStart(2,'0');
+    const mm = String(d.getMinutes()).padStart(2,'0');
+    const ss = String(d.getSeconds()).padStart(2,'0');
+    return `${hh}:${mm}:${ss}`;
+  }
+  function line(text, cls){
+    const el = document.createElement('div');
+    el.className = 'line' + (cls ? ' '+cls : '');
+    el.textContent = text;
+    out.appendChild(el);
+  }
+  function span(txt, cls){ return `%<${cls}|${txt}>%`; } // rich token for type()
+  function renderTokensTo(el, s){
+    // replace %<cls|text>% tokens with styled spans
+    const frag = document.createDocumentFragment();
+    const re = /%<([^|>]+)\|([^>]+)>%/g;
+    let last = 0, m;
+    while((m = re.exec(s))){
+      if(m.index > last) frag.append(document.createTextNode(s.slice(last, m.index)));
+      const sp = document.createElement('span');
+      sp.className = m[1];
+      sp.textContent = m[2];
+      frag.append(sp);
+      last = m.index + m[0].length;
+    }
+    if(last < s.length) frag.append(document.createTextNode(s.slice(last)));
+    el.append(frag);
+  }
+  async function type(text, cls){
+    const el = document.createElement('div');
+    el.className = 'line' + (cls ? ' '+cls : '');
+    out.appendChild(el);
+
+    // handle tokens but still type char-by-char
+    let plain = text
+      .replace(/%<[^|>]+\|/g,'') // remove token open for length calc
+      .replace(/>%/g,'');        // remove token close
+
+    // For simplicity, type as plain chars, then restyle at end to tokens
+    let i=0;
+    while(i < plain.length){
+      await waitWhilePaused();
+      el.textContent += plain[i++];
+      scrollBottom();
+      await sleep(MS_PER_CHAR);
+    }
+    el.textContent = '';
+    renderTokensTo(el, text);
+  }
+  function scrollBottom(){ screen.scrollTop = screen.scrollHeight; }
+
+  function randInt(min, max){ return Math.floor(Math.random()*(max-min+1))+min; }
+  function sample(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+  function hexByte(){ return randInt(0,255).toString(16).padStart(2,'0'); }
+  function ip(){ return `${randInt(10,250)}.${randInt(0,255)}.${randInt(0,255)}.${randInt(1,254)}`; }
+  function mac(){ return Array.from({length:6}, hexByte).join(':'); }
+
+  async function progress(label, duration=4200){
+    const wrap = document.createElement('div');
+    wrap.className = 'bar-wrap';
+    const bar = document.createElement('div');
+    bar.className = 'bar';
+    const lab = document.createElement('div');
+    lab.className = 'bar-label dim';
+    lab.textContent = label + ' 0%';
+    wrap.appendChild(bar);
+    out.appendChild(wrap);
+    out.appendChild(lab);
+    scrollBottom();
+
+    const start = performance.now();
+    let lastPct = 0;
+    while(true){
+      await waitWhilePaused();
+      const t = performance.now() - start;
+      let pct = Math.min(100, Math.floor((t/duration)*100 + Math.random()*2));
+      // ease near end
+      if(pct > 85) pct = Math.min(100, lastPct + randInt(0,2));
+      if(pct <= lastPct) pct = lastPct + 1;
+      if(pct > 100) pct = 100;
+      lastPct = pct;
+      bar.style.width = pct + '%';
+      lab.textContent = `${label} ${pct}%`;
+      await sleep(randInt(45,95));
+      if(pct >= 100) break;
+    }
+  }
+
+  async function hexDump(lines=8){
+    for(let r=0;r<lines;r++){
+      let off = (r*16).toString(16).padStart(4,'0');
+      let bytes = Array.from({length:16}, hexByte);
+      let ascii = bytes.map(b=>{
+        const n = parseInt(b,16);
+        return (n>=32 && n<=126) ? String.fromCharCode(n) : '.';
+      }).join('');
+      await type(`${ts()} ${span(off, 'dim')}: ${bytes.join(' ')}  |${ascii}|`);
+    }
+  }
+
+  async function traceRoute(hops=randInt(6,12)){
+    await type(ts()+" tracing route to "+span(ip(),'ok')+" over "+span(hops+' hops','ok'));
+    for(let i=1;i<=hops;i++){
+      await type(` ${String(i).padStart(2,' ')}  ${ip()}  ${randInt(3,30)}.${randInt(0,9)} ms  ${randInt(3,30)}.${randInt(0,9)} ms  ${randInt(3,30)}.${randInt(0,9)} ms`);
+    }
+    await type(ts()+" trace complete", "dim");
+  }
+
+  async function nmapSim(net=`10.${randInt(0,255)}.${randInt(0,255)}.0/24`){
+    await type(ts()+" running "+span("nmap -sS -p 1-1024 "+net, 'tag'));
+    await progress("SYN scan", randInt(3200,5200));
+    const hosts = randInt(4,12);
+    await type(`${hosts} hosts up:`);
+    for(let i=0;i<hosts;i++){
+      const addr = ip();
+      const openPorts = [22,80,443,445,3389,8080,53].filter(()=>Math.random()<.5);
+      await type(`• ${addr}  ${span("MAC "+mac(),'dim')}  open: ${openPorts.join(', ')||'—'}`);
+    }
+  }
+
+  async function handshake(){
+    const alg = sample(['curve25519','secp384r1','x25519','kyber768-d']);
+    const cipher = sample(['chacha20-poly1305','aes-256-gcm','aes-128-gcm']);
+    await type(ts()+" initiating ECDH handshake…");
+    await progress("key exchange ("+alg+")", randInt(2000,3000));
+    await type(ts()+" cipher suite → "+span(cipher,'ok'));
+    await type(ts()+" PFS: "+span("enabled",'ok'));
+  }
+
+  async function breach(){
+    await type(ts()+" escalating privileges…");
+    await progress("memory spray", 2400+randInt(0,1000));
+    await type(ts()+" ROP chain "+span("armed",'ok'));
+    await progress("bypass ASLR", randInt(2200,3400));
+    await type(ts()+" result: "+span("ACCESS DENIED",'err'));
+    await type(ts()+" retrying alternate path…", "dim");
+    await progress("token replay", randInt(2000,2800));
+    await type(ts()+" result: "+span("LIMITED ACCESS (READ-ONLY)",'warn'));
+  }
+
+  async function keys(){
+    await type(ts()+" scanning for exposed keys…");
+    await progress("search ~/.ssh", 1800+randInt(0,600));
+    const count = randInt(1,3);
+    for(let i=0;i<count;i++){
+      await type(" found id_"+sample(['ed25519','rsa','ecdsa'])+"  "+span("★",'ok')+"  "+span("encrypted",'dim'));
+    }
+    await type(ts()+" dumping public fingerprints:");
+    for(let i=0;i<count;i++){
+      await type("  SHA256:"+Math.random().toString(36).slice(2,12)+Math.random().toString(36).slice(2,12)+" "+sample(['github.com','gitlab.com','bitbucket.org']));
+    }
+  }
+
+  async function gpu(){
+    const t = randInt(41,68);
+    const util = randInt(45,99);
+    await type(ts()+" GPU status:");
+    await type(" • model: "+span(sample(['RTX 4090','RX 7900 XTX','A100 80GB','RTX 3080 Ti']),'ok'));
+    await type(" • vram: "+span(randInt(8,80)+"GB",'ok')+" • util: "+span(util+'%','ok')+" • temp: "+span(t+"°C",'warn'));
+    await progress("kernel compile", randInt(1800,2600));
+  }
+
+  async function matrix(duration=4500){
+    const charset = "01▮▯░▒▓█/\\|<>{}[]()$#*+";
+    const cols = Math.min(120, Math.floor(screen.clientWidth/9));
+    const rows = Math.min(16, Math.floor((screen.clientHeight-140)/18));
+    for(let r=0;r<rows;r++){
+      let s = '';
+      for(let c=0;c<cols;c++){ s += sample(charset); }
+      await type(s);
+      await sleep(25);
+    }
+    const start = performance.now();
+    while(performance.now()-start < duration){
+      await waitWhilePaused();
+      let s = '';
+      for(let c=0;c<cols;c++){ s += sample(charset); }
+      line(s);
+      scrollBottom();
+      await sleep(45);
+    }
+  }
+
+  function dim(s){ return `%<dim|${s}>%`; }
+
+  async function handleCommand(c){
+    if(c === 'clear'){ out.textContent=''; return; }
+    if(c.startsWith('scan')) return nmapSim();
+    if(c.startsWith('trace')) return traceRoute();
+    if(c.startsWith('dump')) return hexDump(randInt(6,12));
+    if(c.startsWith('handshake')) return handshake();
+    if(c.startsWith('breach')) return breach();
+    if(c.startsWith('keys')) return keys();
+    if(c.startsWith('gpu')) return gpu();
+    if(c.startsWith('matrix')) return matrix();
+    // default: make something up
+    await type(ts()+" executing "+span(c,'tag')+" …");
+    await progress("running", randInt(1400,2600));
+    await type(ts()+" "+span("completed with warnings",'warn'));
+  }
+
+  async function bootSequence(){
+    await type(span("== BOOT SEQUENCE ==", 'ok'));
+    await type(ts()+" loading kernel modules: "+span("netfilter",'ok')+", "+span("xt_conntrack",'ok')+", "+span("e1000e",'ok')+", "+span("zstd",'ok')+" …");
+    await type(ts()+" mounting "+span("/dev/mapper/greenfs",'tag')+" → "+span("/sim",'ok'));
+    await progress("seed PRNG", 1400+randInt(0,800));
+    await type(ts()+" entropy: "+span(randInt(4096,65535)+' bits','ok')+"  |  "+span("HWRNG",'dim')+" "+span("present",'ok'));
+    await handshake();
+    await type(ts()+" session id: "+span(Math.random().toString(36).slice(2), 'tag'));
+    await type(ts()+" initializing sensors… "+span("OK",'ok'));
+    await type(ts()+" entering interactive mode");
+    await line(" ");
+  }
+
+  async function storylineLoop(){
+    while(true){
+      await nmapSim();
+      await line(" ");
+      await traceRoute();
+      await line(" ");
+      await keys();
+      await line(" ");
+      await hexDump(randInt(6,9));
+      await line(" ");
+      await breach();
+      await line(" ");
+      await gpu();
+      await line(" ");
+      await matrix(2500);
+      await type(dim(ts()+" idle… type commands below, or wait for next pass"));
+      await sleep(1800);
+    }
+  }
+
+  // Kickoff
+  (async () => {
+    await bootSequence();
+    storylineLoop(); // intentionally not awaited
+  })();
+})();
+</script>
+</body>
+</html>
