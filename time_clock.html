@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Simple Employee Time Clock</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Bootstrap (per your preference) -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+  <style>
+    :root { --card-radius: 16px; }
+    body { background:#0f172a; color:#e2e8f0; }
+    .card { border: none; border-radius: var(--card-radius); box-shadow: 0 10px 24px rgba(0,0,0,.25); background: #111827; }
+    .card-header { border:0; background: transparent; color:#93c5fd; font-weight:700; }
+    .muted { color:#94a3b8; }
+    .pill { border-radius:999px; padding:.25rem .6rem; font-size:.85rem; }
+    .pill-live { background:#22c55e1a; color:#22c55e; border:1px solid #22c55e55; }
+    .pill-idle { background:#f59e0b1a; color:#f59e0b; border:1px solid #f59e0b55; }
+    .btn-primary { background:#2563eb; border-color:#2563eb; }
+    .btn-outline-light { border-color:#334155; color:#e2e8f0; }
+    .btn-outline-light:hover { background:#1f2937; }
+    .table { color:#e2e8f0; }
+    .table thead th { color:#93c5fd; border-color:#334155; }
+    .table td, .table th { border-color:#334155; }
+    .form-control, .form-select { background:#0b1220; color:#e2e8f0; border-color:#334155; }
+    .form-control::placeholder { color:#64748b; }
+    a { color:#93c5fd; }
+    .timer { font-variant-numeric: tabular-nums; font-size:1.15rem; }
+    .small-note { font-size:.9rem; color:#93a3b8; }
+    .link-like { cursor:pointer; text-decoration:underline; }
+    .badge-emp { background:#1e293b; border:1px solid #334155; }
+    .table-responsive { max-height: 45vh; overflow:auto; }
+    .pointer { cursor:pointer; }
+  </style>
+</head>
+<body>
+  <div class="container py-4">
+    <div class="d-flex align-items-center justify-content-between mb-3">
+      <h1 class="h3 mb-0">Employee Time Clock</h1>
+      <div class="small-note">
+        Local time: <span id="localTime"></span> • Timezone: <span id="timezone"></span>
+      </div>
+    </div>
+
+    <div class="row g-4">
+      <!-- Employees panel -->
+      <div class="col-lg-4">
+        <div class="card h-100">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <span>Employees</span>
+            <span class="badge badge-emp rounded-pill" id="employeeCount">0</span>
+          </div>
+          <div class="card-body">
+            <div class="mb-3">
+              <label class="form-label">Add Employee</label>
+              <div class="row g-2">
+                <div class="col-7">
+                  <input type="text" id="empName" class="form-control" placeholder="Full name" />
+                </div>
+                <div class="col-5">
+                  <input type="number" step="0.01" min="0" id="empRate" class="form-control" placeholder="Hourly $" />
+                </div>
+              </div>
+              <div class="d-flex gap-2 mt-2">
+                <button class="btn btn-primary btn-sm" id="btnAddEmp">Add</button>
+                <button class="btn btn-outline-light btn-sm" id="btnExportJSON">Export JSON</button>
+                <button class="btn btn-outline-light btn-sm" id="btnExportCSV">Export CSV</button>
+                <label class="btn btn-outline-light btn-sm mb-0">
+                  Import JSON <input type="file" id="importJSON" accept="application/json" hidden>
+                </label>
+              </div>
+              <div class="small-note mt-2">Data is saved automatically in your browser (localStorage).</div>
+            </div>
+            <hr class="border-secondary">
+            <div id="employeeList" class="list-group"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main panel -->
+      <div class="col-lg-8">
+        <div class="card mb-4">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <span>Selected Employee</span>
+            <span id="empStatusPill" class="pill pill-idle">No employee selected</span>
+          </div>
+          <div class="card-body">
+            <div class="row g-3 align-items-end">
+              <div class="col-md-5">
+                <label class="form-label">Employee</label>
+                <select id="employeeSelect" class="form-select">
+                  <option value="">— Select —</option>
+                </select>
+              </div>
+              <div class="col-md-3">
+                <div class="muted">Current Status</div>
+                <div id="empStatus" class="h5 mb-0">—</div>
+                <div id="timer" class="timer muted">—</div>
+              </div>
+              <div class="col-md-4 d-flex gap-2 flex-wrap">
+                <button class="btn btn-success" id="btnClockIn">Clock In</button>
+                <button class="btn btn-warning" id="btnClockOut">Clock Out</button>
+                <button class="btn btn-outline-light" id="btnAddNote">Add Note</button>
+              </div>
+            </div>
+            <div class="row g-3 mt-3">
+              <div class="col-md-4">
+                <label class="form-label">Date Filter (From)</label>
+                <input type="date" id="fromDate" class="form-control">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Date Filter (To)</label>
+                <input type="date" id="toDate" class="form-control">
+              </div>
+              <div class="col-md-4 d-flex align-items-end">
+                <button class="btn btn-outline-light w-100" id="btnApplyFilter">Apply Filter</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Totals -->
+        <div class="card mb-4">
+          <div class="card-header">Totals</div>
+          <div class="card-body row g-3">
+            <div class="col-md-4">
+              <div class="muted">Filtered Hours</div>
+              <div id="totalHours" class="h4 mb-0">0h 00m</div>
+            </div>
+            <div class="col-md-4">
+              <div class="muted">Hourly Rate</div>
+              <div id="hourlyRate" class="h5 mb-0">$0.00</div>
+            </div>
+            <div class="col-md-4">
+              <div class="muted">Estimated Pay (Filtered)</div>
+              <div id="estimatedPay" class="h4 mb-0">$0.00</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Shifts table -->
+        <div class="card">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <span>Shifts</span>
+            <span class="small-note">Click a row to edit or delete.</span>
+          </div>
+          <div class="card-body">
+            <div class="table-responsive">
+              <table class="table table-hover align-middle">
+                <thead>
+                  <tr>
+                    <th>Clock In</th>
+                    <th>Clock Out</th>
+                    <th>Duration</th>
+                    <th>Note</th>
+                  </tr>
+                </thead>
+                <tbody id="shiftTableBody">
+                  <tr><td colspan="4" class="text-center muted">No shifts to display.</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="small-note">Editing a row lets you adjust times (e.g., forgot to clock out) or remove mistakes.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="small-note mt-4">
+      How it works: Each employee can have only one active shift at a time. Clicking <b>Clock In</b> starts a shift; <b>Clock Out</b> ends it.
+      Everything is stored locally in your browser. Use Export/Import to move data between devices or back it up.
+    </p>
+  </div>
+
+  <script>
+    // ====== Storage & State ======
+    const LS_KEY = 'timeclockData_v1';
+    const state = {
+      data: { employees: [], shifts: [] },
+      selectedEmpId: '',
+      timerHandle: null,
+      filterFrom: null,
+      filterTo: null,
+    };
+
+    // ====== Helpers ======
+    const $ = sel => document.querySelector(sel);
+    const el = (tag, attrs={}, children=[]) => {
+      const n = document.createElement(tag);
+      Object.entries(attrs).forEach(([k,v]) => {
+        if (k === 'class') n.className = v;
+        else if (k === 'dataset') Object.assign(n.dataset, v);
+        else if (k.startsWith('on') && typeof v === 'function') n.addEventListener(k.substring(2), v);
+        else n.setAttribute(k, v);
+      });
+      children.forEach(c => n.appendChild(typeof c === 'string' ? document.createTextNode(c) : c));
+      return n;
+    };
+    const toISO = d => (d instanceof Date ? d : new Date(d)).toISOString();
+    const fromISO = s => new Date(s);
+    const fmtDateTime = d => {
+      const x = (d instanceof Date) ? d : new Date(d);
+      return x.toLocaleString();
+    };
+    const fmtMoney = n => '$' + (Math.round((n + Number.EPSILON) * 100)/100).toFixed(2);
+    function diffHM(start, end) {
+      const ms = Math.max(0, end - start);
+      const minutes = Math.floor(ms / 60000);
+      const h = Math.floor(minutes / 60);
+      const m = minutes % 60;
+      return { h, m, minutes, ms };
+    }
+    function durationStr(start, end) {
+      const {h,m} = diffHM(start, end);
+      return `${h}h ${m.toString().padStart(2,'0')}m`;
+    }
+    function uid() {
+      return Math.random().toString(36).slice(2,9) + Date.now().toString(36);
+    }
+    function save() {
+      localStorage.setItem(LS_KEY, JSON.stringify(state.data));
+      refreshUI();
+    }
+    function load() {
+      const raw = localStorage.getItem(LS_KEY);
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw);
+          if (parsed.employees && parsed.shifts) state.data = parsed;
+        } catch {}
+      }
+    }
+
+    // ====== Core Queries ======
+    const getEmployeeById = id => state.data.employees.find(e => e.id === id);
+    const getActiveShift = empId => state.data.shifts.find(s => s.employeeId === empId && !s.clockOutISO);
+    const shiftsForEmp = empId => state.data.shifts.filter(s => s.employeeId === empId);
+
+    // Filter by date range (inclusive days)
+    function filterShifts(shifts) {
+      if (!state.filterFrom && !state.filterTo) return shifts;
+      return shifts.filter(s => {
+        const start = fromISO(s.clockInISO);
+        const end = s.clockOutISO ? fromISO(s.clockOutISO) : new Date();
+        const f = state.filterFrom ? new Date(state.filterFrom + 'T00:00:00') : null;
+        const t = state.filterTo ? new Date(state.filterTo + 'T23:59:59') : null;
+        if (f && end < f) return false;
+        if (t && start > t) return false;
+        return true;
+      });
+    }
+
+    // ====== UI Rendering ======
+    function refreshEmployeesUI() {
+      const list = $('#employeeList');
+      list.innerHTML = '';
+      const count = state.data.employees.length;
+      $('#employeeCount').textContent = count.toString();
+      const sel = $('#employeeSelect');
+      const current = sel.value;
+      sel.innerHTML = '<option value="">— Select —</option>';
+      state.data.employees.forEach(e => {
+        // List item
+        const active = getActiveShift(e.id);
+        const li = el('div', { class:'list-group-item d-flex justify-content-between align-items-center bg-transparent border-secondary pointer', onclick: () => selectEmployee(e.id) }, [
+          el('div', {}, [
+            el('div', { class:'fw-semibold' }, [e.name]),
+            el('div', { class:'small-note' }, [e.rate ? `Rate: ${fmtMoney(e.rate)}/hr` : 'No rate set'])
+          ]),
+          el('span', { class: 'pill ' + (active ? 'pill-live' : 'pill-idle') }, [active ? 'In progress' : 'Idle'])
+        ]);
+        list.appendChild(li);
+
+        // Select option
+        const opt = el('option', { value:e.id }, [e.name]);
+        sel.appendChild(opt);
+      });
+      if (state.selectedEmpId && getEmployeeById(state.selectedEmpId)) {
+        sel.value = state.selectedEmpId;
+      } else {
+        sel.value = '';
+        state.selectedEmpId = '';
+      }
+    }
+
+    function refreshStatusUI() {
+      const pill = $('#empStatusPill');
+      const label = $('#empStatus');
+      const timer = $('#timer');
+      const emp = getEmployeeById(state.selectedEmpId);
+      if (!emp) {
+        pill.textContent = 'No employee selected';
+        pill.className = 'pill pill-idle';
+        label.textContent = '—';
+        timer.textContent = '—';
+        return;
+      }
+      const active = getActiveShift(emp.id);
+      if (active) {
+        pill.textContent = 'Clocked In';
+        pill.className = 'pill pill-live';
+        label.textContent = 'Working…';
+        updateRunningTimer();
+        if (!state.timerHandle) {
+          state.timerHandle = setInterval(updateRunningTimer, 1000);
+        }
+      } else {
+        pill.textContent = 'Clocked Out';
+        pill.className = 'pill pill-idle';
+        label.textContent = 'Idle';
+        timer.textContent = '—';
+        if (state.timerHandle) { clearInterval(state.timerHandle); state.timerHandle = null; }
+      }
+      $('#hourlyRate').textContent = fmtMoney(emp.rate || 0) + (emp.rate ? '/hr' : '');
+    }
+
+    function updateRunningTimer() {
+      const emp = getEmployeeById(state.selectedEmpId);
+      const timer = $('#timer');
+      if (!emp) { timer.textContent = '—'; return; }
+      const active = getActiveShift(emp.id);
+      if (!active) { timer.textContent = '—'; return; }
+      const start = fromISO(active.clockInISO);
+      const now = new Date();
+      timer.textContent = durationStr(start, now);
+    }
+
+    function refreshShiftsTable() {
+      const body = $('#shiftTableBody');
+      body.innerHTML = '';
+      const empId = state.selectedEmpId;
+      if (!empId) {
+        body.appendChild(el('tr', {}, [el('td', {colspan:'4', class:'text-center muted'}, ['Select an employee to view shifts.'])]));
+        updateTotals([]);
+        return;
+      }
+      const all = filterShifts(shiftsForEmp(empId)).sort((a,b) => fromISO(b.clockInISO) - fromISO(a.clockInISO));
+      if (!all.length) {
+        body.appendChild(el('tr', {}, [el('td', {colspan:'4', class:'text-center muted'}, ['No shifts to display.'])]));
+      } else {
+        all.forEach(s => {
+          const tr = el('tr', { class:'pointer', onclick: () => editShiftDialog(s.id) }, [
+            el('td', {}, [fmtDateTime(s.clockInISO)]),
+            el('td', {}, [s.clockOutISO ? fmtDateTime(s.clockOutISO) : el('span', {class:'pill pill-live'}, ['Active'])]),
+            el('td', {}, [durationStr(fromISO(s.clockInISO), s.clockOutISO ? fromISO(s.clockOutISO) : new Date())]),
+            el('td', {}, [s.note ? s.note : ''])
+          ]);
+          body.appendChild(tr);
+        });
+      }
+      updateTotals(all);
+    }
+
+    function updateTotals(filteredShifts) {
+      const emp = getEmployeeById(state.selectedEmpId);
+      let totalMinutes = 0;
+      filteredShifts.forEach(s => {
+        const start = fromISO(s.clockInISO);
+        const end = s.clockOutISO ? fromISO(s.clockOutISO) : new Date();
+        totalMinutes += diffHM(start, end).minutes;
+      });
+      const h = Math.floor(totalMinutes/60), m = totalMinutes%60;
+      $('#totalHours').textContent = `${h}h ${m.toString().padStart(2,'0')}m`;
+      const rate = emp?.rate || 0;
+      const pay = rate * (totalMinutes/60);
+      $('#estimatedPay').textContent = fmtMoney(pay);
+    }
+
+    function refreshUI() {
+      refreshEmployeesUI();
+      refreshStatusUI();
+      refreshShiftsTable();
+      $('#localTime').textContent = new Date().toLocaleString();
+      $('#timezone').textContent = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Local';
+    }
+
+    // ====== Actions ======
+    function addEmployee() {
+      const name = $('#empName').value.trim();
+      const rate = parseFloat($('#empRate').value);
+      if (!name) { alert('Please enter a name.'); return; }
+      if (state.data.employees.some(e => e.name.toLowerCase() === name.toLowerCase())) {
+        if (!confirm('An employee with this name already exists. Add anyway?')) return;
+      }
+      state.data.employees.push({ id: uid(), name, rate: isNaN(rate) ? null : Math.max(0, rate) });
+      $('#empName').value = '';
+      $('#empRate').value = '';
+      save();
+    }
+
+    function selectEmployee(id) {
+      state.selectedEmpId = id || $('#employeeSelect').value;
+      $('#employeeSelect').value = state.selectedEmpId;
+      refreshUI();
+    }
+
+    function clockIn() {
+      const emp = getEmployeeById(state.selectedEmpId);
+      if (!emp) { alert('Select an employee first.'); return; }
+      const active = getActiveShift(emp.id);
+      if (active) { alert('This employee is already clocked in.'); return; }
+      state.data.shifts.push({
+        id: uid(),
+        employeeId: emp.id,
+        clockInISO: toISO(new Date()),
+        clockOutISO: null,
+        note: ''
+      });
+      save();
+    }
+
+    function clockOut() {
+      const emp = getEmployeeById(state.selectedEmpId);
+      if (!emp) { alert('Select an employee first.'); return; }
+      const active = getActiveShift(emp.id);
+      if (!active) { alert('This employee is not currently clocked in.'); return; }
+      active.clockOutISO = toISO(new Date());
+      save();
+    }
+
+    function addNoteToActive() {
+      const emp = getEmployeeById(state.selectedEmpId);
+      if (!emp) { alert('Select an employee first.'); return; }
+      const active = getActiveShift(emp.id);
+      if (!active) { alert('No active shift.'); return; }
+      const note = prompt('Add or update a note for this shift:', active.note || '');
+      if (note !== null) { active.note = note.trim(); save(); }
+    }
+
+    function setFilterDates() {
+      state.filterFrom = $('#fromDate').value || null;
+      state.filterTo = $('#toDate').value || null;
+      refreshShiftsTable();
+    }
+
+    // Edit/Delete shift
+    function editShiftDialog(shiftId) {
+      const s = state.data.shifts.find(x => x.id === shiftId);
+      if (!s) return;
+      const startLocal = new Date(fromISO(s.clockInISO));
+      const endLocal = s.clockOutISO ? new Date(fromISO(s.clockOutISO)) : null;
+
+      const newIn = prompt('Edit Clock In (YYYY-MM-DD HH:MM). Leave blank to keep.\nCurrent: ' + fmtDateTime(startLocal), '');
+      const newOut = prompt('Edit Clock Out (YYYY-MM-DD HH:MM) or leave empty for active.\nCurrent: ' + (endLocal ? fmtDateTime(endLocal) : 'Active'), endLocal ? '' : '');
+      const newNote = prompt('Edit Note (optional):', s.note || '');
+
+      if (newIn !== null && newIn.trim() !== '') {
+        const parsed = parseLocalDateTime(newIn.trim());
+        if (!parsed) { alert('Invalid Clock In format.'); return; }
+        s.clockInISO = toISO(parsed);
+      }
+
+      if (newOut !== null) {
+        if (newOut.trim() === '') {
+          s.clockOutISO = null;
+        } else {
+          const parsedOut = parseLocalDateTime(newOut.trim());
+          if (!parsedOut) { alert('Invalid Clock Out format.'); return; }
+          s.clockOutISO = toISO(parsedOut);
+        }
+      }
+
+      if (newNote !== null) s.note = newNote.trim();
+
+      // Validate non-negative duration
+      if (s.clockOutISO && fromISO(s.clockOutISO) < fromISO(s.clockInISO)) {
+        alert('Clock Out cannot be before Clock In.');
+        return;
+      }
+
+      if (confirm('Save changes?')) save();
+      if (confirm('Delete this shift?')) {
+        state.data.shifts = state.data.shifts.filter(x => x.id !== s.id);
+        save();
+      }
+    }
+
+    function parseLocalDateTime(s) {
+      // Accept "YYYY-MM-DD HH:MM"
+      const m = s.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})$/);
+      if (!m) return null;
+      const [_, Y, Mo, D, H, Mi] = m.map(Number);
+      const dt = new Date(Y, Mo-1, D, H, Mi);
+      return isNaN(dt) ? null : dt;
+    }
+
+    // ====== Export / Import ======
+    function download(filename, content, type='text/plain') {
+      const blob = new Blob([content], {type});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename; a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function exportJSON() {
+      const stamp = new Date().toISOString().replace(/[:.]/g,'-');
+      download(`timeclock-backup-${stamp}.json`, JSON.stringify(state.data, null, 2), 'application/json');
+    }
+
+    function exportCSV() {
+      const rows = [['Employee','HourlyRate','ClockInLocal','ClockOutLocal','DurationMinutes','Note']];
+      state.data.shifts.forEach(s => {
+        const emp = getEmployeeById(s.employeeId);
+        const start = fromISO(s.clockInISO);
+        const end = s.clockOutISO ? fromISO(s.clockOutISO) : new Date();
+        const mins = diffHM(start, end).minutes;
+        rows.push([
+          emp?.name || 'Unknown',
+          emp?.rate ?? '',
+          fmtDateTime(start),
+          s.clockOutISO ? fmtDateTime(end) : '',
+          mins.toString(),
+          (s.note || '').replace(/\r?\n/g, ' ')
+        ]);
+      });
+      const csv = rows.map(r => r.map(cell => {
+        const needsQuotes = /[",\n]/.test(cell);
+        let c = String(cell);
+        if (needsQuotes) c = '"' + c.replace(/"/g,'""') + '"';
+        return c;
+      }).join(',')).join('\n');
+      const stamp = new Date().toISOString().replace(/[:.]/g,'-');
+      download(`timeclock-export-${stamp}.csv`, csv, 'text/csv');
+    }
+
+    async function importJSON(file) {
+      if (!file) return;
+      try {
+        const txt = await file.text();
+        const data = JSON.parse(txt);
+        if (!data || !Array.isArray(data.employees) || !Array.isArray(data.shifts)) {
+          alert('Invalid JSON format.');
+          return;
+        }
+        if (!confirm('Import will replace current data. Continue?')) return;
+        state.data = data;
+        save();
+      } catch (e) {
+        alert('Failed to import JSON: ' + e.message);
+      }
+    }
+
+    // ====== Init & Events ======
+    function init() {
+      load();
+      refreshUI();
+      // Local time ticker
+      setInterval(() => {
+        $('#localTime').textContent = new Date().toLocaleString();
+      }, 1000);
+
+      // Employee actions
+      $('#btnAddEmp').addEventListener('click', addEmployee);
+      $('#employeeSelect').addEventListener('change', () => selectEmployee());
+      $('#btnClockIn').addEventListener('click', clockIn);
+      $('#btnClockOut').addEventListener('click', clockOut);
+      $('#btnAddNote').addEventListener('click', addNoteToActive);
+
+      // Filters
+      $('#btnApplyFilter').addEventListener('click', setFilterDates);
+
+      // Export / Import
+      $('#btnExportJSON').addEventListener('click', exportJSON);
+      $('#btnExportCSV').addEventListener('click', exportCSV);
+      $('#importJSON').addEventListener('change', e => importJSON(e.target.files[0]));
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>
