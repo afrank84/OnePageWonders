@@ -1,59 +1,314 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>OnePageWonders – File Menu</title>
-  <style>
-    body {
-      font-family: "Segoe UI", Roboto, Arial, sans-serif;
-      padding: 40px;
-      background: linear-gradient(135deg, #f0f4f8, #e9eff5);
-      color: #333;
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Project Portfolio</title>
+<meta name="color-scheme" content="light dark">
+<style>
+  :root{
+    --bg: #0b0f14;
+    --panel: #10161d;
+    --panel-2:#0f141a;
+    --text:#e6edf3;
+    --muted:#9fb0c0;
+    --brand:#6ea8fe;
+    --accent:#8fd0ff;
+    --ring:#2a68ff33;
+    --chip:#17202a;
+    --chipBorder:#243445;
+  }
+  @media (prefers-color-scheme: light){
+    :root{
+      --bg:#f7fafc; --panel:#ffffff; --panel-2:#f2f5f8;
+      --text:#0f1720; --muted:#425466; --brand:#2f6df6; --accent:#1769ff;
+      --ring:#2f6df61e; --chip:#eef2f6; --chipBorder:#d6e0ea;
     }
-    h1 {
-      text-align: center;
-      font-size: 2rem;
-      margin-bottom: 30px;
-      color: #222;
-    }
-    ul.file-menu {
-      list-style: none;
-      padding: 0;
-      max-width: 500px;
-      margin: 0 auto;
-      display: flex;
-      flex-direction: column;
-      gap: 15px;
-    }
-    ul.file-menu li a {
-      text-decoration: none;
-      color: #0366d6;
-      padding: 14px 18px;
-      display: block;
-      background: #fff;
-      border: 1px solid #ddd;
-      border-radius: 10px;
-      font-size: 1rem;
-      font-weight: 500;
-      transition: all 0.25s ease;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
-    }
-    ul.file-menu li a:hover {
-      background: #eaf4ff;
-      color: #024c9a;
-      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
-      transform: translateY(-2px);
-    }
-  </style>
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; background:linear-gradient(180deg,var(--bg),var(--panel-2));
+    color:var(--text); font:500 16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial;
+  }
+  .wrap{max-width:1100px; margin:auto; padding:28px}
+  header{
+    display:grid; gap:18px; padding:28px;
+    background:radial-gradient(1200px 400px at 10% -20%,var(--ring),transparent),
+               radial-gradient(900px 400px at 100% 0%,var(--ring),transparent);
+    border:1px solid #ffffff12; border-radius:20px;
+    backdrop-filter:saturate(120%) blur(6px);
+    box-shadow:0 10px 40px #00000033;
+  }
+  .title{display:flex; align-items:center; gap:14px; flex-wrap:wrap}
+  .logo{
+    width:42px; height:42px; border-radius:12px; display:grid; place-items:center;
+    background:linear-gradient(135deg,var(--brand),var(--accent));
+    color:white; font-weight:900; letter-spacing:0.5px;
+    box-shadow:0 10px 25px #00000030;
+  }
+  h1{margin:0; font-size: clamp(1.4rem, 3vw, 2rem);}
+  p.sub{margin:0; color:var(--muted)}
+  .toolbar{
+    display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-top:4px
+  }
+  input[type="search"]{
+    flex:1 1 260px; padding:12px 14px; border-radius:12px; border:1px solid #ffffff1f;
+    background:var(--panel); color:var(--text); outline:none;
+    box-shadow:inset 0 0 0 1px transparent;
+  }
+  input[type="search"]::placeholder{color:var(--muted)}
+  .btn{
+    appearance:none; border:none; padding:10px 14px; border-radius:12px; cursor:pointer;
+    background:var(--panel); color:var(--text); border:1px solid #ffffff1a;
+  }
+  .chips{display:flex; gap:8px; flex-wrap:wrap}
+  .chip{
+    border:1px solid var(--chipBorder); background:var(--chip);
+    color:var(--text); padding:6px 10px; border-radius:999px; font-size:13px; cursor:pointer;
+  }
+  .chip.active{outline:2px solid var(--ring)}
+  .grid{
+    display:grid; gap:16px; margin-top:22px;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  }
+  .card{
+    background:linear-gradient(180deg,var(--panel),var(--panel-2));
+    border:1px solid #ffffff10; border-radius:16px; padding:16px;
+    transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+  }
+  .card:hover{transform: translateY(-2px); box-shadow:0 10px 24px #00000030; border-color:#ffffff22}
+  .thumb{
+    height:120px; border-radius:12px; background:
+      radial-gradient(240px 80px at -20% -30%,var(--ring),transparent),
+      linear-gradient(135deg,#1f2937,#0b1220);
+    display:grid; place-items:center; color:#cde3ff; font-weight:800; font-size:28px;
+    overflow:hidden; border:1px solid #ffffff10;
+  }
+  .meta{margin-top:12px}
+  .name{font-weight:700}
+  .path{color:var(--muted); font-size:13px; word-break:break-all}
+  .actions{display:flex; gap:8px; margin-top:12px}
+  .link{
+    flex:1; text-align:center; padding:10px 12px; border-radius:10px; text-decoration:none;
+    background:var(--panel); border:1px solid #ffffff22; color:var(--text);
+  }
+  .empty{
+    text-align:center; color:var(--muted); padding:40px 10px;
+  }
+  footer{opacity:.8; color:var(--muted); text-align:center; margin:26px 0}
+  .small{font-size:12px}
+  .sr-only{position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0}
+</style>
 </head>
 <body>
-  <h1>📂 OnePageWonders – Files</h1>
-  <ul class="file-menu">
-    <li><a href="https://github.com/afrank84/OnePageWonders/blob/main/index.html" target="_blank">🏠 Home – index.html</a></li>
-    <li><a href="family_packing_list.html" target="_blank">🎒 Family Packing List – family_packing_list.html</a></li>
-    <li><a href="scrum_lite.html" target="_blank">📋 Scrum Lite – scrum_lite.html</a></li>
-    <li><a href="weather.html" target="_blank">☁️ Weather – weather.html</a></li>
-    <li><a href="https://github.com/afrank84/OnePageWonders/blob/main/README.md" target="_blank">📖 README</a></li>
-  </ul>
+  <div class="wrap">
+    <header>
+      <div class="title">
+        <div class="logo">PR</div>
+        <div>
+          <h1>Project Portfolio</h1>
+          <p class="sub">Auto-indexes .html files in this repo and presents them beautifully.</p>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <label class="sr-only" for="q">Search</label>
+        <input id="q" type="search" placeholder="Search projects (name, path, folder)…" />
+        <button id="toggleMode" class="btn" type="button" aria-pressed="false">Toggle Dark/Light</button>
+      </div>
+
+      <div id="chips" class="chips" aria-label="Folder filters"></div>
+    </header>
+
+    <section id="results" class="grid" aria-live="polite"></section>
+    <div id="empty" class="empty" hidden>No matches. Try clearing filters or changing your search.</div>
+
+    <footer>
+      <div class="small">Powered by the GitHub Trees API (unauthenticated). If you hit rate limits, try again later or set a GitHub token flow.</div>
+    </footer>
+  </div>
+
+<script>
+/* ====================== CONFIG ====================== */
+const GITHUB_OWNER = "afrank84";        // <- CHANGE to your GitHub username/org
+const GITHUB_REPO  = "OnePageWonders";  // <- CHANGE to your repo name
+const BRANCH       = "main";            // <- CHANGE if needed (e.g., "master")
+const IGNORE_FILES = new Set(["index.html","404.html","portfolio.html"]);
+/* ==================================================== */
+
+const API = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/git/trees/${encodeURIComponent(BRANCH)}?recursive=1`;
+const rawURL = (path)=>`https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/${BRANCH}/${path}`;
+
+const state = {
+  all: [],
+  filtered: [],
+  tag: "All",
+  query: "",
+  tags: new Set(["All"])
+};
+
+const qEl    = document.getElementById("q");
+const chips  = document.getElementById("chips");
+const grid   = document.getElementById("results");
+const empty  = document.getElementById("empty");
+const toggle = document.getElementById("toggleMode");
+
+init();
+
+async function init(){
+  restoreTheme();
+  try{
+    const files = await fetchHtmlFiles();
+    state.all = files;
+    buildTags(files);
+    renderChips();
+    applyFilters();
+  }catch(err){
+    console.error(err);
+    // graceful fallback: show guidance and allow manual items if needed
+    grid.innerHTML = "";
+    empty.hidden = false;
+    empty.innerHTML = `
+      <div>
+        <p>Couldn’t load the GitHub file list (possibly rate limited).</p>
+        <p class="small">Check <code>GITHUB_OWNER</code>, <code>GITHUB_REPO</code>, <code>BRANCH</code>,
+        or try again. You can also hardcode your projects list inside the script.</p>
+      </div>`;
+  }
+
+  qEl.addEventListener("input", () => {
+    state.query = qEl.value.trim();
+    applyFilters();
+  });
+  toggle.addEventListener("click", toggleTheme);
+}
+
+async function fetchHtmlFiles(){
+  const res = await fetch(API, {headers: { "Accept":"application/vnd.github+json" }});
+  if(!res.ok) throw new Error(`GitHub API error ${res.status}`);
+  const data = await res.json();
+  const files = (data.tree || [])
+    .filter(n => n.type === "blob" && n.path.toLowerCase().endsWith(".html"))
+    .filter(n => !IGNORE_FILES.has(n.path.split("/").pop().toLowerCase()))
+    .map(n => ({
+      name: toTitle(n.path.split("/").pop().replace(/\.html$/i,"")),
+      path: n.path,
+      folder: n.path.includes("/") ? n.path.split("/")[0] : "root",
+      size: n.size || 0
+    }))
+    .sort((a,b) => a.name.localeCompare(b.name));
+  return files;
+}
+
+function buildTags(files){
+  state.tags = new Set(["All"]);
+  files.forEach(f => state.tags.add(f.folder));
+}
+
+function renderChips(){
+  chips.innerHTML = "";
+  [...state.tags].sort((a,b)=> a.localeCompare(b)).forEach(tag => {
+    const c = document.createElement("button");
+    c.className = "chip" + (state.tag === tag ? " active" : "");
+    c.type = "button";
+    c.textContent = tag;
+    c.setAttribute("aria-pressed", state.tag === tag ? "true" : "false");
+    c.addEventListener("click", () => {
+      state.tag = tag;
+      renderChips();
+      applyFilters();
+    });
+    chips.appendChild(c);
+  });
+}
+
+function applyFilters(){
+  const q = state.query.toLowerCase();
+  state.filtered = state.all.filter(f => {
+    const tagOk = (state.tag === "All") || (f.folder === state.tag);
+    const qOk = !q || (
+      f.name.toLowerCase().includes(q) ||
+      f.path.toLowerCase().includes(q) ||
+      f.folder.toLowerCase().includes(q)
+    );
+    return tagOk && qOk;
+  });
+  renderGrid();
+}
+
+function renderGrid(){
+  grid.innerHTML = "";
+  if(state.filtered.length === 0){
+    empty.hidden = false;
+    return;
+  }
+  empty.hidden = true;
+
+  const frag = document.createDocumentFragment();
+  state.filtered.forEach(item => frag.appendChild(card(item)));
+  grid.appendChild(frag);
+}
+
+function card(item){
+  const el = document.createElement("article");
+  el.className = "card";
+  el.innerHTML = `
+    <div class="thumb" aria-hidden="true">${emojiFor(item.name)}</div>
+    <div class="meta">
+      <div class="name">${escapeHtml(item.name)}</div>
+      <div class="path">${escapeHtml(item.path)} • ${formatSize(item.size)}</div>
+    </div>
+    <div class="actions">
+      <a class="link" href="${hrefFor(item.path)}" target="_self" rel="noopener">Open</a>
+      <a class="link" href="${rawURL(item.path)}" target="_blank" rel="noopener">View Source</a>
+    </div>
+  `;
+  return el;
+}
+
+function hrefFor(path){
+  // Because this page lives in the same deployment as the repo,
+  // linking to the relative path should open that HTML page directly.
+  return `/${path}`;
+}
+
+/* ------------------ Utilities ------------------ */
+function toTitle(s){
+  return s
+    .replace(/[-_]+/g," ")
+    .replace(/\s+/g," ")
+    .trim()
+    .replace(/\b\w/g, m => m.toUpperCase());
+}
+function emojiFor(name){
+  // lightweight “logo” seed from name
+  const seeds = ["🚀","🌱","🧩","🛠️","📄","📦","🧪","✨","🎯","🗂️","📊","🎨"];
+  let hash = 0;
+  for(let i=0;i<name.length;i++) hash = (hash*31 + name.charCodeAt(i))>>>0;
+  return seeds[hash % seeds.length];
+}
+function escapeHtml(str){
+  return str.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function formatSize(bytes){
+  if(!bytes) return "size ~";
+  const u = ["B","KB","MB","GB"]; let i=0; let n=bytes;
+  while(n>=1024 && i<u.length-1){ n/=1024; i++; }
+  return `${n.toFixed(n<10 && i>0 ? 1 : 0)} ${u[i]}`;
+}
+
+/* ------------------ Theme toggle ------------------ */
+function toggleTheme(){
+  const d = document.documentElement;
+  const cur = d.dataset.theme === "light" ? "dark" : (d.dataset.theme === "dark" ? "auto" : "light");
+  if(cur==="auto"){ delete d.dataset.theme; localStorage.removeItem("pref-theme"); toggle.setAttribute("aria-pressed","false"); }
+  else{ d.dataset.theme = cur; localStorage.setItem("pref-theme",cur); toggle.setAttribute("aria-pressed","true"); }
+}
+function restoreTheme(){
+  const pref = localStorage.getItem("pref-theme");
+  if(pref){ document.documentElement.dataset.theme = pref; toggle.setAttribute("aria-pressed","true"); }
+}
+</script>
 </body>
 </html>
