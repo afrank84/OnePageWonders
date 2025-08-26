@@ -5,46 +5,55 @@
   <title>OnePageWonders – File Menu</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
+      font-family: "Segoe UI", Roboto, Arial, sans-serif;
       padding: 40px;
-      background-color: #f5f5f5;
+      background: linear-gradient(135deg, #f0f4f8, #e9eff5);
+      color: #333;
     }
     h1 {
       text-align: center;
+      font-size: 2rem;
+      margin-bottom: 30px;
+      color: #222;
     }
     ul.file-menu {
-      list-style-type: none;
+      list-style: none;
       padding: 0;
-      max-width: 400px;
+      max-width: 500px;
       margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
     }
-    ul.file-menu li {
-      margin: 10px 0;
-    }
-    ul.file-menu a {
+    ul.file-menu li a {
       text-decoration: none;
       color: #0366d6;
-      padding: 10px 15px;
+      padding: 14px 18px;
       display: block;
-      background: white;
+      background: #fff;
       border: 1px solid #ddd;
-      border-radius: 4px;
-      transition: background 0.2s, box-shadow 0.2s;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 500;
+      transition: all 0.25s ease;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
     }
-    ul.file-menu a:hover {
-      background: #f0f8ff;
-      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    ul.file-menu li a:hover {
+      background: #eaf4ff;
+      color: #024c9a;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
+      transform: translateY(-2px);
     }
   </style>
 </head>
 <body>
-  <h1>OnePageWonders – Files</h1>
+  <h1>📂 OnePageWonders – Files</h1>
   <ul class="file-menu">
-    <li><a href="https://github.com/afrank84/OnePageWonders/blob/main/index.html" target="_blank">Home – index.html</a></li>
-    <li><a href="https://github.com/afrank84/OnePageWonders/blob/main/family_packing_list.html" target="_blank">Family Packing List – family_packing_list.html</a></li>
-    <li><a href="https://github.com/afrank84/OnePageWonders/blob/main/scrum_lite.html" target="_blank">Scrum Lite – scrum_lite.html</a></li>
-    <li><a href="https://github.com/afrank84/OnePageWonders/blob/main/weather.html" target="_blank">Weather – weather.html</a></li>
-    <li><a href="https://github.com/afrank84/OnePageWonders/blob/main/README.md" target="_blank">README</a></li>
+    <li><a href="https://github.com/afrank84/OnePageWonders/blob/main/index.html" target="_blank">🏠 Home – index.html</a></li>
+    <li><a href="family_packing_list.html" target="_blank">🎒 Family Packing List – family_packing_list.html</a></li>
+    <li><a href="scrum_lite.html" target="_blank">📋 Scrum Lite – scrum_lite.html</a></li>
+    <li><a href="weather.html" target="_blank">☁️ Weather – weather.html</a></li>
+    <li><a href="https://github.com/afrank84/OnePageWonders/blob/main/README.md" target="_blank">📖 README</a></li>
   </ul>
 </body>
 </html>
