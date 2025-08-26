@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Hurricane Watch — One Page (No Key)</title>
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+  body{background:#0b1320;color:#e9eef8}
+  a{color:#9fd2ff}
+  header{padding:1rem 0}
+  .badge-pill{border-radius:2rem}
+  #map{height:55vh;border-radius:1rem;border:1px solid rgba(255,255,255,.1)}
+  .card{background:#111a2e;border-color:rgba(255,255,255,.08)}
+  .storm-pill{font-weight:600}
+  .footer-note{opacity:.7;font-size:.9rem}
+  .spinner{display:none}
+</style>
+</head>
+<body class="container py-3">
+  <header class="d-flex align-items-center justify-content-between">
+    <h1 class="h3 m-0">Hurricane Watch</h1>
+    <span class="spinner-border spinner-border-sm text-info spinner" id="spinner" role="status" aria-hidden="true"></span>
+  </header>
+
+  <p class="mb-3">This page checks official NOAA/NHC data for any active tropical cyclones and plots their current positions. No API key required.</p>
+
+  <div id="status" class="alert alert-secondary py-2 px-3 small mb-3" role="alert">Loading latest storm positions…</div>
+  <div id="map" class="mb-3"></div>
+
+  <div class="card mb-4">
+    <div class="card-header">Active Systems</div>
+    <div class="card-body">
+      <div id="storms-list" class="row gy-2"></div>
+    </div>
+  </div>
+
+  <p class="footer-note">
+    Data: NOAA/NHC Tropical Weather Summary (Forecast Points, current positions). Updates typically with each advisory cycle.
+    See also the NHC “Active Cyclones” page for context. 
+  </p>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(async () => {
+  const STATUS = document.getElementById('status');
+  const SPINNER = document.getElementById('spinner');
+  const LIST = document.getElementById('storms-list');
+
+  // NOAA NHC tropical summary → Forecast Points (ID 5), current positions only (fcstprd = 0)
+  const ENDPOINT = 'https://mapservices.weather.noaa.gov/tropical/rest/services/tropical/NHC_tropical_weather_summary/MapServer/5/query';
+  const params = new URLSearchParams({
+    where: 'fcstprd=0',
+    outFields: [
+      'stormname','stormtype','basin','advdate','advisnum','maxwind','mslp',
+      'ssnum','tcdvlp','tcspd','tcdir','lat','lon','idp_source','validtime'
+    ].join(','),
+    returnGeometry: 'true',
+    f: 'geojson'
+  });
+
+  // Leaflet map
+  const map = L.map('map', { scrollWheelZoom: true }).setView([23, -60], 3);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap'
+  }).addTo(map);
+  const layerGroup = L.layerGroup().addTo(map);
+
+  function stormBadge(type) {
+    const t = (type || '').toLowerCase();
+    if (t.includes('hurricane')) return '<span class="badge bg-danger-subtle text-danger-emphasis storm-pill">HURRICANE</span>';
+    if (t.includes('strong') || t.includes('severe')) return '<span class="badge bg-warning text-dark storm-pill">SEVERE TS</span>';
+    if (t.includes('tropical storm')) return '<span class="badge bg-info text-dark storm-pill">Tropical Storm</span>';
+    if (t.includes('tropical depression')) return '<span class="badge bg-secondary storm-pill">Tropical Depression</span>';
+    return `<span class="badge bg-light text-dark storm-pill">${type || 'System'}</span>`;
+  }
+
+  function round(n, d=1){ return (typeof n==='number') ? Number(n.toFixed(d)) : n; }
+
+  try {
+    SPINNER.style.display = 'inline-block';
+    const res = await fetch(ENDPOINT + '?' + params.toString(), {
+      headers: { 'Accept': 'application/geo+json' }
+    });
+    if (!res.ok) throw new Error('Network response was not ok: ' + res.status);
+    const geo = await res.json();
+
+    // Deduplicate by storm name + basin in case multiple points slip in
+    const storms = [];
+    const seen = new Set();
+
+    (geo.features || []).forEach(f => {
+      const p = f.properties || {};
+      const key = (p.stormname || 'Unknown') + '|' + (p.basin || '');
+      if (!seen.has(key)) {
+        seen.add(key);
+        storms.push({
+          name: p.stormname || 'Unnamed',
+          type: p.stormtype || p.tcdvlp || 'Tropical Cyclone',
+          basin: p.basin || '',
+          lat: p.lat ?? (f.geometry && f.geometry.coordinates ? f.geometry.coordinates[1] : null),
+          lon: p.lon ?? (f.geometry && f.geometry.coordinates ? f.geometry.coordinates[0] : null),
+          maxwind: p.maxwind,
+          cat: (typeof p.ssnum === 'number' && p.ssnum >= 1) ? p.ssnum : null,
+          adv: p.advisnum || '',
+          advdate: p.advdate || p.validtime || '',
+          dir: p.tcdir,
+          spd: p.tcspd
+        });
+      }
+    });
+
+    layerGroup.clearLayers();
+
+    if (storms.length === 0) {
+      STATUS.className = 'alert alert-success py-2 px-3 small';
+      STATUS.textContent = 'No active tropical cyclones at this time.';
+      map.setView([23, -60], 3);
+      LIST.innerHTML = '<p class="mb-0">None.</p>';
+      return;
+    }
+
+    STATUS.className = 'alert alert-warning py-2 px-3 small';
+    STATUS.textContent = `Active systems detected: ${storms.length}`;
+
+    const bounds = [];
+    storms.forEach(s => {
+      if (typeof s.lat === 'number' && typeof s.lon === 'number') {
+        const marker = L.circleMarker([s.lat, s.lon], { radius: 7 })
+          .bindPopup(`
+            <div><strong>${s.name}</strong> ${stormBadge(s.type)}</div>
+            <div>${s.basin ? 'Basin: ' + s.basin : ''}</div>
+            <div>${(s.cat ? 'Category ' + s.cat + ' · ' : '')}${s.maxwind ? 'Max wind: ' + s.maxwind + ' kt' : ''}</div>
+            <div>${s.dir && s.spd ? 'Motion: ' + round(s.dir) + '° @ ' + round(s.spd) + ' kt' : ''}</div>
+            <div>${s.adv ? 'Advisory ' + s.adv : ''}${s.advdate ? ' · ' + s.advdate : ''}</div>
+            <div>Lat/Lon: ${round(s.lat,2)}, ${round(s.lon,2)}</div>
+          `);
+        marker.addTo(layerGroup);
+        bounds.push([s.lat, s.lon]);
+      }
+
+      // List card
+      const pill = stormBadge(s.type);
+      const cat = s.cat ? `Category ${s.cat}` : (s.maxwind ? `${s.maxwind} kt` : '');
+      const motion = (s.dir && s.spd) ? ` · Motion ${round(s.dir)}° @ ${round(s.spd)} kt` : '';
+      const when = s.adv ? `Advisory ${s.adv}` : '';
+      const time = s.advdate ? ` · ${s.advdate}` : '';
+      const coord = (typeof s.lat==='number' && typeof s.lon==='number') ? ` · ${round(s.lat,2)}, ${round(s.lon,2)}` : '';
+
+      const col = document.createElement('div');
+      col.className = 'col-12 col-md-6';
+      col.innerHTML = `
+        <div class="p-3 border rounded">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <div class="h5 mb-1">${s.name}</div>
+              <div class="mb-1">${pill}</div>
+              <div class="small text-white-50">
+                ${s.basin || ''} · ${cat}${motion}${coord}
+              </div>
+              <div class="small text-white-50">${when}${time}</div>
+            </div>
+            <button class="btn btn-sm btn-outline-info" ${ (typeof s.lat==='number' && typeof s.lon==='number') ? '' : 'disabled' }>
+              Zoom
+            </button>
+          </div>
+        </div>`;
+      const btn = col.querySelector('button');
+      btn?.addEventListener('click', () => {
+        if (typeof s.lat==='number' && typeof s.lon==='number') {
+          map.setView([s.lat, s.lon], 6, { animate: true });
+        }
+      });
+      LIST.appendChild(col);
+    });
+
+    if (bounds.length) {
+      const b = L.latLngBounds(bounds);
+      map.fitBounds(b.pad(0.3));
+    }
+  } catch (err) {
+    console.error(err);
+    STATUS.className = 'alert alert-danger py-2 px-3 small';
+    STATUS.innerHTML = `Couldn’t load NOAA data right now. Try again later or see the <a href="https://www.nhc.noaa.gov/cyclones/" target="_blank" rel="noopener">NHC Active Cyclones</a> page.`;
+  } finally {
+    SPINNER.style.display = 'none';
+  }
+})();
+</script>
+</body>
+</html>
