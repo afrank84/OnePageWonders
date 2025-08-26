@@ -8,17 +8,47 @@
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <style>
-  :root{
-    color-scheme: dark;
+  :root{ color-scheme: dark; }
+  body{ background:#0b1320; color:#e9eef8 }
+  a{ color:#9fd2ff }
+  header{ padding:1rem 0 }
+  #map-wrap{ position:relative }
+  #map{ height:56vh; border-radius:1rem; border:1px solid rgba(255,255,255,.1); overflow:hidden }
+  .card{ background:#111a2e; border-color:rgba(255,255,255,.08) }
+  .storm-pill{ font-weight:600 }
+  .footer-note{ opacity:.75; font-size:.9rem }
+  .spinner{ display:none }
+
+  /* Make list title brighter for readability on dark bg */
+  .storm-title{ color:#e9eef8; }
+
+  /* Scan bar overlay */
+  .scan-overlay{
+    pointer-events:none;
+    position:absolute; top:0; left:0; right:0; bottom:0;
+    overflow:hidden; border-radius:1rem;
+    display:none; /* toggled via JS */
   }
-  body{background:#0b1320;color:#e9eef8}
-  a{color:#9fd2ff}
-  header{padding:1rem 0}
-  #map{height:56vh;border-radius:1rem;border:1px solid rgba(255,255,255,.1)}
-  .card{background:#111a2e;border-color:rgba(255,255,255,.08)}
-  .storm-pill{font-weight:600}
-  .footer-note{opacity:.75;font-size:.9rem}
-  .spinner{display:none}
+  .scan-stripe{
+    position:absolute; top:0; bottom:0; width:120px;
+    background: linear-gradient(
+      to right,
+      rgba(255,255,255,0) 0%,
+      rgba(0,255,255,.10) 40%,
+      rgba(0,255,255,.25) 50%,
+      rgba(0,255,255,.10) 60%,
+      rgba(255,255,255,0) 100%
+    );
+    filter: blur(1px);
+    mix-blend-mode: screen;
+    animation: scanX 4s linear infinite;
+  }
+  @keyframes scanX {
+    0%   { transform: translateX(-140px); }
+    100% { transform: translateX(calc(100% + 140px)); }
+  }
+
+  /* Cones / tracks styling hints for legend chips */
   .legend {background:#111a2e;border:1px solid rgba(255,255,255,.1);padding:.5rem .75rem;border-radius:.5rem;font-size:.9rem}
   .legend span.badge{margin-right:.5rem}
 </style>
@@ -31,15 +61,31 @@
 
   <p class="mb-3">Checks official NOAA/NHC data for any active tropical cyclones and plots their current positions. No API key required.</p>
 
-  <div id="status" class="alert alert-secondary py-2 px-3 small mb-3" role="alert">Loading latest storm positions…</div>
-  <div id="map" class="mb-3"></div>
-
-  <div class="d-flex justify-content-end mb-3">
-    <div class="legend">
+  <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+    <div class="form-check">
+      <input class="form-check-input" type="checkbox" id="toggleProjections">
+      <label class="form-check-label" for="toggleProjections">Show projections (forecast track & points)</label>
+    </div>
+    <div class="form-check">
+      <input class="form-check-input" type="checkbox" id="toggleScan">
+      <label class="form-check-label" for="toggleScan">Scanning overlay</label>
+    </div>
+    <div class="ms-auto legend">
       <span class="badge text-bg-danger">Hurricane</span>
       <span class="badge text-bg-info text-dark">Tropical Storm</span>
       <span class="badge text-bg-secondary">Tropical Depression</span>
       <span class="badge text-bg-light text-dark">Other</span>
+      <span class="badge rounded-pill text-bg-primary">Track</span>
+      <span class="badge rounded-pill text-bg-warning text-dark">Forecast pts</span>
+    </div>
+  </div>
+
+  <div id="status" class="alert alert-secondary py-2 px-3 small mb-3" role="alert">Loading latest storm positions…</div>
+
+  <div id="map-wrap" class="mb-3">
+    <div id="map"></div>
+    <div id="scanOverlay" class="scan-overlay">
+      <div class="scan-stripe"></div>
     </div>
   </div>
 
@@ -51,20 +97,25 @@
   </div>
 
   <p class="footer-note">
-    Data source: NOAA/NHC Tropical Weather Summary (Forecast Points). If loading fails, check the
+    Data source: NOAA / NHC Tropical Weather Summary (Forecast Points). If loading fails, check the
     <a href="https://www.nhc.noaa.gov/cyclones/" target="_blank" rel="noopener">NHC Active Cyclones</a> page.
   </p>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 (async () => {
-  const STATUS = document.getElementById('status');
+  const STATUS  = document.getElementById('status');
   const SPINNER = document.getElementById('spinner');
-  const LIST = document.getElementById('storms-list');
+  const LIST    = document.getElementById('storms-list');
+  const TOG_PROJ = document.getElementById('toggleProjections');
+  const TOG_SCAN = document.getElementById('toggleScan');
+  const SCAN = document.getElementById('scanOverlay');
 
   // NOAA NHC tropical summary → Forecast Points (ID 5)
-  const ENDPOINT = 'https://mapservices.weather.noaa.gov/tropical/rest/services/tropical/NHC_tropical_weather_summary/MapServer/5/query';
-  const params = new URLSearchParams({
+  const BASE = 'https://mapservices.weather.noaa.gov/tropical/rest/services/tropical/NHC_tropical_weather_summary/MapServer';
+  const POINTS_ENDPOINT = BASE + '/5/query';
+
+  const baseParams = {
     where: '1=1',
     outFields: [
       'stormname','stormtype','basin','advdate','advisnum','maxwind','mslp',
@@ -72,14 +123,32 @@
     ].join(','),
     returnGeometry: 'true',
     f: 'geojson'
-  });
+  };
 
   // Leaflet map
   const map = L.map('map', { scrollWheelZoom: true }).setView([23, -60], 3);
-  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; OpenStreetMap'
-  }).addTo(map);
-  const layerGroup = L.layerGroup().addTo(map);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' }).addTo(map);
+
+  const layerCurrent   = L.layerGroup().addTo(map);      // current markers
+  const layerProjLine  = L.layerGroup();                 // forecast polyline
+  const layerProjPts   = L.layerGroup();                 // forecast point markers
+  // (Optional cone layer could be added here if needed later)
+
+  // UI toggles
+  TOG_PROJ.addEventListener('change', () => {
+    if (TOG_PROJ.checked) {
+      map.addLayer(layerProjLine);
+      map.addLayer(layerProjPts);
+      if (!layerProjLine._leaflet_id) map.addLayer(layerProjLine);
+    } else {
+      map.removeLayer(layerProjLine);
+      map.removeLayer(layerProjPts);
+    }
+  });
+
+  TOG_SCAN.addEventListener('change', () => {
+    SCAN.style.display = TOG_SCAN.checked ? 'block' : 'none';
+  });
 
   function stormBadge(type) {
     const t = (type || '').toLowerCase();
@@ -97,18 +166,27 @@
     return { radius: 6, weight: 1 };
   }
 
+  const trackStyle = { weight: 2, opacity: 0.9 };    // forecast line
+  const projPtStyle = { radius: 4, weight: 1 };      // forecast point marker
+
   function round(n, d=1){ return (typeof n==='number') ? Number(n.toFixed(d)) : n; }
+
+  async function fetchGeoJSON(url, paramsObj) {
+    const params = new URLSearchParams(paramsObj);
+    const res = await fetch(url + '?' + params.toString());
+    if (!res.ok) throw new Error('Network response was not ok: ' + res.status);
+    return res.json();
+  }
 
   try {
     SPINNER.style.display = 'inline-block';
-    const res = await fetch(ENDPOINT + '?' + params.toString());
-    if (!res.ok) throw new Error('Network response was not ok: ' + res.status);
-    const geo = await res.json();
 
-    // Choose one "current" point per storm:
-    // Preference: fcstprd === 0 (analysis point), else tau === 0, else latest validtime/advdate.
+    // 1) Get ALL forecast points (current+future). We’ll split client-side.
+    const geoAll = await fetchGeoJSON(POINTS_ENDPOINT, baseParams);
+
+    // 2) Build a “current point per storm” set (same scoring as before).
     const byStorm = new Map();
-    for (const f of (geo.features || [])) {
+    for (const f of (geoAll.features || [])) {
       const p = f.properties || {};
       const key = `${p.stormname || 'Unknown'}|${p.basin || ''}`;
       const score = (p.fcstprd === 0 ? 3 : (p.tau === 0 ? 2 : 1));
@@ -124,79 +202,146 @@
     }
     const currentFeatures = Array.from(byStorm.values()).map(x => x.f);
 
-    layerGroup.clearLayers();
+    // 3) Make page UI
+    layerCurrent.clearLayers();
+    layerProjLine.clearLayers();
+    layerProjPts.clearLayers();
+    LIST.innerHTML = '';
+    let bounds = [];
 
     if (currentFeatures.length === 0) {
       STATUS.className = 'alert alert-success py-2 px-3 small';
       STATUS.textContent = 'No active tropical cyclones at this time.';
       map.setView([23, -60], 3);
       LIST.innerHTML = '<p class="mb-0">None.</p>';
-      return;
-    }
+    } else {
+      STATUS.className = 'alert alert-warning py-2 px-3 small';
+      STATUS.textContent = `Active systems detected: ${currentFeatures.length}`;
 
-    STATUS.className = 'alert alert-warning py-2 px-3 small';
-    STATUS.textContent = `Active systems detected: ${currentFeatures.length}`;
-
-    const bounds = [];
-
-    for (const f of currentFeatures) {
-      const p = f.properties || {};
-      const g = f.geometry || {};
-      const coords = Array.isArray(g.coordinates) ? g.coordinates : [null, null];
-      const lon = (typeof p.lon === 'number') ? p.lon : coords[0];
-      const lat = (typeof p.lat === 'number') ? p.lat : coords[1];
-
-      const name = p.stormname || 'Unnamed';
-      const type = p.stormtype || p.tcdvlp || 'Tropical Cyclone';
-      const badge = stormBadge(type);
-      const cat = (typeof p.ssnum === 'number' && p.ssnum >= 1) ? `Category ${p.ssnum}` : (p.maxwind ? `${p.maxwind} kt` : '');
-      const motion = (p.tcdir != null && p.tcspd != null) ? ` · Motion ${round(p.tcdir)}° @ ${round(p.tcspd)} kt` : '';
-      const when = p.advisnum ? `Advisory ${p.advisnum}` : '';
-      const time = p.validtime || p.advdate || '';
-      const coordTxt = (typeof lat==='number' && typeof lon==='number') ? ` · ${round(lat,2)}, ${round(lon,2)}` : '';
-
-      if (typeof lat === 'number' && typeof lon === 'number') {
-        const mrk = L.circleMarker([lat, lon], markerStyle(type))
-          .bindPopup(`
-            <div><strong>${name}</strong> ${badge}</div>
-            <div>${p.basin ? 'Basin: ' + p.basin : ''}</div>
-            <div>${cat}${motion}</div>
-            <div>${when}${time ? ' · ' + time : ''}</div>
-            <div>Lat/Lon: ${round(lat,2)}, ${round(lon,2)}</div>
-          `);
-        mrk.addTo(layerGroup);
-        bounds.push([lat, lon]);
+      // Build forecast tracks (projections) per storm from geoAll where tau>0 or fcstprd>0
+      const futureByStorm = new Map();
+      for (const f of (geoAll.features || [])) {
+        const p = f.properties || {};
+        const key = `${p.stormname || 'Unknown'}|${p.basin || ''}`;
+        const tau = (typeof p.tau === 'number') ? p.tau : (typeof p.fcstprd === 'number' ? p.fcstprd : null);
+        // Forecast points usually have tau>0 or fcstprd>0
+        if (tau && tau > 0) {
+          if (!futureByStorm.has(key)) futureByStorm.set(key, []);
+          futureByStorm.get(key).push(f);
+        }
       }
 
-      const col = document.createElement('div');
-      col.className = 'col-12 col-md-6';
-      col.innerHTML = `
-        <div class="p-3 border rounded">
-          <div class="d-flex justify-content-between align-items-start">
-            <div>
-              <div class="h5 mb-1">${name}</div>
-              <div class="mb-1">${badge}</div>
-              <div class="small text-white-50">
-                ${p.basin || ''} · ${cat}${motion}${coordTxt}
-              </div>
-              <div class="small text-white-50">${when}${time ? ' · ' + time : ''}</div>
-            </div>
-            <button class="btn btn-sm btn-outline-info" ${ (typeof lat==='number' && typeof lon==='number') ? '' : 'disabled' }>
-              Zoom
-            </button>
-          </div>
-        </div>`;
-      col.querySelector('button')?.addEventListener('click', () => {
-        if (typeof lat==='number' && typeof lon==='number') {
-          map.setView([lat, lon], 6, { animate: true });
-        }
-      });
-      LIST.appendChild(col);
-    }
+      for (const f of currentFeatures) {
+        const p = f.properties || {};
+        const g = f.geometry || {};
+        const coords = Array.isArray(g.coordinates) ? g.coordinates : [null, null];
+        const lon = (typeof p.lon === 'number') ? p.lon : coords[0];
+        const lat = (typeof p.lat === 'number') ? p.lat : coords[1];
 
-    if (bounds.length) {
-      const b = L.latLngBounds(bounds);
-      map.fitBounds(b.pad(0.3));
+        const name = p.stormname || 'Unnamed';
+        const type = p.stormtype || p.tcdvlp || 'Tropical Cyclone';
+        const badge = stormBadge(type);
+        const cat = (typeof p.ssnum === 'number' && p.ssnum >= 1) ? `Category ${p.ssnum}` : (p.maxwind ? `${p.maxwind} kt` : '');
+        const motion = (p.tcdir != null && p.tcspd != null) ? ` · Motion ${round(p.tcdir)}° @ ${round(p.tcspd)} kt` : '';
+        const when = p.advisnum ? `Advisory ${p.advisnum}` : '';
+        const time = p.validtime || p.advdate || '';
+        const coordTxt = (typeof lat==='number' && typeof lon==='number') ? ` · ${round(lat,2)}, ${round(lon,2)}` : '';
+
+        // Current marker
+        if (typeof lat === 'number' && typeof lon === 'number') {
+          const mrk = L.circleMarker([lat, lon], markerStyle(type))
+            .bindPopup(`
+              <div><strong>${name}</strong> ${badge}</div>
+              <div>${p.basin ? 'Basin: ' + p.basin : ''}</div>
+              <div>${cat}${motion}</div>
+              <div>${when}${time ? ' · ' + time : ''}</div>
+              <div>Lat/Lon: ${round(lat,2)}, ${round(lon,2)}</div>
+            `);
+          mrk.addTo(layerCurrent);
+          bounds.push([lat, lon]);
+        }
+
+        // List card (title now forced light via .storm-title)
+        const col = document.createElement('div');
+        col.className = 'col-12 col-md-6';
+        col.innerHTML = `
+          <div class="p-3 border rounded">
+            <div class="d-flex justify-content-between align-items-start">
+              <div>
+                <div class="h5 mb-1 storm-title">${name}</div>
+                <div class="mb-1">${badge}</div>
+                <div class="small text-white-50">
+                  ${p.basin || ''} · ${cat}${motion}${coordTxt}
+                </div>
+                <div class="small text-white-50">${when}${time ? ' · ' + time : ''}</div>
+              </div>
+              <div class="d-flex flex-column gap-1">
+                <button class="btn btn-sm btn-outline-info" ${ (typeof lat==='number' && typeof lon==='number') ? '' : 'disabled' }>
+                  Zoom
+                </button>
+                <button class="btn btn-sm btn-outline-primary projBtn">
+                  Projections
+                </button>
+              </div>
+            </div>
+          </div>`;
+        const [zoomBtn, projBtn] = col.querySelectorAll('button');
+        zoomBtn?.addEventListener('click', () => {
+          if (typeof lat==='number' && typeof lon==='number') {
+            map.setView([lat, lon], 6, { animate: true });
+          }
+        });
+        projBtn?.addEventListener('click', () => {
+          TOG_PROJ.checked = true;
+          TOG_PROJ.dispatchEvent(new Event('change'));
+          if (typeof lat==='number' && typeof lon==='number') {
+            map.setView([lat, lon], 6, { animate: true });
+          }
+        });
+        LIST.appendChild(col);
+
+        // Build projections for this storm (if any)
+        const stormKey = `${p.stormname || 'Unknown'}|${p.basin || ''}`;
+        const futurePts = (futureByStorm.get(stormKey) || []).slice();
+
+        if (futurePts.length) {
+          // Sort by tau (or fallback validtime/advdate)
+          futurePts.sort((a, b) => {
+            const pa = a.properties || {}, pb = b.properties || {};
+            const ta = (typeof pa.tau === 'number') ? pa.tau : (typeof pa.fcstprd === 'number' ? pa.fcstprd : 999999);
+            const tb = (typeof pb.tau === 'number') ? pb.tau : (typeof pb.fcstprd === 'number' ? pb.fcstprd : 999999);
+            if (ta !== tb) return ta - tb;
+            const sa = (pa.validtime || pa.advdate || ''), sb = (pb.validtime || pb.advdate || '');
+            return sa.localeCompare(sb);
+          });
+
+          // Track line coordinates
+          const latlngs = [];
+          for (const fp of futurePts) {
+            const pp = fp.properties || {};
+            const gg = fp.geometry || {};
+            const c2 = Array.isArray(gg.coordinates) ? gg.coordinates : [null, null];
+            const lon2 = (typeof pp.lon === 'number') ? pp.lon : c2[0];
+            const lat2 = (typeof pp.lat === 'number') ? pp.lat : c2[1];
+            if (typeof lat2==='number' && typeof lon2==='number') {
+              latlngs.push([lat2, lon2]);
+
+              // Forecast point marker
+              L.circleMarker([lat2, lon2], projPtStyle)
+                .bindTooltip(`${name} • ${pp.validtime || ('+' + (pp.tau ?? pp.fcstprd) + 'h')}`, { direction:'top' })
+                .addTo(layerProjPts);
+            }
+          }
+          if (latlngs.length >= 2) {
+            L.polyline(latlngs, trackStyle).addTo(layerProjLine);
+          }
+        }
+      }
+
+      if (bounds.length) {
+        const b = L.latLngBounds(bounds);
+        map.fitBounds(b.pad(0.3));
+      }
     }
   } catch (err) {
     console.error(err);
