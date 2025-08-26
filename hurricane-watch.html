@@ -19,36 +19,28 @@
   .footer-note{ opacity:.75; font-size:.9rem }
   .spinner{ display:none }
 
-  /* Make list title brighter for readability on dark bg */
+  /* Readable titles */
   .storm-title{ color:#e9eef8; }
 
   /* Scan bar overlay */
   .scan-overlay{
     pointer-events:none;
-    position:absolute; top:0; left:0; right:0; bottom:0;
-    overflow:hidden; border-radius:1rem;
-    display:none; /* toggled via JS */
+    position:absolute; inset:0;
+    overflow:hidden; border-radius:1rem; display:none;
   }
   .scan-stripe{
     position:absolute; top:0; bottom:0; width:120px;
-    background: linear-gradient(
-      to right,
+    background: linear-gradient(to right,
       rgba(255,255,255,0) 0%,
       rgba(0,255,255,.10) 40%,
       rgba(0,255,255,.25) 50%,
       rgba(0,255,255,.10) 60%,
-      rgba(255,255,255,0) 100%
-    );
-    filter: blur(1px);
-    mix-blend-mode: screen;
+      rgba(255,255,255,0) 100%);
+    filter: blur(1px); mix-blend-mode: screen;
     animation: scanX 4s linear infinite;
   }
-  @keyframes scanX {
-    0%   { transform: translateX(-140px); }
-    100% { transform: translateX(calc(100% + 140px)); }
-  }
+  @keyframes scanX { 0%{transform:translateX(-140px)} 100%{transform:translateX(calc(100% + 140px))} }
 
-  /* Cones / tracks styling hints for legend chips */
   .legend {background:#111a2e;border:1px solid rgba(255,255,255,.1);padding:.5rem .75rem;border-radius:.5rem;font-size:.9rem}
   .legend span.badge{margin-right:.5rem}
 </style>
@@ -67,6 +59,10 @@
       <label class="form-check-label" for="toggleProjections">Show projections (forecast track & points)</label>
     </div>
     <div class="form-check">
+      <input class="form-check-input" type="checkbox" id="toggleCone">
+      <label class="form-check-label" for="toggleCone">Forecast cone (NHC)</label>
+    </div>
+    <div class="form-check">
       <input class="form-check-input" type="checkbox" id="toggleScan">
       <label class="form-check-label" for="toggleScan">Scanning overlay</label>
     </div>
@@ -77,6 +73,7 @@
       <span class="badge text-bg-light text-dark">Other</span>
       <span class="badge rounded-pill text-bg-primary">Track</span>
       <span class="badge rounded-pill text-bg-warning text-dark">Forecast pts</span>
+      <span class="badge rounded-pill text-bg-light text-dark">Cone</span>
     </div>
   </div>
 
@@ -84,9 +81,7 @@
 
   <div id="map-wrap" class="mb-3">
     <div id="map"></div>
-    <div id="scanOverlay" class="scan-overlay">
-      <div class="scan-stripe"></div>
-    </div>
+    <div id="scanOverlay" class="scan-overlay"><div class="scan-stripe"></div></div>
   </div>
 
   <div class="card mb-4">
@@ -97,7 +92,7 @@
   </div>
 
   <p class="footer-note">
-    Data source: NOAA / NHC Tropical Weather Summary (Forecast Points). If loading fails, check the
+    Data: NOAA / NHC Tropical Weather Summary — Forecast Points (ID 5), Track (ID 6), Forecast Cone (ID 7). If loading fails, check the
     <a href="https://www.nhc.noaa.gov/cyclones/" target="_blank" rel="noopener">NHC Active Cyclones</a> page.
   </p>
 
@@ -108,19 +103,31 @@
   const SPINNER = document.getElementById('spinner');
   const LIST    = document.getElementById('storms-list');
   const TOG_PROJ = document.getElementById('toggleProjections');
+  const TOG_CONE = document.getElementById('toggleCone');
   const TOG_SCAN = document.getElementById('toggleScan');
   const SCAN = document.getElementById('scanOverlay');
 
-  // NOAA NHC tropical summary → Forecast Points (ID 5)
+  // NOAA NHC tropical summary service base
   const BASE = 'https://mapservices.weather.noaa.gov/tropical/rest/services/tropical/NHC_tropical_weather_summary/MapServer';
-  const POINTS_ENDPOINT = BASE + '/5/query';
+  const ENDPOINT_POINTS = BASE + '/5/query'; // Forecast Points
+  const ENDPOINT_TRACK  = BASE + '/6/query'; // Forecast Track (polyline)
+  const ENDPOINT_CONE   = BASE + '/7/query'; // Forecast Cone (polygon)
 
-  const baseParams = {
+  const paramsPoints = {
     where: '1=1',
-    outFields: [
-      'stormname','stormtype','basin','advdate','advisnum','maxwind','mslp',
-      'ssnum','tcdvlp','tcspd','tcdir','lat','lon','validtime','fcstprd','tau'
-    ].join(','),
+    outFields: 'stormname,stormtype,basin,advdate,advisnum,maxwind,mslp,ssnum,tcdvlp,tcspd,tcdir,lat,lon,validtime,fcstprd,tau',
+    returnGeometry: 'true',
+    f: 'geojson'
+  };
+  const paramsTrack = {
+    where: '1=1',
+    outFields: 'stormname,basin,validtime,fcstprd,tau',
+    returnGeometry: 'true',
+    f: 'geojson'
+  };
+  const paramsCone = {
+    where: '1=1',
+    outFields: 'stormname,stormtype,basin,advdate,advisnum,fcstprd,stormnum',
     returnGeometry: 'true',
     f: 'geojson'
   };
@@ -129,23 +136,19 @@
   const map = L.map('map', { scrollWheelZoom: true }).setView([23, -60], 3);
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' }).addTo(map);
 
-  const layerCurrent   = L.layerGroup().addTo(map);      // current markers
-  const layerProjLine  = L.layerGroup();                 // forecast polyline
-  const layerProjPts   = L.layerGroup();                 // forecast point markers
-  // (Optional cone layer could be added here if needed later)
+  const layerCurrent  = L.layerGroup().addTo(map); // current markers
+  const layerProjLine = L.layerGroup();            // forecast track polylines
+  const layerProjPts  = L.layerGroup();            // forecast future points
+  const layerCone     = L.layerGroup();            // forecast cone polygons
 
   // UI toggles
   TOG_PROJ.addEventListener('change', () => {
-    if (TOG_PROJ.checked) {
-      map.addLayer(layerProjLine);
-      map.addLayer(layerProjPts);
-      if (!layerProjLine._leaflet_id) map.addLayer(layerProjLine);
-    } else {
-      map.removeLayer(layerProjLine);
-      map.removeLayer(layerProjPts);
-    }
+    if (TOG_PROJ.checked) { map.addLayer(layerProjLine); map.addLayer(layerProjPts); }
+    else { map.removeLayer(layerProjLine); map.removeLayer(layerProjPts); }
   });
-
+  TOG_CONE.addEventListener('change', () => {
+    if (TOG_CONE.checked) map.addLayer(layerCone); else map.removeLayer(layerCone);
+  });
   TOG_SCAN.addEventListener('change', () => {
     SCAN.style.display = TOG_SCAN.checked ? 'block' : 'none';
   });
@@ -157,7 +160,6 @@
     if (t.includes('tropical depression')) return '<span class="badge text-bg-secondary storm-pill">Tropical Depression</span>';
     return `<span class="badge text-bg-light text-dark storm-pill">${type || 'System'}</span>`;
   }
-
   function markerStyle(type) {
     const t = (type || '').toLowerCase();
     if (t.includes('hurricane')) return { radius: 8, weight: 2 };
@@ -165,47 +167,62 @@
     if (t.includes('tropical depression')) return { radius: 6, weight: 2 };
     return { radius: 6, weight: 1 };
   }
-
-  const trackStyle = { weight: 2, opacity: 0.9 };    // forecast line
-  const projPtStyle = { radius: 4, weight: 1 };      // forecast point marker
+  const trackStyle = { weight: 2, opacity: 0.9 }; // forecast line
+  const projPtStyle = { radius: 4, weight: 1 };   // forecast point marker
+  const coneStyle = { color: '#111827', weight: 1, fillColor: '#ffffff', fillOpacity: 0.20 }; // white translucent cone
 
   function round(n, d=1){ return (typeof n==='number') ? Number(n.toFixed(d)) : n; }
-
-  async function fetchGeoJSON(url, paramsObj) {
-    const params = new URLSearchParams(paramsObj);
-    const res = await fetch(url + '?' + params.toString());
+  async function fetchGeoJSON(url, paramsObj){
+    const res = await fetch(url + '?' + new URLSearchParams(paramsObj).toString());
     if (!res.ok) throw new Error('Network response was not ok: ' + res.status);
     return res.json();
   }
 
-  try {
+  try{
     SPINNER.style.display = 'inline-block';
 
-    // 1) Get ALL forecast points (current+future). We’ll split client-side.
-    const geoAll = await fetchGeoJSON(POINTS_ENDPOINT, baseParams);
+    // 1) Grab ALL forecast points first; we derive "current" and "future"
+    const geoAllPts = await fetchGeoJSON(ENDPOINT_POINTS, paramsPoints);
 
-    // 2) Build a “current point per storm” set (same scoring as before).
+    // Build "current point per storm" (prefer fcstprd===0, else tau===0, else latest)
     const byStorm = new Map();
-    for (const f of (geoAll.features || [])) {
+    for (const f of (geoAllPts.features || [])) {
       const p = f.properties || {};
       const key = `${p.stormname || 'Unknown'}|${p.basin || ''}`;
       const score = (p.fcstprd === 0 ? 3 : (p.tau === 0 ? 2 : 1));
       const prev = byStorm.get(key);
       const prevScore = prev?.score ?? 0;
-      if (score > prevScore) {
-        byStorm.set(key, { f, score });
-      } else if (score === prevScore) {
-        const a = (p.validtime || p.advdate || '');
-        const b = (prev?.f.properties.validtime || prev?.f.properties.advdate || '');
+      if (score > prevScore) byStorm.set(key, { f, score });
+      else if (score === prevScore) {
+        const a = (p.validtime || p.advdate || ''), b = (prev?.f.properties.validtime || prev?.f.properties.advdate || '');
         if (a > b) byStorm.set(key, { f, score });
       }
     }
     const currentFeatures = Array.from(byStorm.values()).map(x => x.f);
 
-    // 3) Make page UI
+    // Prepare future points (tau>0 or fcstprd>0)
+    const futureByStorm = new Map();
+    for (const f of (geoAllPts.features || [])) {
+      const p = f.properties || {};
+      const key = `${p.stormname || 'Unknown'}|${p.basin || ''}`;
+      const tau = (typeof p.tau === 'number') ? p.tau : (typeof p.fcstprd === 'number' ? p.fcstprd : null);
+      if (tau && tau > 0) {
+        if (!futureByStorm.has(key)) futureByStorm.set(key, []);
+        futureByStorm.get(key).push(f);
+      }
+    }
+
+    // 2) Fetch tracks & cones (optional layers; we’ll render but keep hidden until toggled)
+    const [geoTrack, geoCone] = await Promise.all([
+      fetchGeoJSON(ENDPOINT_TRACK, paramsTrack),
+      fetchGeoJSON(ENDPOINT_CONE, paramsCone)
+    ]);
+
+    // Render current markers & list
     layerCurrent.clearLayers();
     layerProjLine.clearLayers();
     layerProjPts.clearLayers();
+    layerCone.clearLayers();
     LIST.innerHTML = '';
     let bounds = [];
 
@@ -217,19 +234,6 @@
     } else {
       STATUS.className = 'alert alert-warning py-2 px-3 small';
       STATUS.textContent = `Active systems detected: ${currentFeatures.length}`;
-
-      // Build forecast tracks (projections) per storm from geoAll where tau>0 or fcstprd>0
-      const futureByStorm = new Map();
-      for (const f of (geoAll.features || [])) {
-        const p = f.properties || {};
-        const key = `${p.stormname || 'Unknown'}|${p.basin || ''}`;
-        const tau = (typeof p.tau === 'number') ? p.tau : (typeof p.fcstprd === 'number' ? p.fcstprd : null);
-        // Forecast points usually have tau>0 or fcstprd>0
-        if (tau && tau > 0) {
-          if (!futureByStorm.has(key)) futureByStorm.set(key, []);
-          futureByStorm.get(key).push(f);
-        }
-      }
 
       for (const f of currentFeatures) {
         const p = f.properties || {};
@@ -247,7 +251,6 @@
         const time = p.validtime || p.advdate || '';
         const coordTxt = (typeof lat==='number' && typeof lon==='number') ? ` · ${round(lat,2)}, ${round(lon,2)}` : '';
 
-        // Current marker
         if (typeof lat === 'number' && typeof lon === 'number') {
           const mrk = L.circleMarker([lat, lon], markerStyle(type))
             .bindPopup(`
@@ -261,7 +264,7 @@
           bounds.push([lat, lon]);
         }
 
-        // List card (title now forced light via .storm-title)
+        // List card
         const col = document.createElement('div');
         col.className = 'col-12 col-md-6';
         col.innerHTML = `
@@ -279,69 +282,87 @@
                 <button class="btn btn-sm btn-outline-info" ${ (typeof lat==='number' && typeof lon==='number') ? '' : 'disabled' }>
                   Zoom
                 </button>
-                <button class="btn btn-sm btn-outline-primary projBtn">
-                  Projections
-                </button>
+                <button class="btn btn-sm btn-outline-primary projBtn">Projections</button>
+                <button class="btn btn-sm btn-outline-light coneBtn">Cone</button>
               </div>
             </div>
           </div>`;
-        const [zoomBtn, projBtn] = col.querySelectorAll('button');
+        const [zoomBtn, projBtn, coneBtn] = col.querySelectorAll('button');
         zoomBtn?.addEventListener('click', () => {
-          if (typeof lat==='number' && typeof lon==='number') {
-            map.setView([lat, lon], 6, { animate: true });
-          }
+          if (typeof lat==='number' && typeof lon==='number') map.setView([lat, lon], 6, { animate: true });
         });
         projBtn?.addEventListener('click', () => {
-          TOG_PROJ.checked = true;
-          TOG_PROJ.dispatchEvent(new Event('change'));
-          if (typeof lat==='number' && typeof lon==='number') {
-            map.setView([lat, lon], 6, { animate: true });
-          }
+          TOG_PROJ.checked = true; TOG_PROJ.dispatchEvent(new Event('change'));
+          if (typeof lat==='number' && typeof lon==='number') map.setView([lat, lon], 6, { animate: true });
+        });
+        coneBtn?.addEventListener('click', () => {
+          TOG_CONE.checked = true; TOG_CONE.dispatchEvent(new Event('change'));
+          if (typeof lat==='number' && typeof lon==='number') map.setView([lat, lon], 6, { animate: true });
         });
         LIST.appendChild(col);
+      }
 
-        // Build projections for this storm (if any)
-        const stormKey = `${p.stormname || 'Unknown'}|${p.basin || ''}`;
-        const futurePts = (futureByStorm.get(stormKey) || []).slice();
-
-        if (futurePts.length) {
-          // Sort by tau (or fallback validtime/advdate)
-          futurePts.sort((a, b) => {
-            const pa = a.properties || {}, pb = b.properties || {};
-            const ta = (typeof pa.tau === 'number') ? pa.tau : (typeof pa.fcstprd === 'number' ? pa.fcstprd : 999999);
-            const tb = (typeof pb.tau === 'number') ? pb.tau : (typeof pb.fcstprd === 'number' ? pb.fcstprd : 999999);
-            if (ta !== tb) return ta - tb;
-            const sa = (pa.validtime || pa.advdate || ''), sb = (pb.validtime || pb.advdate || '');
-            return sa.localeCompare(sb);
-          });
-
-          // Track line coordinates
-          const latlngs = [];
-          for (const fp of futurePts) {
-            const pp = fp.properties || {};
-            const gg = fp.geometry || {};
-            const c2 = Array.isArray(gg.coordinates) ? gg.coordinates : [null, null];
-            const lon2 = (typeof pp.lon === 'number') ? pp.lon : c2[0];
-            const lat2 = (typeof pp.lat === 'number') ? pp.lat : c2[1];
-            if (typeof lat2==='number' && typeof lon2==='number') {
-              latlngs.push([lat2, lon2]);
-
-              // Forecast point marker
-              L.circleMarker([lat2, lon2], projPtStyle)
-                .bindTooltip(`${name} • ${pp.validtime || ('+' + (pp.tau ?? pp.fcstprd) + 'h')}`, { direction:'top' })
-                .addTo(layerProjPts);
-            }
-          }
-          if (latlngs.length >= 2) {
-            L.polyline(latlngs, trackStyle).addTo(layerProjLine);
+      // Render forecasts (projections)
+      // Track: lines grouped per storm, sorted by tau/time
+      const linesByStorm = new Map();
+      for (const f of (geoTrack.features || [])) {
+        const p = f.properties || {};
+        const key = `${p.stormname || 'Unknown'}|${p.basin || ''}`;
+        if (!linesByStorm.has(key)) linesByStorm.set(key, []);
+        linesByStorm.get(key).push(f);
+      }
+      for (const arr of linesByStorm.values()) {
+        // Each feature is a polyline segment; draw them as one multiline
+        arr.forEach(seg => {
+          const coords = seg.geometry?.coordinates || [];
+          const latlngs = coords.map(c => [c[1], c[0]]).filter(([la,lo]) => Number.isFinite(la) && Number.isFinite(lo));
+          if (latlngs.length >= 2) L.polyline(latlngs, trackStyle).addTo(layerProjLine);
+        });
+      }
+      // Future forecast points
+      for (const [key, futurePts] of futureByStorm.entries()) {
+        futurePts.sort((a,b) => {
+          const pa=a.properties||{}, pb=b.properties||{};
+          const ta = (typeof pa.tau==='number') ? pa.tau : (typeof pa.fcstprd==='number'?pa.fcstprd:999999);
+          const tb = (typeof pb.tau==='number') ? pb.tau : (typeof pb.fcstprd==='number'?pb.fcstprd:999999);
+          if (ta!==tb) return ta-tb;
+          const sa=(pa.validtime||pa.advdate||''), sb=(pb.validtime||pb.advdate||'');
+          return sa.localeCompare(sb);
+        });
+        for (const fp of futurePts) {
+          const pp=fp.properties||{}, gg=fp.geometry||{}, c2=Array.isArray(gg.coordinates)?gg.coordinates:[null,null];
+          const lon2=(typeof pp.lon==='number')?pp.lon:c2[0];
+          const lat2=(typeof pp.lat==='number')?pp.lat:c2[1];
+          if (Number.isFinite(lat2)&&Number.isFinite(lon2)) {
+            L.circleMarker([lat2,lon2], projPtStyle)
+              .bindTooltip(`${pp.stormname || 'Storm'} • ${pp.validtime || ('+'+(pp.tau ?? pp.fcstprd)+'h')}`, {direction:'top'})
+              .addTo(layerProjPts);
           }
         }
       }
 
-      if (bounds.length) {
-        const b = L.latLngBounds(bounds);
-        map.fitBounds(b.pad(0.3));
+      // Render forecast cones (polygons)
+      const cones = geoCone.features || [];
+      for (const poly of cones) {
+        const props = poly.properties || {};
+        // many cone polygons come as MultiPolygon; normalize to rings
+        const geom = poly.geometry || {};
+        const toLatLngs = (coords) => coords.map(ring => ring.map(([x,y]) => [y,x]));
+        if (geom.type === 'Polygon' && Array.isArray(geom.coordinates)) {
+          L.polygon(toLatLngs(geom.coordinates), coneStyle).addTo(layerCone)
+            .bindTooltip(`${props.stormname || 'Storm'} • Cone`);
+        } else if (geom.type === 'MultiPolygon' && Array.isArray(geom.coordinates)) {
+          geom.coordinates.forEach(pol => {
+            L.polygon(toLatLngs(pol), coneStyle).addTo(layerCone)
+              .bindTooltip(`${props.stormname || 'Storm'} • Cone`);
+          });
+        }
       }
+      // Keep cone layer hidden until toggled
+      if (!TOG_CONE.checked) map.removeLayer(layerCone);
+
+      // Fit bounds to current markers
+      if (bounds.length) map.fitBounds(L.latLngBounds(bounds).pad(0.3));
     }
   } catch (err) {
     console.error(err);
