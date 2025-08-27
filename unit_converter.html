@@ -3,17 +3,18 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Unit Converter – Length • Weight • Volume • Temperature</title>
+<title>Unit Converter – Length • Weight • Volume • Temperature • Area • Speed • Time • Data • Pressure • Energy</title>
 <style>
   :root{
     --bg: #0b0e14;
     --card: #111625;
     --text: #e8e8e8;
-    --muted: #a8b3cf;
+    --muted: #bac4dc;            /* lightened for contrast */
     --accent: #8ab4ff;
-    --border: #1c2333;
+    --border: #24314d;           /* darker for better edge contrast */
     --chip: rgba(255,255,255,.08);
     --shadow: 0 10px 30px rgba(0,0,0,.35);
+    --field: #0f1422;            /* inputs background to avoid “black on black” */
   }
   [data-theme="light"]{
     --bg: #f6f7fb;
@@ -21,9 +22,10 @@
     --text: #0b0e14;
     --muted: #4c566a;
     --accent: #245cff;
-    --border: #dfe3ef;
+    --border: #cfd6e8;
     --chip: rgba(0,0,0,.05);
     --shadow: 0 8px 24px rgba(0,0,0,.08);
+    --field: #fff;
   }
   html,body{height:100%}
   body{
@@ -35,92 +37,70 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
-  .wrap{
-    max-width: 860px;
-    margin: 32px auto;
-    padding: 0 16px;
-  }
-  header{
-    display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:18px;
-  }
-  .title{
-    font-weight: 700;
-    letter-spacing:.2px;
-    font-size: clamp(20px, 2.2vw, 26px);
-  }
-  .sub{color:var(--muted); font-size: 13px}
+  .wrap{ max-width: 920px; margin: 32px auto; padding: 0 16px; }
+  header{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:18px; }
+  .title{ font-weight:700; letter-spacing:.2px; font-size: clamp(20px, 2.2vw, 26px); }
+  .sub{ color:var(--muted); font-size:13px }
   .card{
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: 16px;
     box-shadow: var(--shadow);
     padding: 18px;
+    overflow: visible; /* ensure dropdowns are never clipped */
   }
-  .row{
-    display:grid;
-    grid-template-columns: 1fr;
-    gap: 14px;
+  .row{ display:grid; grid-template-columns: 1fr; gap: 14px; }
+  @media (min-width: 760px){
+    .row{ grid-template-columns: 1.1fr 1fr 1fr; align-items:end; }
   }
-  @media (min-width: 720px){
-    .row{ grid-template-columns: 1.1fr 1fr 1fr; align-items:end;}
-  }
-  label{font-size:12px; color:var(--muted); display:block; margin:2px 0 6px}
+  label{ font-size:12px; color:var(--muted); display:block; margin:2px 0 6px }
   select, input{
     width:100%;
-    background: transparent;
+    background: var(--field);
     color: var(--text);
     border: 1px solid var(--border);
     border-radius: 12px;
     padding: 12px 12px;
     font-size: 15px;
     outline: none;
+    position: relative;
+    z-index: 5;                 /* keep above neighbors to avoid visual overlap */
   }
-  select:focus, input:focus{ border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 25%, transparent) }
-  .muterow{
-    display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top: 10px;
+  /* try to enforce readable dropdowns on browsers that honor it */
+  select, option{ background-color: var(--field); color: var(--text); }
+  input::placeholder{ color: var(--muted); opacity: .95 }
+  select:focus, input:focus{
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 25%, transparent);
   }
-  .unit-row{
-    display:grid; grid-template-columns: 1fr auto 1fr; gap: 10px;
-  }
+
+  .muterow{ display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top: 10px; }
+  .unit-row{ display:grid; grid-template-columns: 1fr auto 1fr; gap: 10px; }
   .btn{
-    user-select:none;
-    display:inline-flex; align-items:center; justify-content:center;
-    gap:8px;
-    padding: 10px 12px;
-    border-radius:12px;
-    border: 1px solid var(--border);
+    user-select:none; display:inline-flex; align-items:center; justify-content:center;
+    gap:8px; padding: 10px 12px; border-radius:12px; border: 1px solid var(--border);
     background: linear-gradient(0deg, color-mix(in oklab, var(--card) 90%, #000 10%), var(--card));
-    color:var(--text);
-    cursor:pointer;
+    color:var(--text); cursor:pointer;
   }
   .btn:hover{ border-color: var(--accent) }
   .btn-ghost{ background: var(--chip) }
   .btn:active{ transform: translateY(1px) }
   .swap{ width:42px; }
   .result{
-    margin-top: 16px;
-    background: var(--chip);
-    border: 1px dashed var(--border);
-    border-radius: 14px;
-    padding: 14px;
-    font-size: 16px;
+    margin-top: 16px; background: var(--chip); border: 1px dashed var(--border);
+    border-radius: 14px; padding: 14px; font-size: 16px;
     display:flex; align-items:center; justify-content:space-between; gap:12px;
   }
   .result strong{ font-size: 18px; letter-spacing:.2px }
   .tiny{ font-size:12px; color: var(--muted) }
   .row + .row{ margin-top: 12px }
-  .tag{
-    display:inline-flex; align-items:center; gap:8px;
-    font-size:12px; padding:6px 10px; border-radius:999px;
-    background: var(--chip); border: 1px solid var(--border); color: var(--muted)
-  }
+  .tag{ display:inline-flex; align-items:center; gap:8px; font-size:12px; padding:6px 10px;
+        border-radius:999px; background: var(--chip); border: 1px solid var(--border); color: var(--muted) }
   .topline{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom: 10px}
   .stack{ display:flex; gap:8px; align-items:center; flex-wrap:wrap }
   .kbd{ font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; padding:0 6px; border-radius:6px; background:var(--chip); border:1px solid var(--border); font-size:12px; color:var(--muted) }
   footer{ margin-top:16px; display:flex; justify-content:space-between; align-items:center; color:var(--muted); font-size:12px}
-  .hidden{ display:none !important }
   .grow{ flex:1 }
-  .linkish{ color: var(--accent); text-decoration: none; border-bottom: 1px dotted var(--accent); }
   .theme{ width:42px; height:42px; border-radius:12px }
 </style>
 </head>
@@ -129,16 +109,17 @@
   <header>
     <div>
       <div class="title">Unit Converter</div>
-      <div class="sub">Length • Weight • Volume • Temperature — live, no ads.</div>
+      <div class="sub">Length • Weight • Volume • Temperature • Area • Speed • Time • Data • Pressure • Energy — live, no ads.</div>
     </div>
     <button id="themeBtn" class="btn theme" title="Toggle theme" aria-label="Toggle theme">🌗</button>
   </header>
 
-  <div class="card">
+  <div class="card" id="card">
     <div class="topline">
       <div class="stack">
-        <span class="tag">Tip: press <span class="kbd">/</span> to jump to input</span>
+        <span class="tag">Press <span class="kbd">/</span> to jump</span>
         <span class="tag">Press <span class="kbd">S</span> to swap</span>
+        <span class="tag">Press <span class="kbd">Esc</span> to clear</span>
       </div>
       <div class="stack">
         <span class="tiny">Rounding: auto</span>
@@ -153,17 +134,23 @@
           <option value="mass">Weight</option>
           <option value="volume">Volume</option>
           <option value="temperature">Temperature</option>
+          <option value="area">Area</option>
+          <option value="speed">Speed</option>
+          <option value="time">Time</option>
+          <option value="data">Data</option>
+          <option value="pressure">Pressure</option>
+          <option value="energy">Energy</option>
         </select>
       </div>
 
       <div>
         <label for="inputVal">Amount</label>
-        <input id="inputVal" inputmode="decimal" placeholder="Enter a number" value="1" />
+        <input id="inputVal" inputmode="decimal" placeholder="Enter a number, 1.5e3 OK" value="1" />
       </div>
 
       <div>
         <label for="resultVal">Result</label>
-        <input id="resultVal" readonly aria-readonly="true" />
+        <input id="resultVal" readonly aria-readonly="true" title="Copied with Ctrl/Cmd+C when focused" />
       </div>
     </div>
 
@@ -200,71 +187,99 @@
   </div>
 
   <footer>
-    <span>US volume units use <span class="linkish" tabindex="0" role="note" title="US customary">US customary</span> definitions.</span>
+    <span>US volume units use US customary definitions.</span>
     <span>Saved locally for convenience.</span>
   </footer>
 </div>
 
 <script>
 (function(){
-  // Theme init: prefer saved, else system
   const root = document.documentElement;
   const savedTheme = localStorage.getItem('uc-theme');
   const systemDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
   root.setAttribute('data-theme', savedTheme ?? (systemDark ? 'dark' : 'light'));
 
   const CATEGORIES = {
-    length: {
-      label: 'Length', base: 'm',
-      units: {
-        km:{n:'Kilometer (km)', f:1000},
-        m:{n:'Meter (m)', f:1},
-        cm:{n:'Centimeter (cm)', f:0.01},
-        mm:{n:'Millimeter (mm)', f:0.001},
-        mi:{n:'Mile (mi)', f:1609.344},
-        yd:{n:'Yard (yd)', f:0.9144},
-        ft:{n:'Foot (ft)', f:0.3048},
-        in:{n:'Inch (in)', f:0.0254},
-        nmi:{n:'Nautical mile (nmi)', f:1852}
-      }
-    },
-    mass: { // "Weight" (mass)
-      label: 'Weight', base: 'kg',
-      units: {
-        t:{n:'Tonne (t)', f:1000},
-        kg:{n:'Kilogram (kg)', f:1},
-        g:{n:'Gram (g)', f:0.001},
-        mg:{n:'Milligram (mg)', f:0.000001},
-        lb:{n:'Pound (lb)', f:0.45359237},
-        oz:{n:'Ounce (oz)', f:0.028349523125}
-      }
-    },
-    volume: {
-      label: 'Volume', base: 'L',
-      units: {
-        m3:{n:'Cubic meter (m³)', f:1000},     // 1 m³ = 1000 L
-        L:{n:'Liter (L)', f:1},
-        mL:{n:'Milliliter (mL)', f:0.001},
-        gal:{n:'Gallon (US gal)', f:3.785411784},
-        qt:{n:'Quart (US qt)', f:0.946352946},
-        pt:{n:'Pint (US pt)', f:0.473176473},
-        cup:{n:'Cup (US cup)', f:0.2365882365},
-        floz:{n:'Fluid ounce (US fl oz)', f:0.0295735295625},
-        tbsp:{n:'Tablespoon (US tbsp)', f:0.01478676478125},
-        tsp:{n:'Teaspoon (US tsp)', f:0.00492892159375}
-      }
-    },
-    temperature: {
-      label: 'Temperature',
-      units: {
-        C:{n:'Celsius (°C)'},
-        F:{n:'Fahrenheit (°F)'},
-        K:{n:'Kelvin (K)'}
-      }
-    }
+    length: { label:'Length', base:'m', units:{
+      km:{n:'Kilometer (km)', f:1000}, m:{n:'Meter (m)', f:1}, cm:{n:'Centimeter (cm)', f:0.01},
+      mm:{n:'Millimeter (mm)', f:0.001}, mi:{n:'Mile (mi)', f:1609.344}, yd:{n:'Yard (yd)', f:0.9144},
+      ft:{n:'Foot (ft)', f:0.3048}, in:{n:'Inch (in)', f:0.0254}, nmi:{n:'Nautical mile (nmi)', f:1852}
+    }},
+    mass: { label:'Weight', base:'kg', units:{
+      t:{n:'Tonne (t)', f:1000}, kg:{n:'Kilogram (kg)', f:1}, g:{n:'Gram (g)', f:0.001}, mg:{n:'Milligram (mg)', f:0.000001},
+      lb:{n:'Pound (lb)', f:0.45359237}, oz:{n:'Ounce (oz)', f:0.028349523125}
+    }},
+    volume: { label:'Volume', base:'L', units:{
+      m3:{n:'Cubic meter (m³)', f:1000}, L:{n:'Liter (L)', f:1}, mL:{n:'Milliliter (mL)', f:0.001},
+      gal:{n:'Gallon (US gal)', f:3.785411784}, qt:{n:'Quart (US qt)', f:0.946352946}, pt:{n:'Pint (US pt)', f:0.473176473},
+      cup:{n:'Cup (US cup)', f:0.2365882365}, floz:{n:'Fluid ounce (US fl oz)', f:0.0295735295625},
+      tbsp:{n:'Tablespoon (US tbsp)', f:0.01478676478125}, tsp:{n:'Teaspoon (US tsp)', f:0.00492892159375}
+    }},
+    temperature: { label:'Temperature', units:{
+      C:{n:'Celsius (°C)'}, F:{n:'Fahrenheit (°F)'}, K:{n:'Kelvin (K)'}
+    }},
+    area: { label:'Area', base:'m2', units:{
+      km2:{n:'Square kilometer (km²)', f:1_000_000},
+      m2:{n:'Square meter (m²)', f:1},
+      cm2:{n:'Square centimeter (cm²)', f:0.0001},
+      mm2:{n:'Square millimeter (mm²)', f:0.000001},
+      mi2:{n:'Square mile (mi²)', f:1609.344*1609.344},
+      yd2:{n:'Square yard (yd²)', f:0.9144*0.9144},
+      ft2:{n:'Square foot (ft²)', f:0.09290304},
+      in2:{n:'Square inch (in²)', f:0.00064516},
+      acre:{n:'Acre (ac)', f:4046.8564224},
+      ha:{n:'Hectare (ha)', f:10000}
+    }},
+    speed: { label:'Speed', base:'mps', units:{
+      mps:{n:'Meter/second (m/s)', f:1},
+      kmh:{n:'Kilometer/hour (km/h)', f:1000/3600},
+      mph:{n:'Mile/hour (mph)', f:1609.344/3600},
+      kn:{n:'Knot (kn)', f:1852/3600},
+      fps:{n:'Foot/second (ft/s)', f:0.3048}
+    }},
+    time: { label:'Time', base:'s', units:{
+      yr:{n:'Year (365 d)', f:31536000},
+      wk:{n:'Week (7 d)', f:604800},
+      d:{n:'Day (24 h)', f:86400},
+      h:{n:'Hour (h)', f:3600},
+      min:{n:'Minute (min)', f:60},
+      s:{n:'Second (s)', f:1},
+      ms:{n:'Millisecond (ms)', f:0.001},
+      us:{n:'Microsecond (µs)', f:0.000001},
+      ns:{n:'Nanosecond (ns)', f:1e-9}
+    }},
+    data: { label:'Data', base:'B', units:{
+      bit:{n:'bit (b)', f:1/8},
+      B:{n:'Byte (B)', f:1},
+      KB:{n:'Kilobyte (KB, 10³)', f:1000},
+      MB:{n:'Megabyte (MB, 10⁶)', f:1_000_000},
+      GB:{n:'Gigabyte (GB, 10⁹)', f:1_000_000_000},
+      TB:{n:'Terabyte (TB, 10¹²)', f:1_000_000_000_000},
+      KiB:{n:'Kibibyte (KiB, 1024)', f:1024},
+      MiB:{n:'Mebibyte (MiB)', f:1048576},
+      GiB:{n:'Gibibyte (GiB)', f:1073741824},
+      TiB:{n:'Tebibyte (TiB)', f:1099511627776}
+    }},
+    pressure: { label:'Pressure', base:'Pa', units:{
+      Pa:{n:'Pascal (Pa)', f:1},
+      kPa:{n:'Kilopascal (kPa)', f:1000},
+      MPa:{n:'Megapascal (MPa)', f:1_000_000},
+      bar:{n:'Bar (bar)', f:100000},
+      atm:{n:'Standard atmosphere (atm)', f:101325},
+      psi:{n:'Pound/sq in (psi)', f:6894.757293168},
+      torr:{n:'Torr (torr)', f:133.3223684211}
+    }},
+    energy: { label:'Energy', base:'J', units:{
+      J:{n:'Joule (J)', f:1},
+      kJ:{n:'Kilojoule (kJ)', f:1000},
+      cal:{n:'calorie (cal)', f:4.184},
+      kcal:{n:'kilocalorie (kcal)', f:4184},
+      Wh:{n:'Watt-hour (Wh)', f:3600},
+      kWh:{n:'Kilowatt-hour (kWh)', f:3_600_000},
+      BTU:{n:'British thermal unit (BTU)', f:1055.05585262}
+    }}
   };
 
-  // Elements
   const els = {
     category: document.getElementById('category'),
     inputVal: document.getElementById('inputVal'),
@@ -282,9 +297,7 @@
     themeBtn: document.getElementById('themeBtn')
   };
 
-  // Helpers
   const clampPrec = (x) => {
-    // Auto rounding: fixed up to 10 decimals, else exponential with 6
     if (!isFinite(x)) return '—';
     const ax = Math.abs(x);
     if (ax !== 0 && (ax < 1e-6 || ax >= 1e9)) {
@@ -294,39 +307,27 @@
     return s.replace(/\.?0+$/,'');
   };
 
-  const nowTime = () => {
-    const d = new Date();
-    return d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
-  };
+  const nowTime = () => new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
 
   function sanitizeNumber(str){
     if (typeof str !== 'string') str = String(str ?? '');
-    // Accept "1,5" as 1.5 for convenience
     str = str.trim().replace(',', '.');
-    // Strip extraneous characters except digits, dot, minus, +, e/E for scientific
-    // But keep simple: parseFloat handles it
     const v = parseFloat(str);
     return isNaN(v) ? null : v;
   }
 
   function temperatureConvert(v, from, to){
     if (from === to) return v;
-    // Normalize to Celsius
     let c;
     if (from === 'C') c = v;
     else if (from === 'F') c = (v - 32) * (5/9);
     else if (from === 'K') c = v - 273.15;
-
-    // From Celsius to target
     if (to === 'C') return c;
     if (to === 'F') return c * 9/5 + 32;
     if (to === 'K') return c + 273.15;
   }
-
   function temperatureFormula(from, to){
-    // Human-readable formula line
-    const f = from, t = to;
-    if (f === t) return 'Same units — no change.';
+    if (from === to) return 'Same units — no change.';
     const map = {
       'C→F': '°F = (°C × 9/5) + 32',
       'F→C': '°C = (°F − 32) × 5/9',
@@ -335,7 +336,7 @@
       'F→K': 'K = (°F − 32) × 5/9 + 273.15',
       'K→F': '°F = (K − 273.15) × 9/5 + 32'
     };
-    return map[`${f}→${t}`];
+    return map[`${from}→${to}`];
   }
 
   function populateUnits(cat, fromPref, toPref){
@@ -351,17 +352,32 @@
       }
       if (chosen && units[chosen]) sel.value = chosen;
     };
-    // Default sensible pairs
-    let defFrom = Object.keys(units)[0];
-    let defTo = Object.keys(units)[1] ?? defFrom;
-
-    if (cat === 'length'){ defFrom = 'ft'; defTo = 'm'; }
-    if (cat === 'mass'){ defFrom = 'lb'; defTo = 'kg'; }
-    if (cat === 'volume'){ defFrom = 'cup'; defTo = 'L'; }
-    if (cat === 'temperature'){ defFrom = 'F'; defTo = 'C'; }
+    // sensible defaults
+    let defFrom, defTo;
+    switch(cat){
+      case 'length': defFrom='ft'; defTo='m'; break;
+      case 'mass': defFrom='lb'; defTo='kg'; break;
+      case 'volume': defFrom='cup'; defTo='L'; break;
+      case 'temperature': defFrom='F'; defTo='C'; break;
+      case 'area': defFrom='ft2'; defTo='m2'; break;
+      case 'speed': defFrom='mph'; defTo='kmh'; break;
+      case 'time': defFrom='min'; defTo='s'; break;
+      case 'data': defFrom='MB'; defTo='MiB'; break;
+      case 'pressure': defFrom='psi'; defTo='kPa'; break;
+      case 'energy': defFrom='kWh'; defTo='MJ'; break; // MJ not in list; fallback below
+    }
+    if (!(defFrom in units)) defFrom = Object.keys(units)[0];
+    if (!(defTo in units))   defTo   = Object.keys(units)[1] ?? defFrom;
 
     fill(els.fromUnit, fromPref ?? defFrom);
     fill(els.toUnit, toPref ?? defTo);
+  }
+
+  function labelShort(key){
+    const cat = els.category.value;
+    const u = CATEGORIES[cat].units[key];
+    const m = u.n.match(/\(([^)]+)\)$/);
+    return m ? m[1] : key;
   }
 
   function doConvert(){
@@ -376,6 +392,7 @@
       els.prettyLine.textContent = '—';
       els.factorLine.textContent = '';
       els.formulaLine.textContent = '';
+      els.timestamp.textContent = '';
       return;
     }
 
@@ -385,13 +402,12 @@
       els.formulaLine.textContent = temperatureFormula(from, to);
       els.factorLine.textContent = '';
     } else {
-      const { base, units } = CATEGORIES[cat];
+      const { units } = CATEGORIES[cat];
       const fFrom = units[from].f; // to base
       const fTo = units[to].f;     // to base
       const inBase = val * fFrom;
       out = inBase / fTo;
 
-      // Factor display: 1 from = X to
       const factor = fFrom / fTo;
       els.factorLine.textContent = `Factor: 1 ${labelShort(from)} = ${clampPrec(factor)} ${labelShort(to)}`;
       els.formulaLine.textContent = '';
@@ -401,20 +417,7 @@
     els.prettyLine.textContent = pretty;
     els.resultVal.value = clampPrec(out);
     els.timestamp.textContent = nowTime();
-
-    // Persist simple state
     saveState();
-  }
-
-  function labelShort(key){
-    // Pull nice short suffix from the long name in data
-    // e.g., "Kilogram (kg)" → "kg"
-    const cat = els.category.value;
-    const u = CATEGORIES[cat].units[key];
-    const m = u.n.match(/\(([^)]+)\)$/);
-    if (m) return m[1];
-    // For temperature entries like "Kelvin (K)" this still works; otherwise fallback to key
-    return key;
   }
 
   function swapUnits(){
@@ -428,31 +431,15 @@
   function copyResult(){
     const txt = els.prettyLine.textContent.trim();
     if (!txt || txt === '—') return;
-    navigator.clipboard.writeText(txt).then(()=>{
-      pulse(els.copyBtn);
-    }).catch(()=>{
-      // fallback
+    navigator.clipboard.writeText(txt).then(()=>pulse(els.copyBtn)).catch(()=>{
       const ta = document.createElement('textarea');
-      ta.value = txt;
-      document.body.appendChild(ta);
-      ta.select();
-      try { document.execCommand('copy'); } catch(e){}
-      document.body.removeChild(ta);
-      pulse(els.copyBtn);
+      ta.value = txt; document.body.appendChild(ta); ta.select();
+      try{ document.execCommand('copy'); }catch(e){}
+      document.body.removeChild(ta); pulse(els.copyBtn);
     });
   }
-
-  function pulse(el){
-    const old = el.textContent;
-    el.textContent = 'Copied!';
-    setTimeout(()=>{ el.textContent = old; }, 900);
-  }
-
-  function clearAmount(){
-    els.inputVal.value = '';
-    doConvert();
-    els.inputVal.focus();
-  }
+  function pulse(el){ const old = el.textContent; el.textContent = 'Copied!'; setTimeout(()=>{ el.textContent = old; }, 900); }
+  function clearAmount(){ els.inputVal.value = ''; doConvert(); els.inputVal.focus(); }
 
   function saveState(){
     const state = {
@@ -464,39 +451,20 @@
     };
     localStorage.setItem('uc-state', JSON.stringify(state));
   }
-
   function restoreState(){
     try{
-      const raw = localStorage.getItem('uc-state');
-      if (!raw) return;
+      const raw = localStorage.getItem('uc-state'); if (!raw) return;
       const s = JSON.parse(raw);
       if (s.theme) root.setAttribute('data-theme', s.theme);
-      if (s.cat){
-        els.category.value = s.cat;
-        populateUnits(s.cat, s.from, s.to);
-      }
+      if (s.cat){ els.category.value = s.cat; populateUnits(s.cat, s.from, s.to); }
       if (s.val != null) els.inputVal.value = s.val;
     } catch(e){}
   }
 
-  // Theme toggle
-  els.themeBtn.addEventListener('click', ()=>{
-    const cur = root.getAttribute('data-theme');
-    const next = cur === 'dark' ? 'light' : 'dark';
-    root.setAttribute('data-theme', next);
-    localStorage.setItem('uc-theme', next);
-    pulse(els.themeBtn);
-  });
-
   // Events
-  els.category.addEventListener('change', ()=>{
-    const cat = els.category.value;
-    populateUnits(cat);
-    doConvert();
-  });
-  ['fromUnit','toUnit'].forEach(id=>{
-    document.getElementById(id).addEventListener('change', doConvert);
-  });
+  els.themeBtn.addEventListener('click', ()=>{ const cur = root.getAttribute('data-theme'); const next = cur==='dark'?'light':'dark'; root.setAttribute('data-theme', next); localStorage.setItem('uc-theme', next); pulse(els.themeBtn); });
+  els.category.addEventListener('change', ()=>{ const cat = els.category.value; populateUnits(cat); doConvert(); });
+  ['fromUnit','toUnit'].forEach(id=>document.getElementById(id).addEventListener('change', doConvert));
   els.inputVal.addEventListener('input', doConvert);
   els.swapBtn.addEventListener('click', swapUnits);
   els.copyBtn.addEventListener('click', copyResult);
@@ -505,7 +473,12 @@
   // Keyboard shortcuts
   document.addEventListener('keydown', (e)=>{
     if (e.key === '/'){ e.preventDefault(); els.inputVal.focus(); els.inputVal.select(); }
-    if (e.key.toLowerCase() === 's'){ e.preventDefault(); swapUnits(); }
+    if (e.key.toLowerCase?.() === 's'){ e.preventDefault(); swapUnits(); }
+    if (e.key === 'Escape'){ e.preventDefault(); clearAmount(); }
+    // Copy from Result box with Ctrl/Cmd+C
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase?.() === 'c' && document.activeElement === els.resultVal){
+      e.preventDefault(); copyResult();
+    }
   });
 
   // Init
@@ -514,7 +487,6 @@
     if (!els.fromUnit.options.length){ populateUnits(els.category.value); }
     doConvert();
   })();
-
 })();
 </script>
 </body>
