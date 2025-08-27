@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Anthony Frank — Portfolio & Resume</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Bootstrap 5.3.3 (your preferred link) -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+        rel="stylesheet"
+        integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
+        crossorigin="anonymous">
+  <style>
+    :root {
+      --accent: #0d6efd;
+      --soft-bg: #f8f9fa;
+      --card-radius: 16px;
+    }
+    body { background: var(--soft-bg); }
+    .container-narrow { max-width: 920px; }
+    .brand-badge {
+      font-weight: 700; letter-spacing: .3px;
+      border: 1px solid rgba(13,110,253,.35);
+      color: var(--accent); padding: .25rem .5rem;
+      border-radius: 999px; background: rgba(13,110,253,.06);
+    }
+    .card {
+      border: 0; border-radius: var(--card-radius);
+      box-shadow: 0 8px 24px rgba(0,0,0,.05);
+    }
+    .avatar {
+      width: 92px; height: 92px; border-radius: 50%;
+      object-fit: cover; border: 3px solid white; box-shadow: 0 4px 16px rgba(0,0,0,.15);
+    }
+    .chip {
+      display: inline-block; padding: .25rem .5rem; border-radius: 999px;
+      background: rgba(0,0,0,.06); font-size: .85rem; margin: .125rem .25rem 0 0;
+    }
+    .timeline { border-left: 2px solid rgba(0,0,0,.15); margin-left: .5rem; padding-left: 1rem; }
+    .timeline .item { position: relative; margin-bottom: 1rem; }
+    .timeline .item::before {
+      content: ""; position: absolute; left: -1.1rem; top: .3rem;
+      width: .75rem; height: .75rem; background: var(--accent); border-radius: 50%;
+      box-shadow: 0 0 0 3px #fff;
+    }
+    .link-muted { text-decoration: none; color: inherit; opacity: .8; }
+    .link-muted:hover { opacity: 1; }
+    @media print {
+      .btn, .navbar, #projectFilterWrap, .download-print, .theme-toggle { display: none !important; }
+      body { background: #fff; }
+      .card { box-shadow: none; border: 1px solid #ddd; }
+      a::after { content: " (" attr(href) ")"; font-size: 10px; color: #555; }
+      .container-narrow { max-width: 100% !important; }
+    }
+    /* Dark mode */
+    .dark body, .dark .card { background-color: #1a1d24 !important; color: #f0f0f0; }
+    .dark .card { border: 1px solid #2a3140; box-shadow: none; }
+    .dark .chip { background: rgba(255,255,255,.12); color: #f0f0f0; }
+    .dark .timeline { border-left-color: #3a4357; }
+    .dark a { color: #8ab4ff; }
+    .dark .text-muted { color: #c0c6d0 !important; }
+    .dark strong { color: #ffffff; }
+  </style>
+</head>
+<body>
+  <!-- Top bar -->
+  <nav class="navbar navbar-light bg-white shadow-sm">
+    <div class="container container-narrow d-flex align-items-center">
+      <span class="brand-badge">Portfolio</span>
+      <div class="ms-auto d-flex gap-2">
+        <button class="btn btn-sm btn-outline-secondary theme-toggle" id="themeToggle" type="button" aria-label="Toggle dark mode">Dark Mode</button>
+        <button class="btn btn-sm btn-primary download-print" onclick="window.print()">Download PDF</button>
+      </div>
+    </div>
+  </nav>
+
+  <header class="container container-narrow mt-4">
+    <div class="card p-4">
+      <div class="d-flex align-items-center">
+        <!-- GitHub avatar -->
+        <img class="avatar me-3" src="https://github.com/afrank84.png" alt="Profile photo" />
+        <div>
+          <h1 class="h3 mb-1">Anthony Frank</h1>
+          <div class="text-muted">DevOps Engineer • Full-stack tinkerer • Self-hoster</div>
+          <div class="mt-2">
+            <a class="link-muted me-3" href="https://github.com/afrank84" target="_blank" rel="noreferrer">GitHub</a>
+            <a class="link-muted" href="https://frankdocuments.com" target="_blank" rel="noreferrer">Website</a>
+          </div>
+        </div>
+      </div>
+      <p class="mt-3 mb-0">
+        I build reliable systems and clean tools. I like single-file utilities, practical automation, and shipping simple solutions that work offline when possible.
+      </p>
+    </div>
+  </header>
+
+  <main class="container container-narrow mt-4">
+    <!-- Highlights -->
+    <section class="row g-3">
+      <div class="col-md-4">
+        <div class="card p-3 h-100">
+          <h2 class="h6 mb-2">Quick Highlights</h2>
+          <ul class="mb-0 small">
+            <li>DevOps on Windows and Linux build agents</li>
+            <li>Self hosted stacks with CasaOS and Cloudflare Tunnels</li>
+            <li>Bootstrap and PHP for simple business apps</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col-md-8">
+        <div class="card p-3 h-100">
+          <h2 class="h6 mb-2">Core Skills</h2>
+          <div>
+            <span class="chip">DevOps</span>
+            <span class="chip">GitHub Actions</span>
+            <span class="chip">Azure DevOps</span>
+            <span class="chip">Docker</span>
+            <span class="chip">Linux</span>
+            <span class="chip">Windows</span>
+            <span class="chip">PowerShell</span>
+            <span class="chip">Python</span>
+            <span class="chip">Perl</span>
+            <span class="chip">PHP</span>
+            <span class="chip">MySQL</span>
+            <span class="chip">SQLite</span>
+            <span class="chip">HTML/CSS/JS</span>
+            <span class="chip">Bootstrap 5</span>
+            <span class="chip">Cloudflare</span>
+            <span class="chip">Networking</span>
+            <span class="chip">UI & UX</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Experience -->
+    <section class="mt-4">
+      <div class="card p-3">
+        <h2 class="h5 mb-3">Experience</h2>
+        <div class="timeline">
+          <div class="item">
+            <div class="d-flex justify-content-between">
+              <strong>DevOps Engineer</strong>
+              <span class="text-muted small">2021 — Present</span>
+            </div>
+            <div class="text-muted small mb-1">Company or Freelance</div>
+            <ul class="small mb-2">
+              <li>Automated backups for Jira Cloud and pushed artifacts to Artifactory</li>
+              <li>Built single page admin tools for user revenue and reporting</li>
+              <li>Hardened self hosted services with simple, auditable scripts</li>
+            </ul>
+            <div class="small">
+              <span class="chip">GitHub Actions</span>
+              <span class="chip">JFrog CLI</span>
+              <span class="chip">Bash</span>
+              <span class="chip">PowerShell</span>
+            </div>
+          </div>
+          <div class="item">
+            <div class="d-flex justify-content-between">
+              <strong>Full-stack Generalist</strong>
+              <span class="text-muted small">2017 — 2021</span>
+            </div>
+            <div class="text-muted small mb-1">Various projects</div>
+            <ul class="small mb-2">
+              <li>Built and maintained Bootstrap and PHP apps for tracking plants and tasks</li>
+              <li>Optimized SQLite and MySQL usage for simple hosting</li>
+              <li>Created lightweight dashboards with CSV and JSON sources</li>
+            </ul>
+            <div class="small">
+              <span class="chip">PHP</span>
+              <span class="chip">MySQL</span>
+              <span class="chip">SQLite</span>
+              <span class="chip">Bootstrap</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Projects -->
+    <section class="mt-4">
+      <div class="card p-3">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <h2 class="h5 mb-0">Projects</h2>
+          <div id="projectFilterWrap" class="d-flex align-items-center gap-2">
+            <input id="projectFilter" class="form-control form-control-sm" style="width: 260px;" placeholder="Filter projects by text" />
+            <div class="form-text m-0">Type to filter</div>
+          </div>
+        </div>
+        <div class="row g-3 mt-1" id="projectGrid">
+          <div class="col-md-6 project" data-tags="devops backups github actions jira artifactory">
+            <div class="card p-3 h-100">
+              <div class="d-flex justify-content-between">
+                <strong>Jira Cloud Backup Runner</strong>
+                <span class="badge text-bg-light">DevOps</span>
+              </div>
+              <p class="small mb-2">
+                Scheduled backup workflow using PAT auth, uploads artifacts to JFrog, and keeps a rolling window of monthly JSON.
+              </p>
+              <div class="small mb-2">
+                <span class="chip">GitHub Actions</span>
+                <span class="chip">JFrog CLI</span>
+                <span class="chip">PowerShell</span>
+              </div>
+              <div class="d-flex gap-2">
+                <a class="btn btn-sm btn-outline-primary" href="#" target="_blank" rel="noreferrer">Repo</a>
+                <a class="btn btn-sm btn-outline-secondary" href="#" target="_blank" rel="noreferrer">Readme</a>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6 project" data-tags="php mysql bootstrap plants app admin revenue">
+            <div class="card p-3 h-100">
+              <div class="d-flex justify-content-between">
+                <strong>Plant Rodeo</strong>
+                <span class="badge text-bg-light">Web App</span>
+              </div>
+              <p class="small mb-2">
+                PHP and MySQL site for managing plants and logs. Includes admin panels, revenue views, and zone based planting guidance.
+              </p>
+              <div class="small mb-2">
+                <span class="chip">PHP</span>
+                <span class="chip">MySQL</span>
+                <span class="chip">Bootstrap 5</span>
+              </div>
+              <div class="d-flex gap-2">
+                <a class="btn btn-sm btn-outline-primary" href="#" target="_blank" rel="noreferrer">Demo</a>
+                <a class="btn btn-sm btn-outline-secondary" href="#" target="_blank" rel="noreferrer">Docs</a>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6 project" data-tags="linux docker casaos selfhosted">
+            <div class="card p-3 h-100">
+              <div class="d-flex justify-content-between">
+                <strong>Self Hosted Stack</strong>
+                <span class="badge text-bg-light">Infra</span>
+              </div>
+              <p class="small mb-2">
+                CasaOS apps behind Cloudflare Tunnels with tidy container stacks, health checks, and easy updates.
+              </p>
+              <div class="small mb-2">
+                <span class="chip">Docker</span>
+                <span class="chip">CasaOS</span>
+                <span class="chip">Cloudflare</span>
+              </div>
+              <div class="d-flex gap-2">
+                <a class="btn btn-sm btn-outline-primary" href="#" target="_blank" rel="noreferrer">Notes</a>
+                <a class="btn btn-sm btn-outline-secondary" href="#" target="_blank" rel="noreferrer">Diagram</a>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6 project" data-tags="python csv cli utilities single file">
+            <div class="card p-3 h-100">
+              <div class="d-flex justify-content-between">
+                <strong>Simple CSV Tools</strong>
+                <span class="badge text-bg-light">CLI</span>
+              </div>
+              <p class="small mb-2">
+                A set of tiny Python scripts for transforming CSV and JSON with zero external deps. Built to be readable.
+              </p>
+              <div class="small mb-2">
+                <span class="chip">Python</span>
+                <span class="chip">CLI</span>
+              </div>
+              <div class="d-flex gap-2">
+                <a class="btn btn-sm btn-outline-primary" href="#" target="_blank" rel="noreferrer">Repo</a>
+                <a class="btn btn-sm btn-outline-secondary" href="#" target="_blank" rel="noreferrer">Examples</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Education & Certs -->
+    <section class="mt-4">
+      <div class="card p-3">
+        <h2 class="h5 mb-3">Education and Certs</h2>
+        <ul class="small mb-0">
+          <li>Relevant degree or coursework</li>
+          <li>Cert 1, Cert 2, or workshops</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Contact -->
+    <section class="mt-4 mb-5">
+      <div class="card p-3">
+        <h2 class="h5 mb-2">Contact</h2>
+        <p class="mb-2 small">I am open to contract work and practical collaborations.</p>
+        <div class="d-flex flex-wrap gap-2">
+          <a class="btn btn-primary" href="https://frankdocuments.com" target="_blank" rel="noreferrer">Website</a>
+          <a class="btn btn-outline-secondary" href="https://github.com/afrank84" target="_blank" rel="noreferrer">GitHub</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="text-center text-muted small pb-4">
+    © <span id="y"></span> Anthony Frank
+  </footer>
+
+  <script>
+    // Year
+    document.getElementById('y').textContent = new Date().getFullYear();
+
+    // Dark mode toggle with localStorage
+    const themeBtn = document.getElementById('themeToggle');
+    function setDark(on) {
+      if (on) {
+        document.documentElement.classList.add('dark');
+        localStorage.setItem('theme', 'dark');
+        themeBtn.textContent = 'Light Mode';
+      } else {
+        document.documentElement.classList.remove('dark');
+        localStorage.setItem('theme', 'light');
+        themeBtn.textContent = 'Dark Mode';
+      }
+    }
+    setDark(localStorage.getItem('theme') === 'dark');
+    themeBtn.addEventListener('click', () => setDark(!document.documentElement.classList.contains('dark')));
+
+    // Project filter
+    const filterInput = document.getElementById('projectFilter');
+    const cards = Array.from(document.querySelectorAll('#projectGrid .project'));
+    filterInput.addEventListener('input', () => {
+      const q = filterInput.value.trim().toLowerCase();
+      cards.forEach(c => {
+        const text = (c.innerText + ' ' + (c.dataset.tags || '')).toLowerCase();
+        c.style.display = text.includes(q) ? '' : 'none';
+      });
+    });
+  </script>
+</body>
+</html>
