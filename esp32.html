@@ -3,149 +3,254 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>ESP32 WROOM 32E • Pinout Layout</title>
+<title>ESP32-WROOM-32E • Clickable Pinout</title>
 <style>
+  /* ========= CALIBRATION (adjust to line up with your image) ========= */
   :root{
-    --bg:#0b0e14;       /* dark default */
-    --ink:#e8e8e8;
-    --muted:#a9b1c0;
-    --line:#24314d;
-    --card:#0f1320;
-    --gap:12px;         /* tight gutter next to the image */
-    --side-w: min(320px, 28vw);
-    --img-max: min(560px, 60vw);
+    /* Where the first pin sits (as % of the image box height) */
+    --y-start: 10.5%;
+    /* Distance between pins vertically */
+    --y-step: 6.25%;
+    /* X of left and right pin columns (as % of image box width) */
+    --x-left:  12.5%;
+    --x-right: 87.5%;
+    /* Size of pin hotspot (as % of image box) */
+    --hot-w: 16%;
+    --hot-h: 4.9%;
+    /* Fine-tune per side (use 0 to start) */
+    --left-dx:  0%;
+    --right-dx: 0%;
+    --left-dy:  0%;
+    --right-dy: 0%;
+
+    /* Layout/theme */
+    --bg:#0b0e14; --ink:#e8e8e8; --muted:#9aa4b2; --line:#24314d; --card:#0f1320;
+    --gap:12px; --side-w:min(320px,28vw); --img-max:min(560px,60vw);
+    --hot-border:#8ab4ff66; --hot-active:#8ab4ff;
   }
-  .light{
-    --bg:#f7f8fb; --ink:#161a20; --muted:#66708a; --line:#d7dce6; --card:#ffffff;
-  }
+  .light{ --bg:#f7f8fb; --ink:#161a20; --muted:#66708a; --line:#d7dce6; --card:#ffffff; --hot-border:#4a6cff55; --hot-active:#334bff; }
+
   *{box-sizing:border-box}
   html,body{height:100%}
-  body{
-    margin:0; background:var(--bg); color:var(--ink);
-    font:14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
-  }
+  body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, Arial}
   .page{max-width:1320px;margin:0 auto;padding:14px}
   header{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}
   h2{font-size:18px;margin:0}
-  .toggle{
-    border:1px solid var(--line); background:transparent; color:var(--ink);
-    padding:6px 10px; border-radius:10px; cursor:pointer;
-  }
+  .toggle{border:1px solid var(--line);background:transparent;color:var(--ink);padding:6px 10px;border-radius:10px;cursor:pointer}
 
   /* 3-column grid with tight gutters */
-  .grid{
-    display:grid;
-    grid-template-columns: var(--side-w) minmax(300px, var(--img-max)) var(--side-w);
-    gap: var(--gap);
-    align-items:start;
-  }
+  .grid{display:grid;grid-template-columns:var(--side-w) minmax(300px,var(--img-max)) var(--side-w);gap:var(--gap);align-items:start}
 
-  .panel{
-    background:var(--card); border:1px solid var(--line); border-radius:12px;
-    padding:10px; min-height:140px;
-  }
-  .panel h3{margin:.3rem 0 .4rem; font-size:14px}
-  .panel .muted{color:var(--muted)}
-  .panel ul{margin:.2rem 0 .6rem; padding-left:1.1rem}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px;min-height:140px}
+  .panel h3{margin:.3rem 0 .4rem;font-size:14px}
+  .muted{color:var(--muted)}
+  .panel ul{margin:.2rem 0 .6rem;padding-left:1.1rem}
   .panel li{margin:.15rem 0}
 
-  /* Image container: zero excess spacing */
-  .imgwrap{
-    background:var(--card);
-    border:1px solid var(--line);
-    border-radius:12px;
-    padding:6px;          /* small frame */
-    display:grid; place-items:center;
-  }
-  .imgwrap img{
-    display:block;
-    max-width:100%;
-    height:auto;
-    margin:0;            /* absolutely minimal margin */
-    image-rendering: -webkit-optimize-contrast;
-  }
+  /* Image + overlay */
+  .imgwrap{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:6px;display:grid;place-items:center;position:relative}
+  .imgwrap img{display:block;max-width:100%;height:auto;margin:0}
 
-  /* Badge row for quick hints (optional) */
-  .badges{display:flex;flex-wrap:wrap;gap:6px;margin:.3rem 0 .6rem}
-  .badge{border:1px solid var(--line); border-radius:999px; padding:.2rem .5rem; font-size:11px; color:var(--muted)}
+  /* Hotspots live in a 0..100% positioned layer */
+  .hotlayer{position:absolute;inset:6px;border-radius:10px;pointer-events:none}
+  .hot{position:absolute;transform:translate(-50%,-50%);width:var(--hot-w);height:var(--hot-h);
+        border:1.75px dashed var(--hot-border);border-radius:9px;background:transparent;
+        pointer-events:auto;cursor:pointer;outline:none}
+  .hot:hover{border-color:var(--hot-active)}
+  .hot.active{border-color:var(--hot-active);box-shadow:0 0 0 2px color-mix(in oklab, var(--hot-active) 40%, transparent)}
+  .hot .label{position:absolute;inset:0;display:grid;place-items:center;font-size:12px;color:var(--ink);text-shadow:0 1px 0 rgba(0,0,0,.25);pointer-events:none}
 
-  /* Responsive: collapse to single column on narrow screens */
-  @media (max-width: 980px){
-    :root{ --side-w: 100%; --img-max: 100vw; }
-    .grid{ grid-template-columns: 1fr; }
-    .imgwrap{ order: -1; } /* image first on mobile */
+  /* Search */
+  .search{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font:inherit;outline:none;margin-bottom:8px;background:transparent;color:var(--ink)}
+  .search::placeholder{color:var(--muted)}
+
+  /* Responsive */
+  @media (max-width:980px){
+    :root{--side-w:100%;--img-max:100vw}
+    .grid{grid-template-columns:1fr}
+    .imgwrap{order:-1}
   }
 </style>
 </head>
-<body class="">
+<body>
   <div class="page">
     <header>
       <h2>ESP32-WROOM-32E Pinout</h2>
-      <button class="toggle" id="themeBtn" aria-label="Toggle theme">Toggle theme</button>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input id="q" class="search" type="search" placeholder="Search pins (e.g. gpio23, sda, tx0, 3v3, gnd)…" />
+        <button class="toggle" id="themeBtn" aria-label="Toggle theme">Theme</button>
+      </div>
     </header>
 
     <div class="grid">
-      <!-- LEFT CONTENT -->
+      <!-- LEFT -->
       <aside class="panel" id="leftPanel">
-        <h3>Power & Boot Notes</h3>
+        <h3>Quick Notes</h3>
         <ul>
-          <li><strong>3V3</strong>: regulated 3.3 V output / VCC rail.</li>
-          <li><strong>EN</strong>: chip enable (active high) — tie high to run, pull low to reset.</li>
-          <li><strong>GND</strong>: common ground.</li>
-          <li class="muted">Boot straps: GPIO0 / GPIO2 / GPIO5 / GPIO12 can affect boot mode depending on board.</li>
+          <li><b>3V3</b> = regulated 3.3V out / VCC rail</li>
+          <li><b>EN</b> = chip enable/reset (active high)</li>
+          <li class="muted">GPIO34–39 are input-only (no PWM).</li>
         </ul>
 
-        <h3>I²C (typical)</h3>
-        <div class="badges">
-          <span class="badge">SCL: GPIO22</span>
-          <span class="badge">SDA: GPIO21</span>
-        </div>
-        <p class="muted">You can move these if a library supports custom pins.</p>
+        <h3>I²C (typ.)</h3>
+        <ul>
+          <li><b>SCL</b>: GPIO22</li>
+          <li><b>SDA</b>: GPIO21</li>
+        </ul>
 
         <h3>Analog</h3>
         <ul>
-          <li><strong>ADC1</strong>: GPIO36, 39, 34, 35, 32, 33</li>
-          <li><strong>ADC2</strong>: GPIO4, 12–15, 25–27</li>
-          <li><strong>DAC</strong>: GPIO25 (DAC1), GPIO26 (DAC2)</li>
+          <li><b>ADC1</b>: 36, 39, 34, 35, 32, 33</li>
+          <li><b>ADC2</b>: 4, 12–15, 25–27</li>
+          <li><b>DAC</b>: 25 (DAC1), 26 (DAC2)</li>
         </ul>
       </aside>
 
-      <!-- CENTER IMAGE (minimal spacing, no title inside the image) -->
+      <!-- CENTER -->
       <div class="imgwrap">
-        <!-- Swap the src with your transparent PNG/SVG.
-             Using your current file name from this chat: esp32-wroom.png -->
-        <img src="esp32-wroom.png" alt="ESP32 WROOM 32E wireframe pinout" />
+        <!-- Your wireframe image (transparent background strongly recommended) -->
+        <img src="./images/esp32-wroom.png" alt="ESP32 wireframe pinout" />
+
+        <!-- Hotspot overlay (positions scale with the image) -->
+        <div class="hotlayer" id="hotlayer"></div>
       </div>
 
-      <!-- RIGHT CONTENT -->
+      <!-- RIGHT -->
       <aside class="panel" id="rightPanel">
-        <h3>Serial & SPI</h3>
-        <ul>
-          <li><strong>UART0</strong>: TX0 GPIO1, RX0 GPIO3 (USB-serial on most dev boards)</li>
-          <li><strong>UART2</strong>: TX2 GPIO17, RX2 GPIO16</li>
-          <li><strong>VSPI</strong>: SCK GPIO18, MISO GPIO19, MOSI GPIO23, CS GPIO5</li>
-          <li><strong>HSPI</strong>: SCK GPIO14, MISO GPIO12, MOSI GPIO13 (alt bus)</li>
-        </ul>
+        <h3 id="pinTitle">Select a pin</h3>
+        <div id="pinMeta" class="muted" style="margin-bottom:6px">Click a label to see capabilities.</div>
+        <ul id="pinList"></ul>
 
-        <h3>PWM (LEDC)</h3>
-        <p class="muted">Most GPIOs support PWM via LEDC except the “input-only” pins (GPIO34–39).</p>
-
-        <h3>Tips</h3>
+        <h3>SPI & UART</h3>
         <ul>
-          <li>Keep the image **transparent** with minimal margins for tight side content.</li>
-          <li>Use CSS Grid (like this page) to keep columns aligned.</li>
-          <li>For interactivity later, layer an invisible SVG over the image to capture pin clicks.</li>
+          <li><b>VSPI</b>: SCK 18, MISO 19, MOSI 23, CS 5</li>
+          <li><b>HSPI</b>: SCK 14, MISO 12, MOSI 13</li>
+          <li><b>UART0</b>: TX0 1, RX0 3</li>
+          <li><b>UART2</b>: TX2 17, RX2 16</li>
         </ul>
       </aside>
     </div>
   </div>
 
 <script>
-  // Simple theme toggle: dark (default) / light
-  const btn = document.getElementById('themeBtn');
-  btn.addEventListener('click', () => {
-    document.body.classList.toggle('light');
+/* ---------- Pin Data (edit freely) ---------- */
+const PINS = [
+  // Left side (top->bottom)
+  {side:'L', label:'3V3',  key:'3v3', roles:['3.3V supply / VCC']},
+  {side:'L', label:'EN',   key:'en',  roles:['Enable / Reset (active high)']},
+  {side:'L', label:'GPIO36', key:'gpio36', roles:['ADC1_CH0','Input-only']},
+  {side:'L', label:'GPIO39', key:'gpio39', roles:['ADC1_CH3','Input-only']},
+  {side:'L', label:'GPIO34', key:'gpio34', roles:['ADC1_CH6','Input-only']},
+  {side:'L', label:'GPIO35', key:'gpio35', roles:['ADC1_CH7','Input-only']},
+  {side:'L', label:'GPIO32', key:'gpio32', roles:['ADC1_CH4','Touch T9','PWM capable']},
+  {side:'L', label:'GPIO33', key:'gpio33', roles:['ADC1_CH5','Touch T8','PWM capable']},
+  {side:'L', label:'GPIO25', key:'gpio25', roles:['ADC2_CH8','DAC1','PWM capable']},
+  {side:'L', label:'GPIO26', key:'gpio26', roles:['ADC2_CH9','DAC2','PWM capable']},
+  {side:'L', label:'GPIO27', key:'gpio27', roles:['ADC2_CH7','Touch T7','PWM capable']},
+  {side:'L', label:'GPIO14', key:'gpio14', roles:['ADC2_CH6','HSPI SCK','PWM capable']},
+  {side:'L', label:'GPIO12', key:'gpio12', roles:['ADC2_CH5','HSPI MISO','Boot-strap','PWM capable']},
+  {side:'L', label:'GND',  key:'gnd-l', roles:['Ground']},
+
+  // Right side
+  {side:'R', label:'GND',   key:'gnd-r', roles:['Ground']},
+  {side:'R', label:'5V',    key:'5v',    roles:['VIN/USB 5V to regulator']},
+  {side:'R', label:'GPIO13',key:'gpio13',roles:['HSPI MOSI','Touch T4','PWM capable']},
+  {side:'R', label:'GPIO23',key:'gpio23',roles:['VSPI MOSI','PWM capable']},
+  {side:'R', label:'GPIO22',key:'gpio22',roles:['I²C SCL','PWM capable']},
+  {side:'R', label:'GPIO1', key:'gpio1', roles:['UART0 TX0','Boot-strap','PWM capable']},
+  {side:'R', label:'GPIO3', key:'gpio3', roles:['UART0 RX0']},
+  {side:'R', label:'GPIO21',key:'gpio21',roles:['I²C SDA','PWM capable']},
+  {side:'R', label:'GPIO19',key:'gpio19',roles:['VSPI MISO','PWM capable']},
+  {side:'R', label:'GPIO18',key:'gpio18',roles:['VSPI SCK','PWM capable']},
+  {side:'R', label:'GPIO5', key:'gpio5', roles:['VSPI CS','Boot-strap','PWM capable']},
+  {side:'R', label:'GPIO17',key:'gpio17',roles:['UART2 TX2','PWM capable']},
+  {side:'R', label:'GPIO16',key:'gpio16',roles:['UART2 RX2','PWM capable']},
+  {side:'R', label:'GPIO4', key:'gpio4', roles:['ADC2_CH0','Touch T0','Boot-strap','PWM capable']},
+];
+
+/* ---------- Build overlay ---------- */
+const layer = document.getElementById('hotlayer');
+const pinTitle = document.getElementById('pinTitle');
+const pinMeta  = document.getElementById('pinMeta');
+const pinList  = document.getElementById('pinList');
+const q        = document.getElementById('q');
+
+function yForIndex(i, side){
+  const start = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--y-start')) / 100;
+  const step  = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--y-step')) / 100;
+  const dy    = parseFloat(getComputedStyle(document.documentElement).getPropertyValue(side==='L'?'--left-dy':'--right-dy')) / 100;
+  return (start + i*step + dy) * layer.clientHeight;
+}
+function xForSide(side){
+  const base = parseFloat(getComputedStyle(document.documentElement).getPropertyValue(side==='L'?'--x-left':'--x-right')) / 100;
+  const dx   = parseFloat(getComputedStyle(document.documentElement).getPropertyValue(side==='L'?'--left-dx':'--right-dx')) / 100;
+  return (base + dx) * layer.clientWidth;
+}
+function sizePX(vvar){
+  return (parseFloat(getComputedStyle(document.documentElement).getPropertyValue(vvar)) / 100);
+}
+function rebuild(){
+  layer.innerHTML = '';
+  const hotW = sizePX('--hot-w') * layer.clientWidth;
+  const hotH = sizePX('--hot-h') * layer.clientHeight;
+
+  // compute per-side ordinal index (top-to-bottom)
+  const left  = PINS.filter(p=>p.side==='L');
+  const right = PINS.filter(p=>p.side==='R');
+
+  const indexOf = (p)=> (p.side==='L'? left.indexOf(p): right.indexOf(p));
+
+  PINS.forEach(p=>{
+    const btn = document.createElement('button');
+    btn.className = 'hot';
+    const i = indexOf(p);
+    btn.style.left = xForSide(p.side)+'px';
+    btn.style.top  = yForIndex(i, p.side)+'px';
+    btn.style.width  = hotW+'px';
+    btn.style.height = hotH+'px';
+    btn.dataset.key = p.key;
+    btn.dataset.side = p.side;
+    btn.dataset.index = i;
+
+    const span = document.createElement('span');
+    span.className = 'label';
+    span.textContent = p.label;
+    btn.appendChild(span);
+
+    btn.addEventListener('click', ()=>selectPin(p.key));
+    btn.addEventListener('keydown', (e)=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); selectPin(p.key); }});
+    layer.appendChild(btn);
   });
+  applyFilter(q.value);
+}
+function selectPin(key){
+  document.querySelectorAll('.hot').forEach(h=>h.classList.toggle('active', h.dataset.key===key));
+  const p = PINS.find(x=>x.key===key);
+  if(!p) return;
+  pinTitle.textContent = p.label;
+  pinMeta.textContent  = `${p.side==='L'?'Left':'Right'} side ${p.key.startsWith('gpio')?'• '+p.key.toUpperCase():''}`;
+  pinList.innerHTML    = (p.roles||[]).map(r=>`<li><code>${r}</code></li>`).join('') || '<li class="muted">No extra notes</li>';
+}
+function applyFilter(termRaw){
+  const term = (termRaw||'').trim().toLowerCase();
+  document.querySelectorAll('.hot').forEach(h=>{
+    const p = PINS.find(x=>x.key===h.dataset.key);
+    const hay = [p.label, ...(p.roles||[]), p.key].join(' ').toLowerCase();
+    h.style.display = (!term || hay.includes(term)) ? 'block' : 'none';
+  });
+}
+window.addEventListener('resize', rebuild);
+window.addEventListener('load', rebuild);
+
+/* Search UX */
+q.addEventListener('input', ()=>applyFilter(q.value));
+window.addEventListener('keydown', (e)=>{ if(e.key==='/' && document.activeElement!==q){ e.preventDefault(); q.focus(); }});
+
+/* Theme toggle */
+document.getElementById('themeBtn').addEventListener('click', ()=>document.body.classList.toggle('light'));
+
+/* Preselect a common pin */
+window.addEventListener('load', ()=>selectPin('gpio23'));
 </script>
 </body>
 </html>
