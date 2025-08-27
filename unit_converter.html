@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Unit Converter – Length • Weight • Volume • Temperature</title>
+<style>
+  :root{
+    --bg: #0b0e14;
+    --card: #111625;
+    --text: #e8e8e8;
+    --muted: #a8b3cf;
+    --accent: #8ab4ff;
+    --border: #1c2333;
+    --chip: rgba(255,255,255,.08);
+    --shadow: 0 10px 30px rgba(0,0,0,.35);
+  }
+  [data-theme="light"]{
+    --bg: #f6f7fb;
+    --card: #ffffff;
+    --text: #0b0e14;
+    --muted: #4c566a;
+    --accent: #245cff;
+    --border: #dfe3ef;
+    --chip: rgba(0,0,0,.05);
+    --shadow: 0 8px 24px rgba(0,0,0,.08);
+  }
+  html,body{height:100%}
+  body{
+    margin:0;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.35;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  .wrap{
+    max-width: 860px;
+    margin: 32px auto;
+    padding: 0 16px;
+  }
+  header{
+    display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:18px;
+  }
+  .title{
+    font-weight: 700;
+    letter-spacing:.2px;
+    font-size: clamp(20px, 2.2vw, 26px);
+  }
+  .sub{color:var(--muted); font-size: 13px}
+  .card{
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+    padding: 18px;
+  }
+  .row{
+    display:grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  @media (min-width: 720px){
+    .row{ grid-template-columns: 1.1fr 1fr 1fr; align-items:end;}
+  }
+  label{font-size:12px; color:var(--muted); display:block; margin:2px 0 6px}
+  select, input{
+    width:100%;
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 12px;
+    font-size: 15px;
+    outline: none;
+  }
+  select:focus, input:focus{ border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 25%, transparent) }
+  .muterow{
+    display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top: 10px;
+  }
+  .unit-row{
+    display:grid; grid-template-columns: 1fr auto 1fr; gap: 10px;
+  }
+  .btn{
+    user-select:none;
+    display:inline-flex; align-items:center; justify-content:center;
+    gap:8px;
+    padding: 10px 12px;
+    border-radius:12px;
+    border: 1px solid var(--border);
+    background: linear-gradient(0deg, color-mix(in oklab, var(--card) 90%, #000 10%), var(--card));
+    color:var(--text);
+    cursor:pointer;
+  }
+  .btn:hover{ border-color: var(--accent) }
+  .btn-ghost{ background: var(--chip) }
+  .btn:active{ transform: translateY(1px) }
+  .swap{ width:42px; }
+  .result{
+    margin-top: 16px;
+    background: var(--chip);
+    border: 1px dashed var(--border);
+    border-radius: 14px;
+    padding: 14px;
+    font-size: 16px;
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+  }
+  .result strong{ font-size: 18px; letter-spacing:.2px }
+  .tiny{ font-size:12px; color: var(--muted) }
+  .row + .row{ margin-top: 12px }
+  .tag{
+    display:inline-flex; align-items:center; gap:8px;
+    font-size:12px; padding:6px 10px; border-radius:999px;
+    background: var(--chip); border: 1px solid var(--border); color: var(--muted)
+  }
+  .topline{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom: 10px}
+  .stack{ display:flex; gap:8px; align-items:center; flex-wrap:wrap }
+  .kbd{ font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; padding:0 6px; border-radius:6px; background:var(--chip); border:1px solid var(--border); font-size:12px; color:var(--muted) }
+  footer{ margin-top:16px; display:flex; justify-content:space-between; align-items:center; color:var(--muted); font-size:12px}
+  .hidden{ display:none !important }
+  .grow{ flex:1 }
+  .linkish{ color: var(--accent); text-decoration: none; border-bottom: 1px dotted var(--accent); }
+  .theme{ width:42px; height:42px; border-radius:12px }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <div class="title">Unit Converter</div>
+      <div class="sub">Length • Weight • Volume • Temperature — live, no ads.</div>
+    </div>
+    <button id="themeBtn" class="btn theme" title="Toggle theme" aria-label="Toggle theme">🌗</button>
+  </header>
+
+  <div class="card">
+    <div class="topline">
+      <div class="stack">
+        <span class="tag">Tip: press <span class="kbd">/</span> to jump to input</span>
+        <span class="tag">Press <span class="kbd">S</span> to swap</span>
+      </div>
+      <div class="stack">
+        <span class="tiny">Rounding: auto</span>
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label for="category">Category</label>
+        <select id="category" autocomplete="off">
+          <option value="length">Length</option>
+          <option value="mass">Weight</option>
+          <option value="volume">Volume</option>
+          <option value="temperature">Temperature</option>
+        </select>
+      </div>
+
+      <div>
+        <label for="inputVal">Amount</label>
+        <input id="inputVal" inputmode="decimal" placeholder="Enter a number" value="1" />
+      </div>
+
+      <div>
+        <label for="resultVal">Result</label>
+        <input id="resultVal" readonly aria-readonly="true" />
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="unit-row">
+        <div>
+          <label for="fromUnit">From</label>
+          <select id="fromUnit"></select>
+        </div>
+        <div style="display:flex; align-items:end;">
+          <button id="swapBtn" class="btn swap" title="Swap (S)" aria-label="Swap units">⇄</button>
+        </div>
+        <div>
+          <label for="toUnit">To</label>
+          <select id="toUnit"></select>
+        </div>
+      </div>
+
+      <div class="muterow">
+        <button id="copyBtn" class="btn btn-ghost" title="Copy result">Copy</button>
+        <button id="clearBtn" class="btn btn-ghost" title="Clear amount">Clear</button>
+      </div>
+
+      <div>
+        <div class="tiny" id="formulaLine"></div>
+        <div class="tiny" id="factorLine"></div>
+      </div>
+    </div>
+
+    <div class="result" id="resultBox" role="status" aria-live="polite">
+      <strong id="prettyLine">—</strong>
+      <span class="tiny" id="timestamp"></span>
+    </div>
+  </div>
+
+  <footer>
+    <span>US volume units use <span class="linkish" tabindex="0" role="note" title="US customary">US customary</span> definitions.</span>
+    <span>Saved locally for convenience.</span>
+  </footer>
+</div>
+
+<script>
+(function(){
+  // Theme init: prefer saved, else system
+  const root = document.documentElement;
+  const savedTheme = localStorage.getItem('uc-theme');
+  const systemDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  root.setAttribute('data-theme', savedTheme ?? (systemDark ? 'dark' : 'light'));
+
+  const CATEGORIES = {
+    length: {
+      label: 'Length', base: 'm',
+      units: {
+        km:{n:'Kilometer (km)', f:1000},
+        m:{n:'Meter (m)', f:1},
+        cm:{n:'Centimeter (cm)', f:0.01},
+        mm:{n:'Millimeter (mm)', f:0.001},
+        mi:{n:'Mile (mi)', f:1609.344},
+        yd:{n:'Yard (yd)', f:0.9144},
+        ft:{n:'Foot (ft)', f:0.3048},
+        in:{n:'Inch (in)', f:0.0254},
+        nmi:{n:'Nautical mile (nmi)', f:1852}
+      }
+    },
+    mass: { // "Weight" (mass)
+      label: 'Weight', base: 'kg',
+      units: {
+        t:{n:'Tonne (t)', f:1000},
+        kg:{n:'Kilogram (kg)', f:1},
+        g:{n:'Gram (g)', f:0.001},
+        mg:{n:'Milligram (mg)', f:0.000001},
+        lb:{n:'Pound (lb)', f:0.45359237},
+        oz:{n:'Ounce (oz)', f:0.028349523125}
+      }
+    },
+    volume: {
+      label: 'Volume', base: 'L',
+      units: {
+        m3:{n:'Cubic meter (m³)', f:1000},     // 1 m³ = 1000 L
+        L:{n:'Liter (L)', f:1},
+        mL:{n:'Milliliter (mL)', f:0.001},
+        gal:{n:'Gallon (US gal)', f:3.785411784},
+        qt:{n:'Quart (US qt)', f:0.946352946},
+        pt:{n:'Pint (US pt)', f:0.473176473},
+        cup:{n:'Cup (US cup)', f:0.2365882365},
+        floz:{n:'Fluid ounce (US fl oz)', f:0.0295735295625},
+        tbsp:{n:'Tablespoon (US tbsp)', f:0.01478676478125},
+        tsp:{n:'Teaspoon (US tsp)', f:0.00492892159375}
+      }
+    },
+    temperature: {
+      label: 'Temperature',
+      units: {
+        C:{n:'Celsius (°C)'},
+        F:{n:'Fahrenheit (°F)'},
+        K:{n:'Kelvin (K)'}
+      }
+    }
+  };
+
+  // Elements
+  const els = {
+    category: document.getElementById('category'),
+    inputVal: document.getElementById('inputVal'),
+    resultVal: document.getElementById('resultVal'),
+    fromUnit: document.getElementById('fromUnit'),
+    toUnit: document.getElementById('toUnit'),
+    swapBtn: document.getElementById('swapBtn'),
+    copyBtn: document.getElementById('copyBtn'),
+    clearBtn: document.getElementById('clearBtn'),
+    prettyLine: document.getElementById('prettyLine'),
+    formulaLine: document.getElementById('formulaLine'),
+    factorLine: document.getElementById('factorLine'),
+    resultBox: document.getElementById('resultBox'),
+    timestamp: document.getElementById('timestamp'),
+    themeBtn: document.getElementById('themeBtn')
+  };
+
+  // Helpers
+  const clampPrec = (x) => {
+    // Auto rounding: fixed up to 10 decimals, else exponential with 6
+    if (!isFinite(x)) return '—';
+    const ax = Math.abs(x);
+    if (ax !== 0 && (ax < 1e-6 || ax >= 1e9)) {
+      return x.toExponential(6).replace(/\.?0+e/,'e');
+    }
+    const s = x.toFixed(10);
+    return s.replace(/\.?0+$/,'');
+  };
+
+  const nowTime = () => {
+    const d = new Date();
+    return d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+  };
+
+  function sanitizeNumber(str){
+    if (typeof str !== 'string') str = String(str ?? '');
+    // Accept "1,5" as 1.5 for convenience
+    str = str.trim().replace(',', '.');
+    // Strip extraneous characters except digits, dot, minus, +, e/E for scientific
+    // But keep simple: parseFloat handles it
+    const v = parseFloat(str);
+    return isNaN(v) ? null : v;
+  }
+
+  function temperatureConvert(v, from, to){
+    if (from === to) return v;
+    // Normalize to Celsius
+    let c;
+    if (from === 'C') c = v;
+    else if (from === 'F') c = (v - 32) * (5/9);
+    else if (from === 'K') c = v - 273.15;
+
+    // From Celsius to target
+    if (to === 'C') return c;
+    if (to === 'F') return c * 9/5 + 32;
+    if (to === 'K') return c + 273.15;
+  }
+
+  function temperatureFormula(from, to){
+    // Human-readable formula line
+    const f = from, t = to;
+    if (f === t) return 'Same units — no change.';
+    const map = {
+      'C→F': '°F = (°C × 9/5) + 32',
+      'F→C': '°C = (°F − 32) × 5/9',
+      'C→K': 'K = °C + 273.15',
+      'K→C': '°C = K − 273.15',
+      'F→K': 'K = (°F − 32) × 5/9 + 273.15',
+      'K→F': '°F = (K − 273.15) × 9/5 + 32'
+    };
+    return map[`${f}→${t}`];
+  }
+
+  function populateUnits(cat, fromPref, toPref){
+    const obj = CATEGORIES[cat];
+    const units = obj.units;
+    const fill = (sel, chosen) => {
+      sel.innerHTML = '';
+      for (const k of Object.keys(units)){
+        const opt = document.createElement('option');
+        opt.value = k;
+        opt.textContent = units[k].n;
+        sel.appendChild(opt);
+      }
+      if (chosen && units[chosen]) sel.value = chosen;
+    };
+    // Default sensible pairs
+    let defFrom = Object.keys(units)[0];
+    let defTo = Object.keys(units)[1] ?? defFrom;
+
+    if (cat === 'length'){ defFrom = 'ft'; defTo = 'm'; }
+    if (cat === 'mass'){ defFrom = 'lb'; defTo = 'kg'; }
+    if (cat === 'volume'){ defFrom = 'cup'; defTo = 'L'; }
+    if (cat === 'temperature'){ defFrom = 'F'; defTo = 'C'; }
+
+    fill(els.fromUnit, fromPref ?? defFrom);
+    fill(els.toUnit, toPref ?? defTo);
+  }
+
+  function doConvert(){
+    const cat = els.category.value;
+    const from = els.fromUnit.value;
+    const to = els.toUnit.value;
+    const raw = els.inputVal.value;
+    const val = sanitizeNumber(raw);
+
+    if (val === null){
+      els.resultVal.value = '';
+      els.prettyLine.textContent = '—';
+      els.factorLine.textContent = '';
+      els.formulaLine.textContent = '';
+      return;
+    }
+
+    let out;
+    if (cat === 'temperature'){
+      out = temperatureConvert(val, from, to);
+      els.formulaLine.textContent = temperatureFormula(from, to);
+      els.factorLine.textContent = '';
+    } else {
+      const { base, units } = CATEGORIES[cat];
+      const fFrom = units[from].f; // to base
+      const fTo = units[to].f;     // to base
+      const inBase = val * fFrom;
+      out = inBase / fTo;
+
+      // Factor display: 1 from = X to
+      const factor = fFrom / fTo;
+      els.factorLine.textContent = `Factor: 1 ${labelShort(from)} = ${clampPrec(factor)} ${labelShort(to)}`;
+      els.formulaLine.textContent = '';
+    }
+
+    const pretty = `${clampPrec(val)} ${labelShort(from)} = ${clampPrec(out)} ${labelShort(to)}`;
+    els.prettyLine.textContent = pretty;
+    els.resultVal.value = clampPrec(out);
+    els.timestamp.textContent = nowTime();
+
+    // Persist simple state
+    saveState();
+  }
+
+  function labelShort(key){
+    // Pull nice short suffix from the long name in data
+    // e.g., "Kilogram (kg)" → "kg"
+    const cat = els.category.value;
+    const u = CATEGORIES[cat].units[key];
+    const m = u.n.match(/\(([^)]+)\)$/);
+    if (m) return m[1];
+    // For temperature entries like "Kelvin (K)" this still works; otherwise fallback to key
+    return key;
+  }
+
+  function swapUnits(){
+    const a = els.fromUnit.value;
+    const b = els.toUnit.value;
+    els.fromUnit.value = b;
+    els.toUnit.value = a;
+    doConvert();
+  }
+
+  function copyResult(){
+    const txt = els.prettyLine.textContent.trim();
+    if (!txt || txt === '—') return;
+    navigator.clipboard.writeText(txt).then(()=>{
+      pulse(els.copyBtn);
+    }).catch(()=>{
+      // fallback
+      const ta = document.createElement('textarea');
+      ta.value = txt;
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); } catch(e){}
+      document.body.removeChild(ta);
+      pulse(els.copyBtn);
+    });
+  }
+
+  function pulse(el){
+    const old = el.textContent;
+    el.textContent = 'Copied!';
+    setTimeout(()=>{ el.textContent = old; }, 900);
+  }
+
+  function clearAmount(){
+    els.inputVal.value = '';
+    doConvert();
+    els.inputVal.focus();
+  }
+
+  function saveState(){
+    const state = {
+      theme: root.getAttribute('data-theme'),
+      cat: els.category.value,
+      from: els.fromUnit.value,
+      to: els.toUnit.value,
+      val: els.inputVal.value
+    };
+    localStorage.setItem('uc-state', JSON.stringify(state));
+  }
+
+  function restoreState(){
+    try{
+      const raw = localStorage.getItem('uc-state');
+      if (!raw) return;
+      const s = JSON.parse(raw);
+      if (s.theme) root.setAttribute('data-theme', s.theme);
+      if (s.cat){
+        els.category.value = s.cat;
+        populateUnits(s.cat, s.from, s.to);
+      }
+      if (s.val != null) els.inputVal.value = s.val;
+    } catch(e){}
+  }
+
+  // Theme toggle
+  els.themeBtn.addEventListener('click', ()=>{
+    const cur = root.getAttribute('data-theme');
+    const next = cur === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    localStorage.setItem('uc-theme', next);
+    pulse(els.themeBtn);
+  });
+
+  // Events
+  els.category.addEventListener('change', ()=>{
+    const cat = els.category.value;
+    populateUnits(cat);
+    doConvert();
+  });
+  ['fromUnit','toUnit'].forEach(id=>{
+    document.getElementById(id).addEventListener('change', doConvert);
+  });
+  els.inputVal.addEventListener('input', doConvert);
+  els.swapBtn.addEventListener('click', swapUnits);
+  els.copyBtn.addEventListener('click', copyResult);
+  els.clearBtn.addEventListener('click', clearAmount);
+
+  // Keyboard shortcuts
+  document.addEventListener('keydown', (e)=>{
+    if (e.key === '/'){ e.preventDefault(); els.inputVal.focus(); els.inputVal.select(); }
+    if (e.key.toLowerCase() === 's'){ e.preventDefault(); swapUnits(); }
+  });
+
+  // Init
+  (function init(){
+    restoreState();
+    if (!els.fromUnit.options.length){ populateUnits(els.category.value); }
+    doConvert();
+  })();
+
+})();
+</script>
+</body>
+</html>
