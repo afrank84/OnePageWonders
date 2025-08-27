@@ -3,169 +3,196 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Japan Trip Expense Tracker (JPY & USD)</title>
+<title>Japan Trip Expense Tracker (Bootstrap)</title>
+
+<!-- Bootstrap 5.3.3 (your preferred link) -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+
+<!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
 <style>
+  /* Dark theme tuned for Bootstrap cards */
   :root{
     --bg:#0b0e14; --panel:#121826; --soft:#1c2333; --text:#e8e8e8; --muted:#9aa3b2; --accent:#8ab4ff;
-    --radius:16px;
   }
-  *{box-sizing:border-box}
-  body{margin:0; font-family:system-ui,Segoe UI,Roboto,Inter,Arial; background:var(--bg); color:var(--text);}
-  header{padding:20px 16px; border-bottom:1px solid var(--soft); position:sticky; top:0; z-index:5;
-    backdrop-filter: blur(6px); background:linear-gradient(0deg, rgba(11,14,20,.75), rgba(11,14,20,.9));}
-  h1{margin:0 0 6px 0; font-size:20px; font-weight:700}
-  .sub{color:var(--muted); font-size:13px}
-  .wrap{max-width:1100px; margin:0 auto; padding:16px}
-
-  /* --- NEW LAYOUT: hamburger --- */
-  .layout{
-    display:grid; gap:16px;
-    grid-template-columns: 1fr 1fr;
-    grid-template-areas:
-      "top top"
-      "left right";
-  }
-  #topPanel  { grid-area: top; }
-  #leftPanel { grid-area: left; }
-  #rightPanel{ grid-area: right; }
-  @media (max-width:980px){
-    .layout{
-      grid-template-columns: 1fr;
-      grid-template-areas:
-        "top"
-        "left"
-        "right";
-    }
-  }
-
-  .card{background:var(--panel); border:1px solid var(--soft); border-radius:var(--radius); padding:16px;
-    box-shadow:0 0 0 1px rgba(255,255,255,.02) inset}
-  .row{display:flex; gap:12px; flex-wrap:wrap; align-items:center}
-  label{font-size:12px; color:var(--muted)}
-  input,select,button{background:#0f1524; border:1px solid var(--soft); color:var(--text); border-radius:10px; padding:10px 12px; font-size:14px; outline:none}
-  input::placeholder{color:#7f8aa3}
-  button{cursor:pointer}
-  button.primary{background:var(--accent); border-color:#5b8fe8; color:#07152e; font-weight:700}
-  button.ghost{background:transparent}
-  .total{font-size:36px; font-weight:800; letter-spacing:.3px}
-  .total .subsum{display:block; font-size:13px; font-weight:600; color:var(--muted)}
-  .totals-row{display:grid; gap:16px; grid-template-columns:1fr 1fr}
-  @media (max-width:640px){ .totals-row{grid-template-columns:1fr} }
-  table{width:100%; border-collapse:collapse; font-size:14px}
-  th,td{padding:10px 8px; border-bottom:1px solid #1a2236; vertical-align:middle}
-  th{color:var(--muted); text-align:left; font-weight:600}
-  tr:hover td{background:#0f1524}
-  .chip{display:inline-block; font-size:12px; padding:4px 8px; border-radius:999px; background:rgba(255,255,255,.08); border:1px solid var(--soft)}
-  .right{text-align:right}
-  .muted{color:var(--muted)}
-  .note{font-size:12px; color:var(--muted)}
-  .delete{background:transparent; border:1px solid #2a324a; padding:6px 8px; border-radius:8px; color:#c6cbe0; cursor:pointer}
-  canvas{width:100% !important; height:380px !important} /* a hair taller so it breathes */
+  body{ background:var(--bg); color:var(--text); }
+  .navbar{ background:linear-gradient(0deg, rgba(11,14,20,.75), rgba(11,14,20,.9)); border-bottom:1px solid var(--soft); }
+  .card{ background:var(--panel); border:1px solid var(--soft); color:var(--text); }
+  .form-control, .form-select{ background:#0f1524; color:var(--text); border-color:var(--soft); }
+  .form-control::placeholder{ color:#7f8aa3; }
+  .btn-primary{ background:var(--accent); border-color:#5b8fe8; color:#07152e; font-weight:700; }
+  .text-muted{ color:var(--muted) !important; }
+  .chip{display:inline-block; font-size:.85rem; padding:.2rem .6rem; border-radius:999px; background:rgba(255,255,255,.08); border:1px solid var(--soft)}
+  .total-figure{ font-size:2.25rem; font-weight:800; letter-spacing:.3px; }
+  .subsum{ display:block; font-size:.85rem; color:var(--muted) }
+  canvas{ width:100% !important; height:340px !important; }
+  table tr:hover td{ background:#0f1524; }
+  mark{ background:#3b4a70; color:#fff; padding:0 .15rem; border-radius:.2rem; }
 </style>
 </head>
 <body>
-<header>
-  <div class="wrap">
-    <h1>Japan Trip Expense Tracker</h1>
-    <div class="sub">Track in JPY and USD • See per-day trend + category breakdown • Quick search</div>
+<nav class="navbar sticky-top">
+  <div class="container">
+    <h1 class="h5 m-0">Japan Trip Expense Tracker</h1>
+    <span class="text-muted small">JPY & USD • line & donut charts • quick search</span>
   </div>
-</header>
+</nav>
 
-<main class="wrap layout">
-  <!-- TOP: Totals & Charts (full width) -->
-  <section id="topPanel" class="card">
-    <h2 style="margin-top:0;font-size:16px">Running Totals</h2>
-    <div class="totals-row">
-      <div class="card" style="padding:12px">
-        <div class="muted">Total (JPY)</div>
-        <div class="total">¥ <span id="totalJPY">0</span><span class="subsum" id="daysSpan"></span></div>
-      </div>
-      <div class="card" style="padding:12px">
-        <div class="muted">Total (USD)</div>
-        <div class="total">$ <span id="totalUSD">0.00</span><span class="subsum" id="avgPerDay"></span></div>
+<div class="container my-3">
+  <!-- TOP ROW: 3 horizontal cards -->
+  <div class="row g-3">
+    <!-- Totals -->
+    <div class="col-12 col-lg-4">
+      <div class="card h-100">
+        <div class="card-body">
+          <h5 class="card-title mb-3">Running Totals</h5>
+          <div class="row g-3">
+            <div class="col-12">
+              <div class="p-3 border rounded">
+                <div class="text-muted">Total (JPY)</div>
+                <div class="total-figure">¥ <span id="totalJPY">0</span>
+                  <span class="subsum" id="daysSpan"></span>
+                </div>
+              </div>
+            </div>
+            <div class="col-12">
+              <div class="p-3 border rounded">
+                <div class="text-muted">Total (USD)</div>
+                <div class="total-figure">$ <span id="totalUSD">0.00</span>
+                  <span class="subsum" id="avgPerDay"></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
-    <h3 style="margin:18px 0 8px 0; font-size:14px">Per-Day Spend (Line)</h3>
-    <canvas id="lineChart" aria-label="Daily expenses chart" role="img"></canvas>
+    <!-- Line chart -->
+    <div class="col-12 col-lg-4">
+      <div class="card h-100">
+        <div class="card-body">
+          <h5 class="card-title mb-3">Per-Day Spend (Line)</h5>
+          <canvas id="lineChart" aria-label="Daily expenses chart" role="img"></canvas>
+        </div>
+      </div>
+    </div>
 
-    <h3 style="margin:18px 0 8px 0; font-size:14px">By Category (Donut)</h3>
-    <canvas id="donutChart" aria-label="Category breakdown chart" role="img"></canvas>
-  </section>
+    <!-- Donut chart -->
+    <div class="col-12 col-lg-4">
+      <div class="card h-100">
+        <div class="card-body">
+          <h5 class="card-title mb-3">By Category (Donut)</h5>
+          <canvas id="donutChart" aria-label="Category breakdown chart" role="img"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
 
-  <!-- LEFT: Add Expense -->
-  <section id="leftPanel" class="card">
-    <h2 style="margin-top:0;font-size:16px">Add Expense</h2>
-    <div class="row" style="flex-wrap:wrap">
-      <div style="min-width:160px; flex:1">
-        <label for="date">Date</label>
-        <input id="date" type="date" />
-      </div>
-      <div style="min-width:220px; flex:2">
-        <label for="item">Item</label>
-        <input id="item" type="text" placeholder="e.g., Suica reload, ramen, JR pass" />
-      </div>
-      <div style="min-width:160px">
-        <label for="category">Category</label>
-        <select id="category">
-          <option>Food</option><option>Transport</option><option>Lodging</option>
-          <option>Attraction</option><option>Shopping</option><option>Misc</option>
-        </select>
-      </div>
-      <div style="min-width:140px">
-        <label for="amount">Amount (JPY)</label>
-        <input id="amount" type="number" inputmode="numeric" step="1" min="0" placeholder="0" />
-      </div>
-    </div>
-    <div class="row" style="margin-top:12px">
-      <button class="primary" id="addBtn">Add</button>
-      <button class="ghost" id="clearBtn" title="Remove all expenses">Clear All</button>
-      <span class="note">Tip: press Enter in any field to add.</span>
-    </div>
-    <hr style="border:0;border-top:1px solid var(--soft); margin:16px 0">
-    <h3 style="margin:0 0 6px 0; font-size:14px">Tools</h3>
-    <div class="row" style="gap:10px">
-      <input id="search" type="text" placeholder="Search by date (YYYY-MM-DD) or item…" style="flex:1; min-width:220px">
-      <label class="row" style="gap:8px; align-items:center; color:var(--muted); font-size:13px">
-        <input id="filterAffectsAll" type="checkbox"> Apply search to charts & totals
-      </label>
-    </div>
-    <div class="row" style="margin-top:10px">
-      <label for="rate">Exchange Rate</label>
-      <input id="rate" type="number" step="0.01" min="0" style="width:120px" />
-      <span class="note">JPY per $1 USD (editable)</span>
-      <button id="saveRate" class="ghost">Save Rate</button>
-      <button id="resetRate" class="ghost">Reset</button>
-    </div>
-  </section>
+  <!-- SECOND ROW: form + table -->
+  <div class="row g-3 mt-2">
+    <!-- Add Expense + tools -->
+    <div class="col-12 col-lg-5">
+      <div class="card h-100">
+        <div class="card-body">
+          <h5 class="card-title">Add Expense</h5>
+          <div class="row g-2">
+            <div class="col-6">
+              <label class="form-label small" for="date">Date</label>
+              <input id="date" type="date" class="form-control" />
+            </div>
+            <div class="col-6">
+              <label class="form-label small" for="item">Item</label>
+              <input id="item" type="text" class="form-control" placeholder="e.g., Suica reload, ramen" />
+            </div>
+            <div class="col-6">
+              <label class="form-label small" for="category">Category</label>
+              <select id="category" class="form-select">
+                <option>Food</option><option>Transport</option><option>Lodging</option>
+                <option>Attraction</option><option>Shopping</option><option>Misc</option>
+              </select>
+            </div>
+            <div class="col-6">
+              <label class="form-label small" for="amount">Amount (JPY)</label>
+              <input id="amount" type="number" inputmode="numeric" step="1" min="0" class="form-control" placeholder="0" />
+            </div>
+          </div>
+          <div class="d-flex gap-2 mt-3">
+            <button class="btn btn-primary" id="addBtn">Add</button>
+            <button class="btn btn-outline-light" id="clearBtn" title="Remove all expenses">Clear All</button>
+            <span class="text-muted small ms-auto">Tip: Enter key adds.</span>
+          </div>
 
-  <!-- RIGHT: Table -->
-  <section id="rightPanel" class="card">
-    <h2 style="margin-top:0;font-size:16px">All Expenses</h2>
-    <table id="table">
-      <thead>
-        <tr>
-          <th style="width:104px">Date</th>
-          <th>Item</th>
-          <th style="width:120px">Category</th>
-          <th class="right" style="width:120px">JPY</th>
-          <th class="right" style="width:120px">USD</th>
-          <th class="right" style="width:70px">Actions</th>
-        </tr>
-      </thead>
-      <tbody id="tbody"></tbody>
-    </table>
-  </section>
-</main>
+          <hr class="border-secondary my-3" />
+
+          <div class="row g-2 align-items-center">
+            <div class="col-12">
+              <label class="form-label small" for="search">Search</label>
+              <input id="search" class="form-control" placeholder="Date (YYYY-MM-DD) or item name…" />
+            </div>
+            <div class="col-12 form-check mt-1">
+              <input class="form-check-input" type="checkbox" id="filterAffectsAll">
+              <label class="form-check-label small" for="filterAffectsAll">Apply search to charts & totals</label>
+            </div>
+          </div>
+
+          <div class="row g-2 align-items-center mt-2">
+            <div class="col-auto">
+              <label class="form-label small mb-0" for="rate">Exchange Rate</label>
+            </div>
+            <div class="col-auto">
+              <input id="rate" type="number" step="0.01" min="0" class="form-control" style="width:120px">
+            </div>
+            <div class="col-auto">
+              <span class="text-muted small">JPY per $1 USD</span>
+            </div>
+            <div class="col-12 d-flex gap-2 mt-2">
+              <button id="saveRate" class="btn btn-outline-light btn-sm">Save Rate</button>
+              <button id="resetRate" class="btn btn-outline-light btn-sm">Reset</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="col-12 col-lg-7">
+      <div class="card h-100">
+        <div class="card-body">
+          <h5 class="card-title">All Expenses</h5>
+          <div class="table-responsive">
+            <table class="table align-middle">
+              <thead>
+                <tr>
+                  <th class="text-muted small">Date</th>
+                  <th class="text-muted small">Item</th>
+                  <th class="text-muted small">Category</th>
+                  <th class="text-end text-muted small">JPY</th>
+                  <th class="text-end text-muted small">USD</th>
+                  <th class="text-end text-muted small">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div> <!-- /second row -->
+</div> <!-- /container -->
 
 <script>
-(function(){
+(() => {
+  // Storage keys
   const LS_KEY='jp_expenses_v1', RATE_KEY='jp_rate_v1';
+
+  // State
   let expenses = load(LS_KEY) || [];
   let rate = Number(load(RATE_KEY) ?? 155);
 
-  const $=id=>document.getElementById(id);
+  // Elements
+  const $ = (id) => document.getElementById(id);
   const dateEl=$('date'), itemEl=$('item'), catEl=$('category'), amtEl=$('amount'),
         addBtn=$('addBtn'), clearBtn=$('clearBtn'), tbody=$('tbody'),
         totalJPYEl=$('totalJPY'), totalUSDEl=$('totalUSD'),
@@ -173,110 +200,146 @@
         searchEl=$('search'), filterAffectsAllEl=$('filterAffectsAll'),
         rateEl=$('rate'), saveRateBtn=$('saveRate'), resetRateBtn=$('resetRate');
 
-  dateEl.value=new Date().toISOString().slice(0,10); rateEl.value=rate;
+  dateEl.value = new Date().toISOString().slice(0,10);
+  rateEl.value = rate;
 
+  // Charts
   let lineChart, donutChart;
-  const lineCtx=document.getElementById('lineChart').getContext('2d');
-  const donutCtx=document.getElementById('donutChart').getContext('2d');
+  const lineCtx  = document.getElementById('lineChart').getContext('2d');
+  const donutCtx = document.getElementById('donutChart').getContext('2d');
 
+  // Helpers
   function load(k){ try{return JSON.parse(localStorage.getItem(k));}catch{return null} }
   function save(k,v){ localStorage.setItem(k, JSON.stringify(v)); }
-  function yen(n){ return Number(n||0) }  function usd(jpy){ return rate?yen(jpy)/rate:0 }
-  function fmtJPY(n){ return new Intl.NumberFormat('ja-JP',{maximumFractionDigits:0}).format(n) }
-  function fmtUSD(n){ return new Intl.NumberFormat('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}).format(n) }
+  const yen = (n)=>Number(n||0);
+  const usd = (jpy)=> rate ? yen(jpy)/rate : 0;
+  const fmtJPY = (n)=> new Intl.NumberFormat('ja-JP',{maximumFractionDigits:0}).format(n);
+  const fmtUSD = (n)=> new Intl.NumberFormat('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}).format(n);
 
+  // CRUD
   function add(){
     const d=dateEl.value, it=(itemEl.value||'').trim(), c=catEl.value, a=Number(amtEl.value);
     if(!d||!it||!(a>0)){ alert('Please enter date, item, and a positive JPY amount.'); return; }
-    expenses.push({id:crypto.randomUUID(), date:d, item:it, category:c, jpy:a});
-    save(LS_KEY,expenses); itemEl.value=''; amtEl.value=''; render(); itemEl.focus();
+    expenses.push({ id:crypto.randomUUID(), date:d, item:it, category:c, jpy:a });
+    save(LS_KEY, expenses);
+    itemEl.value=''; amtEl.value=''; render(); itemEl.focus();
   }
-  function del(id){ expenses=expenses.filter(e=>e.id!==id); save(LS_KEY,expenses); render(); }
-  function daysCovered(list){
-    if(!list.length) return 0;
-    const ds=list.map(e=>e.date).sort(); const a=new Date(ds[0]), b=new Date(ds.at(-1));
-    return Math.floor((b-a)/86400000)+1;
-  }
+  function del(id){ expenses = expenses.filter(e=>e.id!==id); save(LS_KEY,expenses); render(); }
+
+  // Filter
   function filtered(){
     const q=(searchEl.value||'').trim().toLowerCase();
     if(!q) return expenses.slice();
-    return expenses.filter(e=> e.item.toLowerCase().includes(q) || e.date.includes(q));
+    return expenses.filter(e => e.item.toLowerCase().includes(q) || e.date.includes(q));
   }
-  function dataForMetrics(){ const f=filtered(); return filterAffectsAllEl.checked?f:expenses }
+  function dataForMetrics(){ const f=filtered(); return filterAffectsAllEl.checked?f:expenses; }
 
-  function renderTable(list){
-    tbody.innerHTML='';
-    const q=(searchEl.value||'').trim().toLowerCase();
-    for(const e of list.sort((a,b)=>a.date.localeCompare(b.date))){
-      const tr=document.createElement('tr');
-      tr.innerHTML=`
-        <td class="muted">${e.date}</td>
-        <td>${q?e.item.replace(new RegExp('('+q.replace(/[.*+?^${}()|[\\]\\\\]/g,'\\\\$&')+')','ig'),'<mark>$1</mark>'):e.item}</td>
-        <td><span class="chip">${e.category}</span></td>
-        <td class="right">¥ ${fmtJPY(e.jpy)}</td>
-        <td class="right">$ ${fmtUSD(usd(e.jpy))}</td>
-        <td class="right"><button class="delete" data-id="${e.id}">✕</button></td>`;
-      tbody.appendChild(tr);
-    }
-    tbody.querySelectorAll('.delete').forEach(b=>b.onclick=()=>del(b.dataset.id));
-  }
-
+  // Aggregation
   function groupByDate(list){
-    const m={}; for(const e of list){ m[e.date]=(m[e.date]||0)+yen(e.jpy) }
-    const dates=Object.keys(m).sort(); return {dates, jpy:dates.map(d=>m[d])}
+    const m={}; for(const e of list){ m[e.date]=(m[e.date]||0)+yen(e.jpy); }
+    const dates=Object.keys(m).sort(); return { dates, jpy:dates.map(d=>m[d]) };
   }
   function groupByCat(list){
-    const m={}; for(const e of list){ m[e.category]=(m[e.category]||0)+yen(e.jpy) }
-    const labels=Object.keys(m).sort(), values=labels.map(k=>m[k]); return {labels,values}
+    const m={}; for(const e of list){ m[e.category]=(m[e.category]||0)+yen(e.jpy); }
+    const labels=Object.keys(m).sort(); const values=labels.map(k=>m[k]); return {labels, values};
+  }
+  function daysCovered(list){
+    if(!list.length) return 0;
+    const ds=list.map(e=>e.date).sort();
+    const a=new Date(ds[0]), b=new Date(ds.at(-1));
+    return Math.floor((b-a)/86400000)+1;
+  }
+
+  // Renderers
+  function renderTable(list){
+    const q=(searchEl.value||'').trim().toLowerCase();
+    tbody.innerHTML='';
+    for(const e of list.sort((a,b)=>a.date.localeCompare(b.date))){
+      const tr=document.createElement('tr');
+      const hi = (txt)=> q ? txt.replace(new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','ig'),'<mark>$1</mark>') : txt;
+      tr.innerHTML = `
+        <td class="text-muted">${e.date}</td>
+        <td>${hi(e.item)}</td>
+        <td><span class="chip">${e.category}</span></td>
+        <td class="text-end">¥ ${fmtJPY(e.jpy)}</td>
+        <td class="text-end">$ ${fmtUSD(usd(e.jpy))}</td>
+        <td class="text-end"><button class="btn btn-sm btn-outline-light" data-id="${e.id}">✕</button></td>`;
+      tbody.appendChild(tr);
+    }
+    tbody.querySelectorAll('button[data-id]').forEach(b => b.onclick = ()=>del(b.dataset.id));
   }
 
   function renderTotals(list){
-    const sumJPY=list.reduce((a,e)=>a+yen(e.jpy),0); const sumUSD=usd(sumJPY);
-    totalJPYEl.textContent=fmtJPY(sumJPY); totalUSDEl.textContent=fmtUSD(sumUSD);
-    const d=daysCovered(list); daysSpan.textContent=d?`covering ${d} day${d>1?'s':''}`:'';
-    avgPerDay.textContent=d?`≈ $${fmtUSD(sumUSD/d)} / day`:''; }
+    const sumJPY = list.reduce((a,e)=>a+yen(e.jpy),0);
+    const sumUSD = usd(sumJPY);
+    totalJPYEl.textContent = fmtJPY(sumJPY);
+    totalUSDEl.textContent = fmtUSD(sumUSD);
+    const d = daysCovered(list);
+    daysSpan.textContent = d ? `covering ${d} day${d>1?'s':''}` : '';
+    avgPerDay.textContent = d ? `≈ $${fmtUSD(sumUSD/d)} / day` : '';
+  }
 
   function renderCharts(list){
-    const byDate=groupByDate(list);
-    const lineData={ labels:byDate.dates,
-      datasets:[ {label:'JPY', data:byDate.jpy, tension:.25},
-                 {label:'USD', data:byDate.jpy.map(v=>usd(v)), yAxisID:'y1', borderDash:[4,4], tension:.25} ] };
-    const lineOpts={ responsive:true, interaction:{mode:'index',intersect:false},
+    const byDate = groupByDate(list);
+    const lineData = {
+      labels: byDate.dates,
+      datasets: [
+        { label:'JPY', data:byDate.jpy, tension:.25 },
+        { label:'USD', data:byDate.jpy.map(v=>usd(v)), yAxisID:'y1', borderDash:[4,4], tension:.25 }
+      ]
+    };
+    const lineOpts = {
+      responsive:true, interaction:{mode:'index',intersect:false},
       plugins:{ legend:{labels:{color:'#cfd6e8'}},
         tooltip:{callbacks:{label:ctx=>ctx.dataset.label==='JPY' ? ` JPY: ¥ ${fmtJPY(ctx.parsed.y)}` : ` USD: $ ${fmtUSD(ctx.parsed.y)}`}}
       },
-      scales:{ x:{ticks:{color:'#aab3c9'}, grid:{color:'#1a2236'}},
+      scales:{
+        x:{ticks:{color:'#aab3c9'}, grid:{color:'#1a2236'}},
         y:{position:'left', ticks:{color:'#aab3c9', callback:v=>'¥ '+fmtJPY(v)}, grid:{color:'#1a2236'}},
-        y1:{position:'right', ticks:{color:'#aab3c9', callback:v=>'$ '+fmtUSD(v)}, grid:{drawOnChartArea:false}} } };
+        y1:{position:'right', ticks:{color:'#aab3c9', callback:v=>'$ '+fmtUSD(v)}, grid:{drawOnChartArea:false}}
+      }
+    };
     if(lineChart){ lineChart.data=lineData; lineChart.options=lineOpts; lineChart.update(); }
-    else{ lineChart=new Chart(lineCtx,{type:'line',data:lineData,options:lineOpts}); }
+    else{ lineChart = new Chart(lineCtx,{type:'line',data:lineData,options:lineOpts}); }
 
-    const byCat=groupByCat(list);
-    const donutData={ labels:byCat.labels, datasets:[{data:byCat.values}] };
-    const donutOpts={ plugins:{ legend:{position:'bottom',labels:{color:'#cfd6e8'}},
-      tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ¥ ${fmtJPY(ctx.parsed)} (${Math.round(100*ctx.parsed/(byCat.values.reduce((a,b)=>a+b,0)||1))}%)`}} }, cutout:'60%' };
+    const byCat = groupByCat(list);
+    const donutData = { labels:byCat.labels, datasets:[{ data:byCat.values }] };
+    const donutOpts = {
+      plugins:{ legend:{position:'bottom',labels:{color:'#cfd6e8'}},
+        tooltip:{callbacks:{label:ctx=>{
+          const total = byCat.values.reduce((a,b)=>a+b,0)||1;
+          const pct = Math.round(100*ctx.parsed/total);
+          return ` ${ctx.label}: ¥ ${fmtJPY(ctx.parsed)} (${pct}%)`;
+        }}} },
+      cutout:'60%'
+    };
     if(donutChart){ donutChart.data=donutData; donutChart.options=donutOpts; donutChart.update(); }
-    else{ donutChart=new Chart(donutCtx,{type:'doughnut',data:donutData,options:donutOpts}); }
+    else{ donutChart = new Chart(donutCtx,{type:'doughnut',data:donutData,options:donutOpts}); }
   }
 
   function render(){
-    const listFiltered=filtered(); renderTable(listFiltered);
-    const forMetrics=dataForMetrics(); renderTotals(forMetrics); renderCharts(forMetrics);
+    const rows = filtered(); renderTable(rows);
+    const metrics = dataForMetrics(); renderTotals(metrics); renderCharts(metrics);
   }
 
-  addBtn.onclick=add;
+  // Events
+  addBtn.onclick = add;
   [dateEl,itemEl,catEl,amtEl].forEach(el=>el.addEventListener('keydown',e=>{ if(e.key==='Enter') add(); }));
-  clearBtn.onclick=()=>{ if(confirm('Delete ALL expenses?')){ expenses=[]; save(LS_KEY,expenses); render(); } };
-  searchEl.oninput=render; filterAffectsAllEl.onchange=render;
-  saveRateBtn.onclick=()=>{ const n=Number(rateEl.value); if(!(n>0)) return alert('Enter a positive JPY per $1 rate.'); rate=n; save(RATE_KEY,n); render(); };
-  resetRateBtn.onclick=()=>{ rate=155; rateEl.value=rate; save(RATE_KEY,rate); render(); };
+  clearBtn.onclick = ()=>{ if(confirm('Delete ALL expenses?')){ expenses=[]; save(LS_KEY,expenses); render(); } };
+  searchEl.oninput = render;
+  filterAffectsAllEl.onchange = render;
+  saveRateBtn.onclick = ()=>{ const n=Number(rateEl.value); if(!(n>0)) return alert('Enter positive JPY per $1'); rate=n; save(RATE_KEY,n); render(); };
+  resetRateBtn.onclick = ()=>{ rate=155; rateEl.value=rate; save(RATE_KEY,rate); render(); };
 
+  // Seed sample rows once for a fresh view
   if(expenses.length===0){
     const t=new Date(); const d=o=>{const x=new Date(t); x.setDate(x.getDate()-o); return x.toISOString().slice(0,10);};
-    expenses=[ {id:crypto.randomUUID(),date:d(3),item:'Narita Express',category:'Transport',jpy:3200},
-               {id:crypto.randomUUID(),date:d(2),item:'Ramen (Shinjuku)',category:'Food',jpy:980},
-               {id:crypto.randomUUID(),date:d(2),item:'7-Eleven Snacks',category:'Food',jpy:620},
-               {id:crypto.randomUUID(),date:d(1),item:'TeamLab Planets',category:'Attraction',jpy:3800} ];
+    expenses = [
+      {id:crypto.randomUUID(), date:d(3), item:'Narita Express', category:'Transport', jpy:3200},
+      {id:crypto.randomUUID(), date:d(2), item:'Ramen (Shinjuku)', category:'Food', jpy:980},
+      {id:crypto.randomUUID(), date:d(2), item:'7-Eleven Snacks', category:'Food', jpy:620},
+      {id:crypto.randomUUID(), date:d(1), item:'TeamLab Planets', category:'Attraction', jpy:3800},
+    ];
     save(LS_KEY,expenses);
   }
   render();
