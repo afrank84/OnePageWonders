@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>FF7 Materia Finder (Single Page)</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#151923; --muted:#9aa3b2; --text:#e7ecf3; --accent:#7bdcff;
+    --chip:#1e2330; --chipOn:#2c3446; --ring:#2a8cff;
+  }
+  html,body{height:100%}
+  body{
+    margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Inter,Arial,sans-serif;
+    background:linear-gradient(180deg,#0e1117 0%, #0c0f14 100%);
+    color:var(--text);
+  }
+  .wrap{max-width:1100px; margin:32px auto; padding:0 16px}
+  .title{display:flex; align-items:center; gap:10px; margin:0 0 14px}
+  .title h1{font-size:clamp(20px,3.2vw,30px); margin:0}
+  .panel{
+    background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.07);
+    border-radius:14px; padding:14px; box-shadow:0 10px 30px rgba(0,0,0,0.3); backdrop-filter: blur(6px);
+  }
+  .toolbar{display:grid; grid-template-columns: 1fr; gap:10px}
+  @media (min-width:760px){ .toolbar{grid-template-columns:1fr auto} }
+  .search{
+    display:flex; align-items:center; gap:8px; background:var(--panel); border:1px solid #232938; border-radius:12px; padding:10px 12px
+  }
+  .search input{
+    background:transparent; border:none; outline:none; color:var(--text); font-size:16px; width:100%
+  }
+  .chips{display:flex; flex-wrap:wrap; gap:8px}
+  .chip{
+    background:var(--chip); color:var(--text); border:1px solid #2a3040; padding:8px 12px; border-radius:999px;
+    cursor:pointer; user-select:none; font-size:14px; display:inline-flex; gap:8px; align-items:center
+  }
+  .chip[data-on="true"]{ background:var(--chipOn); border-color:var(--ring); box-shadow:0 0 0 2px rgba(42,140,255,.15) inset }
+  .meta{display:flex; gap:10px; align-items:center; color:var(--muted); font-size:13px; padding-top:6px}
+  .grid{
+    margin-top:14px;
+    display:grid; gap:12px;
+    grid-template-columns: repeat( auto-fill, minmax(260px,1fr) );
+  }
+  .card{
+    background:var(--panel); border:1px solid rgba(255,255,255,0.07); border-radius:14px; padding:14px;
+    display:flex; flex-direction:column; gap:8px; transition: transform .06s ease, border-color .2s ease;
+  }
+  .card:hover{ transform: translateY(-2px); border-color:#36507a }
+  .name{display:flex; align-items:center; gap:10px}
+  .badge{font-size:20px}
+  .pill{font-size:12px; color:#c9d2e3; background:#253047; border:1px solid #2f3a55; padding:2px 8px; border-radius:999px}
+  .effect{font-size:14px; color:#cfd6e6}
+  .loc{font-size:12px; color:#9aa3b2}
+  .actions{display:flex; gap:8px; flex-wrap:wrap; margin-top:4px}
+  .btn{
+    font-size:12px; text-decoration:none; color:#e7ecf3; background:#253047;
+    border:1px solid #35507a; padding:4px 10px; border-radius:999px; display:inline-flex; align-items:center; gap:6px
+  }
+  .btn:hover{ background:#2b3a57 }
+  .no-results{padding:18px; text-align:center; color:var(--muted)}
+  .footer{margin-top:18px; font-size:12px; color:var(--muted); text-align:center}
+  .kbd{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background:#1a2030; border:1px solid #2a3147; padding:2px 6px; border-radius:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="title">
+    <img src="https://imgs.search.brave.com/G75kgsclD6RtxXysZ64WArEuL3em7r2_q45aZ-R19tg/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly92ZWN0/b3JpZmllZC5jb20v/aW1hZ2VzL2ZmNy1p/Y29uLTguanBn" width="128" height="128" alt="FF7 Materia Finder" />
+    <h1>FF7 Materia Finder</h1>
+    <span class="pill">Original FFVII (PS1/PC)</span>
+  </div>
+
+  <div class="panel">
+    <div class="toolbar">
+      <label class="search" title="Type to search name, aka, effect, or location.">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 21l-4.2-4.2m1.2-5.3a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z" stroke="#9aa3b2" stroke-width="1.6" stroke-linecap="round"/></svg>
+        <input id="q" placeholder="Search Materia (e.g., Knights of the Round, Haste, Mug, Kujata) — press / to focus" autocomplete="off" />
+      </label>
+      <div class="chips" id="typeChips" role="group" aria-label="Filter by type">
+        <span class="chip" data-type="Magic">🟢 Magic</span>
+        <span class="chip" data-type="Command">🟡 Command</span>
+        <span class="chip" data-type="Support">🔵 Support</span>
+        <span class="chip" data-type="Summon">🔴 Summon</span>
+        <span class="chip" data-type="Independent">🟣 Independent</span>
+        <span class="chip" id="clear">Clear</span>
+      </div>
+    </div>
+    <div class="meta">
+      <span id="count">0 results</span>
+      <span>•</span>
+      <span>Tip: <span class="kbd">/</span> to jump to search • <span class="kbd">Esc</span> to clear</span>
+    </div>
+    <div class="grid" id="grid"></div>
+    <div class="no-results" id="empty" style="display:none">No Materia match your search.</div>
+  </div>
+
+  <div class="footer">
+    Click <b>Guide</b> on any card to open an external guide for that Materia.
+  </div>
+</div>
+
+<script>
+/*
+  FF7 Materia dataset — Original FFVII (PS1/PC).
+  Fields:
+    name, type, icon, effect, aka[], location
+  NEW:
+    - Guide button per card; change GUIDE_SOURCE to switch sites.
+*/
+const GUIDE_SOURCE = 'fandom'; // 'fandom' | 'conh' | 'gamefaqs'
+
+function guideUrl(name){
+  const n = encodeURIComponent(name + ' Materia "Final Fantasy VII"');
+  if(GUIDE_SOURCE === 'conh'){
+    // Caves of Narshe site search
+    return `https://www.google.com/search?q=site:cavesofnarshe.com%20${n}`;
+  } else if(GUIDE_SOURCE === 'gamefaqs'){
+    // GameFAQs site search (classic)
+    return `https://www.google.com/search?q=site:gamefaqs.gamespot.com%20${n}`;
+  }
+  // Final Fantasy Wiki (Fandom)
+  return `https://www.google.com/search?q=site:finalfantasy.fandom.com%20${n}`;
+}
+
+const MATERIA = [
+  // Magic (Green) 🟢
+  {name:"Fire",type:"Magic",icon:"🟢",aka:["Fira","Firaga"],effect:"Fire-element attack spells.",location:"Early shops in Midgar; common thereafter."},
+  {name:"Ice",type:"Magic",icon:"🟢",aka:["Blizzard","Blizzara","Blizzaga"],effect:"Ice-element attack spells.",location:"Early shops in Midgar; common thereafter."},
+  {name:"Lightning",type:"Magic",icon:"🟢",aka:["Bolt","Thunder","Thundara","Thundaga"],effect:"Lightning-element attack spells.",location:"Early shops in Midgar; common thereafter."},
+  {name:"Earth",type:"Magic",icon:"🟢",aka:["Quake","Quara","Quaga"],effect:"Earth-element attack spells.",location:"Found later; buyable in shops mid-game."},
+  {name:"Poison",type:"Magic",icon:"🟢",aka:["Bio","Biora","Bioga"],effect:"Poison damage; may inflict Poison.",location:"Early Midgar; Shinra HQ area."},
+  {name:"Restore",type:"Magic",icon:"🟢",aka:["Cure","Cura","Curaga","Regen"],effect:"Heals HP and adds Regen.",location:"Very early in Midgar; also in shops."},
+  {name:"Heal",type:"Magic",icon:"🟢",aka:["Poisona","Esuna","Resist"],effect:"Cures status ailments; adds Resist.",location:"Junon / mid-game shops."},
+  {name:"Revive",type:"Magic",icon:"🟢",aka:["Life","Arise"],effect:"Revives KO'd ally with HP.",location:"Forgotten Capital / late mid-game."},
+  {name:"Seal",type:"Magic",icon:"🟢",aka:["Sleepel","Silence"],effect:"Sleep or Silence status.",location:"Train Graveyard / early Midgar."},
+  {name:"Mystify",type:"Magic",icon:"🟢",aka:["Confuse","Berserk"],effect:"Inflicts Confuse or Berserk.",location:"Gongaga / field pickup."},
+  {name:"Transform",type:"Magic",icon:"🟢",aka:["Mini","Toad"],effect:"Inflicts Mini or Toad.",location:"Junon region / shops."},
+  {name:"Time",type:"Magic",icon:"🟢",aka:["Haste","Slow","Stop"],effect:"Alters ATB: Haste, Slow, Stop.",location:"Temple of the Ancients / Gold Saucer prize."},
+  {name:"Barrier",type:"Magic",icon:"🟢",aka:["Barrier","MBarrier","Reflect","Wall"],effect:"Physical/Magic barriers; Reflect/Wall.",location:"Shinra HQ; later shops."},
+  {name:"Destruct",type:"Magic",icon:"🟢",aka:["DeBarrier","Dispel","Death"],effect:"Removes barriers/buffs; Death spell.",location:"Midgar (return on Disc 2)."},
+  {name:"Exit",type:"Magic",icon:"🟢",aka:["Escape","Remove"],effect:"Escape battle; Remove non-boss enemy.",location:"Rocket Town region."},
+  {name:"Gravity",type:"Magic",icon:"🟢",aka:["Demi","Demi2","Demi3","Gravija"],effect:"Percentage HP damage (non-elemental).",location:"Cave near Cosmo Canyon."},
+  {name:"Contain",type:"Magic",icon:"🟢",aka:["Freeze","Break","Tornado","Flare"],effect:"High-level mixed attack spells.",location:"Gaea’s Cliff."},
+  {name:"Comet",type:"Magic",icon:"🟢",aka:["Comet2"],effect:"Non-elemental multi-hit magic.",location:"Forgotten Capital."},
+  {name:"Full Cure",type:"Magic",icon:"🟢",aka:["FullCure"],effect:"Fully restores HP to one ally.",location:"Cosmo Canyon (late-game)."},
+  {name:"Shield",type:"Magic",icon:"🟢",aka:[],effect:"Powerful damage nullification barrier.",location:"Northern Crater."},
+  {name:"Ultima",type:"Magic",icon:"🟢",aka:[],effect:"Very strong non-elemental magic.",location:"Corel Huge Materia quest reward."},
+
+  // Command (Yellow) 🟡
+  {name:"Steal",type:"Command",icon:"🟡",aka:["Mug"],effect:"Steal an item (later: Mug adds damage).",location:"Train Graveyard / early shops."},
+  {name:"Sense",type:"Command",icon:"🟡",aka:["Scan"],effect:"View enemy HP/MP and stats.",location:"Kalm / early shops."},
+  {name:"Throw",type:"Command",icon:"🟡",aka:["Coin","Gil Toss"],effect:"Throw item; at higher level toss Gil.",location:"Wutai region / shops."},
+  {name:"Morph",type:"Command",icon:"🟡",aka:[],effect:"Deal low damage; turns enemy into item.",location:"Temple of the Ancients."},
+  {name:"Manipulate",type:"Command",icon:"🟡",aka:["Control"],effect:"Control enemy to use its actions.",location:"Junon area."},
+  {name:"Deathblow",type:"Command",icon:"🟡",aka:["Critical"],effect:"High-crit physical strike.",location:"Gongaga."},
+  {name:"Enemy Skill",type:"Command",icon:"🟡",aka:["Blue Magic","E.Skill"],effect:"Learn and use certain enemy abilities.",location:"Up to 4 copies: Shinra HQ, Junon, Chocobo Farm, Forgotten Capital."},
+  {name:"Slash-All",type:"Command",icon:"🟡",aka:["Flash (ability at higher level)"],effect:"Attack all enemies (later: Flash insta-KO chance).",location:"Ancient Forest."},
+  {name:"Double Cut",type:"Command",icon:"🟡",aka:["2x-Cut","4x-Cut"],effect:"Multiple consecutive attacks.",location:"Sunken Gelnika."},
+  {name:"Mime",type:"Command",icon:"🟡",aka:[],effect:"Repeat last ally action for free.",location:"Wutai-area cave (Chocobo required)."},
+  {name:"W-Item",type:"Command",icon:"🟡",aka:["WItem"],effect:"Use two items in a turn.",location:"Midgar subway tunnels (late-game)."},
+  {name:"W-Magic",type:"Command",icon:"🟡",aka:["WMagic"],effect:"Cast two magic spells in a turn.",location:"Northern Crater."},
+  {name:"W-Summon",type:"Command",icon:"🟡",aka:["WSummon"],effect:"Summon twice in a turn.",location:"Gold Saucer Battle Square (Special Battle)."},
+
+  // Support (Blue) 🔵
+  {name:"All",type:"Support",icon:"🔵",aka:["Restore-All","Fire-All"],effect:"Casts linked magic on all targets.",location:"Early Midgar chests & shops; several copies exist."},
+  {name:"Elemental",type:"Support",icon:"🔵",aka:["Elem."],effect:"Adds linked element to weapon or halves/absorbs it on armor.",location:"Shinra HQ; another later in game."},
+  {name:"Added Effect",type:"Support",icon:"🔵",aka:["Add Effect"],effect:"Applies linked status on hit (weapon) or grants status immunity (armor).",location:"Cave of the Gi; another late-game."},
+  {name:"Added Cut",type:"Support",icon:"🔵",aka:["Follow-up Attack"],effect:"Adds a normal attack after linked magic/command.",location:"Great Glacier."},
+  {name:"HP Absorb",type:"Support",icon:"🔵",aka:[],effect:"Absorb a portion of damage dealt by linked ability as HP.",location:"Wutai (Da-Chao statue secret)."},
+  {name:"MP Absorb",type:"Support",icon:"🔵",aka:[],effect:"Absorb MP based on damage dealt by linked ability.",location:"Great Glacier."},
+  {name:"MP Turbo",type:"Support",icon:"🔵",aka:[],effect:"Boosts power of linked magic; increases MP cost.",location:"Whirlwind Maze."},
+  {name:"Quadra Magic",type:"Support",icon:"🔵",aka:["x4 Magic"],effect:"Casts linked magic up to 4 times.",location:"Cave near Mideel (special chocobo needed)."},
+  {name:"Sneak Attack",type:"Support",icon:"🔵",aka:["Pre-cast"],effect:"Chance to auto-use linked ability at battle start.",location:"Chocobo Racing prize."},
+  {name:"Final Attack",type:"Support",icon:"🔵",aka:["On-KO"],effect:"Use linked ability when KO’d (once per battle).",location:"Gold Saucer Battle Square prize."},
+  {name:"Magic Counter",type:"Support",icon:"🔵",aka:["Counter Magic"],effect:"Counterattack with linked magic when hit.",location:"Chocobo Racing prize."},
+  {name:"Counter",type:"Support",icon:"🔵",aka:["Blue Counter"],effect:"Counter with linked command/magic when hit.",location:"Northern Crater."},
+  {name:"Steal as well",type:"Support",icon:"🔵",aka:["Auto-Steal"],effect:"Attempts to steal when using the linked ability.",location:"Midgar Sector 5 (Disc 2 return)."},
+
+  // Summon (Red) 🔴
+  {name:"Choco/Mog",type:"Summon",icon:"🔴",aka:["Chocobo & Mog"],effect:"Summons Chocobo & Mog (varied effects).",location:"Chocobo Farm (talk to chocobos)."},
+  {name:"Shiva",type:"Summon",icon:"🔴",aka:[],effect:"Ice-element summon.",location:"Junon (gift after saving Priscilla)."},
+  {name:"Ifrit",type:"Summon",icon:"🔴",aka:[],effect:"Fire-element summon.",location:"Cargo Ship (Junon → Costa del Sol)."},
+  {name:"Ramuh",type:"Summon",icon:"🔴",aka:[],effect:"Lightning-element summon.",location:"Gold Saucer Chocobo Square (bench)."},
+  {name:"Titan",type:"Summon",icon:"🔴",aka:[],effect:"Earth-element summon.",location:"Gongaga Reactor."},
+  {name:"Odin",type:"Summon",icon:"🔴",aka:[],effect:"Instant death / heavy damage.",location:"Cave of the Gi (Cosmo Canyon)."},
+  {name:"Leviathan",type:"Summon",icon:"🔴",aka:[],effect:"Water-element summon.",location:"Wutai Pagoda (defeat Godo with Yuffie)."},
+  {name:"Bahamut",type:"Summon",icon:"🔴",aka:[],effect:"Non-elemental dragon summon.",location:"Temple of the Ancients (boss)."},
+  {name:"Kujata",type:"Summon",icon:"🔴",aka:["Kjata"],effect:"Fire/Ice/Lightning multi-element summon.",location:"Sleeping Forest."},
+  {name:"Alexander",type:"Summon",icon:"🔴",aka:[],effect:"Holy-element summon.",location:"Great Glacier (Snow field event)."},
+  {name:"Phoenix",type:"Summon",icon:"🔴",aka:[],effect:"Fire damage + party revive.",location:"Fort Condor (final battle)."},
+  {name:"Neo Bahamut",type:"Summon",icon:"🔴",aka:[],effect:"Stronger Bahamut.",location:"Whirlwind Maze."},
+  {name:"Hades",type:"Summon",icon:"🔴",aka:[],effect:"Inflicts many status ailments.",location:"Sunken Gelnika."},
+  {name:"Typhon",type:"Summon",icon:"🔴",aka:["Typoon"],effect:"Wind/earthy mixed knockback summon.",location:"Ancient Forest."},
+  {name:"Bahamut ZERO",type:"Summon",icon:"🔴",aka:["Bahamut Zero"],effect:"Most powerful Bahamut.",location:"Cosmo Canyon observatory (Huge Materia sidequest & have Bahamut + Neo Bahamut)."},
+  {name:"Knights of the Round",type:"Summon",icon:"🔴",aka:["KOTR"],effect:"Strongest summon; multi-hit non-elemental.",location:"Round Island (requires Gold Chocobo)."},
+
+  // Independent (Purple) 🟣
+  {name:"HP Plus",type:"Independent",icon:"🟣",aka:["HP+"],effect:"Raises max HP.",location:"Junon / shops."},
+  {name:"MP Plus",type:"Independent",icon:"🟣",aka:["MP+"],effect:"Raises max MP.",location:"Junon / shops."},
+  {name:"Speed Plus",type:"Independent",icon:"🟣",aka:["Dex+","Speed+"],effect:"Raises Dexterity (ATB speed).",location:"Temple of the Ancients."},
+  {name:"Magic Plus",type:"Independent",icon:"🟣",aka:["MAG+"],effect:"Raises Magic stat.",location:"Whirlwind Maze."},
+  {name:"Luck Plus",type:"Independent",icon:"🟣",aka:["LCK+"],effect:"Raises Luck.",location:"Temple of the Ancients."},
+  {name:"EXP Plus",type:"Independent",icon:"🟣",aka:["EXP+"],effect:"Increases EXP earned.",location:"Gold Saucer prize."},
+  {name:"Gil Plus",type:"Independent",icon:"🟣",aka:["Gil+"],effect:"Increases Gil earned.",location:"Gold Saucer prize."},
+  {name:"Pre-Emptive",type:"Independent",icon:"🟣",aka:["Preemptive"],effect:"Higher chance to start battles preemptively.",location:"Junon area."},
+  {name:"Cover",type:"Independent",icon:"🟣",aka:["Protect Ally"],effect:"Chance to take hits for allies.",location:"Sector 7 shop / early pickup."},
+  {name:"Chocobo Lure",type:"Independent",icon:"🟣",aka:["Choco Lure"],effect:"Enables chocobo encounters on tracks.",location:"Chocobo Farm (gift/buy)."},
+  {name:"Enemy Lure",type:"Independent",icon:"🟣",aka:["More Encounters"],effect:"Increases random encounters.",location:"Junon / Gold Saucer."},
+  {name:"Enemy Away",type:"Independent",icon:"🟣",aka:["Fewer Encounters"],effect:"Reduces random encounters.",location:"Gold Saucer prize."},
+  {name:"Long Range",type:"Independent",icon:"🟣",aka:["Long-Range"],effect:"Normal damage from back row; ignore range.",location:"Mithril Mine."},
+  {name:"Counter Attack",type:"Independent",icon:"🟣",aka:["Counterattack"],effect:"Chance to counter with a basic attack.",location:"Found late-game; Northern Crater."},
+  {name:"Underwater",type:"Independent",icon:"🟣",aka:[],effect:"Removes 20:00 timer vs. Emerald Weapon.",location:"Trade Guide Book to Kalm Traveler."},
+  {name:"Mega All",type:"Independent",icon:"🟣",aka:["Mega-All"],effect:"Turns many commands into target-all versions.",location:"Northern Crater."},
+  {name:"HP↔MP",type:"Independent",icon:"🟣",aka:["HP<->MP","HP-MP Swap"],effect:"Swaps max HP and MP values.",location:"Northern Crater."},
+
+  // Master Materia (Earth Harp turn-in)
+  {name:"Master Magic",type:"Magic",icon:"🟢",aka:["All Magic"],effect:"Grants all Magic spells.",location:"Trade Earth Harp to Kalm Traveler."},
+  {name:"Master Command",type:"Command",icon:"🟡",aka:["All Commands"],effect:"Grants all Command abilities.",location:"Trade Earth Harp to Kalm Traveler."},
+  {name:"Master Summon",type:"Summon",icon:"🔴",aka:["All Summons"],effect:"Grants all Summons.",location:"Trade Earth Harp to Kalm Traveler."},
+];
+
+const q = document.getElementById('q');
+const grid = document.getElementById('grid');
+const empty = document.getElementById('empty');
+const countEl = document.getElementById('count');
+const chipRow = document.getElementById('typeChips');
+
+const state = { query:"", types:new Set() };
+
+function norm(s){ return (s||"").toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,''); }
+
+function matches(item){
+  if(state.types.size && !state.types.has(item.type)) return false;
+  if(!state.query) return true;
+  const hay = [item.name, item.type, item.effect, item.location, ...(item.aka||[])].map(norm).join(" | ");
+  return hay.includes(norm(state.query));
+}
+
+function render(){
+  const results = MATERIA.filter(matches).sort((a,b)=> a.type.localeCompare(b.type) || a.name.localeCompare(b.name));
+  grid.innerHTML = results.map(r=>`
+    <div class="card" tabindex="0" aria-label="${r.name} (${r.type})">
+      <div class="name">
+        <span class="badge">${r.icon}</span>
+        <strong>${r.name}</strong>
+        <span class="pill">${r.type}</span>
+      </div>
+      <div class="effect">${r.effect}</div>
+      ${r.aka && r.aka.length ? `<div class="loc"><strong>AKA:</strong> ${r.aka.join(", ")}</div>` : ``}
+      ${r.location ? `<div class="loc"><strong>Location:</strong> ${r.location}</div>` : ``}
+      <div class="actions">
+        <a class="btn" href="${guideUrl(r.name)}" target="_blank" rel="noopener" title="Open external guide for ${r.name}">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M14 3h7v7M10 14 21 3M21 14v7h-7" stroke="#cfe2ff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Guide
+        </a>
+      </div>
+    </div>
+  `).join('');
+  countEl.textContent = `${results.length} result${results.length!==1?'s':''}`;
+  empty.style.display = results.length ? 'none' : 'block';
+}
+
+q.addEventListener('input', e => { state.query = e.target.value; render(); });
+
+chipRow.addEventListener('click', (e)=>{
+  const el = e.target.closest('.chip');
+  if(!el) return;
+  if(el.id === 'clear'){
+    state.query = ""; q.value="";
+    state.types.clear();
+    document.querySelectorAll('.chip[data-on]').forEach(c=>c.dataset.on="false");
+    render();
+    q.focus();
+    return;
+  }
+  const t = el.getAttribute('data-type');
+  if(!t) return;
+  const on = el.dataset.on === "true";
+  el.dataset.on = on ? "false" : "true";
+  if(on) state.types.delete(t); else state.types.add(t);
+  render();
+});
+
+// Keyboard shortcuts
+window.addEventListener('keydown', (e)=>{
+  if(e.key === '/' && document.activeElement !== q){
+    e.preventDefault(); q.focus(); q.select();
+  }else if(e.key === 'Escape'){
+    if(q.value){ q.value=""; state.query=""; render(); }
+  }
+});
+
+// Initial
+render();
+q.focus();
+</script>
+</body>
+</html>

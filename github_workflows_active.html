@@ -1,0 +1,509 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>GitHub Actions – Repo Dashboard</title>
+<style>
+:root{color-scheme:light dark;font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+body{margin:24px}
+h1{margin:0 0 12px;font-size:1.15rem}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(12,1fr);align-items:start}
+.card{border:1px solid #cfcfcf;border-radius:12px;padding:12px}
+label{display:block;font-size:.9rem;margin-bottom:4px;opacity:.85}
+input,select,button,textarea{width:100%;padding:8px;border-radius:8px;border:1px solid #b9b9b9}
+textarea{min-height:82px;font-family:ui-monospace,Menlo,monospace}
+.controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.btn{cursor:pointer;border:0;background:#2563eb;color:#fff;padding:10px 12px;border-radius:10px}
+.btn.secondary{background:#475569}
+.small{font-size:.85rem}.muted{opacity:.7}.warn{color:#b45309}.ok{color:#059669}.err{color:#dc2626}
+table{width:100%;border-collapse:collapse;margin-top:10px}
+th,td{border-bottom:1px solid #e2e2e2;padding:8px;text-align:left;vertical-align:top;font-size:.95rem}
+th{position:sticky;top:0;background:canvas;z-index:1}
+.nowrap{white-space:nowrap}.right{text-align:right}.mono{font-family:ui-monospace,Menlo,monospace}
+.pill{padding:2px 8px;border-radius:999px;font-size:.8rem;display:inline-block}
+.c-success{background:#dcfce7}.c-failure{background:#fee2e2}.c-cancelled{background:#f3f4f6}.c-neutral{background:#e5e7eb}
+.s-in_progress{background:#fde68a}.s-queued{background:#dbeafe}.s-pending,.s-requested,.s-waiting{background:#f3f4f6}
+.details{background:color-mix(in oklab, canvas, #888 4%);border-radius:10px;padding:8px;margin-top:6px}
+.row{display:flex;align-items:center;gap:6px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:6px;font-size:.9rem}
+summary{cursor:pointer}
+.badge{display:inline-block;border:1px solid #cfcfcf;border-radius:999px;padding:2px 8px;font-size:.8rem}
+.legend{display:flex;gap:8px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+<h1>GitHub Actions – Repo Dashboard</h1>
+
+<div class="grid">
+  <div class="card" style="grid-column:span 12;">
+    <div class="grid">
+      <div style="grid-column:span 6;">
+        <label for="token">GitHub token (fine-grained or classic; stored only in memory)</label>
+        <input id="token" type="password" placeholder="ghp_..." autocomplete="off" />
+        <div class="small muted">Private repos require repository read. Actions: Read recommended.</div>
+      </div>
+      <div style="grid-column:span 3;">
+        <label for="owner">Owner / Org (required if using “owner” mode)</label>
+        <input id="owner" placeholder="e.g., your-org or your-username" />
+      </div>
+      <div style="grid-column:span 3;">
+        <label for="branch">Branch override (optional)</label>
+        <input id="branch" placeholder="e.g., main" />
+      </div>
+
+      <div style="grid-column:span 12;" class="controls">
+        <select id="repoSource" style="max-width:280px">
+          <option value="mine" selected>Fetch: All my repos (via token)</option>
+          <option value="owner">Fetch: Repos under owner/org</option>
+          <option value="manual">Manual list (paste below)</option>
+        </select>
+        <button class="btn secondary" id="fetchReposBtn">Fetch repos</button>
+        <input id="include" placeholder="Include filter (glob, e.g. *api* or tool-*)" style="max-width:240px" />
+        <input id="exclude" placeholder="Exclude filter (glob, e.g. *test* or *-fork)" style="max-width:240px" />
+        <div id="repoCount" class="small muted">0 repos loaded</div>
+      </div>
+
+      <div style="grid-column:span 12;">
+        <label for="repos">Repos (comma or newline). “Fetch repos” will fill this.</label>
+        <textarea id="repos" placeholder=""></textarea>
+      </div>
+
+      <div style="grid-column:span 12;" class="controls">
+        <label class="small"><input type="checkbox" id="scopeRecent" checked /> Scope to recent branches</label>
+        <select id="windowHours" style="max-width:140px">
+          <option value="24">Window: 24h</option>
+          <option value="48" selected>Window: 48h</option>
+          <option value="72">Window: 72h</option>
+          <option value="168">Window: 7d</option>
+        </select>
+        <select id="maxBranches" style="max-width:160px">
+          <option value="3">Max branches/repo: 3</option>
+          <option value="5" selected>Max branches/repo: 5</option>
+          <option value="10">Max branches/repo: 10</option>
+        </select>
+        <label class="small"><input type="checkbox" id="showHistory" /> Show 5 recent completed in details</label>
+        <label class="small"><input type="checkbox" id="autoRefresh" /> Auto-refresh</label>
+        <select id="interval" style="max-width:120px">
+          <option value="15">15s</option>
+          <option value="30" selected>30s</option>
+          <option value="60">60s</option>
+          <option value="120">120s</option>
+        </select>
+        <button class="btn" id="scanBtn">Scan</button>
+        <button class="btn secondary" id="clearBtn">Clear</button>
+        <div id="statusMsg" class="muted small">Idle</div>
+        <div id="rateInfo" class="muted small" style="margin-left:auto"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="grid-column:span 12;">
+    <div class="legend small muted">
+      <span class="badge">Latest Completed: <span class="pill c-success">success</span> <span class="pill c-failure">failure</span> <span class="pill c-cancelled">cancelled</span></span>
+      <span class="badge">Active: <span class="pill s-in_progress">in_progress</span> <span class="pill s-queued">queued</span></span>
+    </div>
+    <table id="summary">
+      <thead>
+        <tr>
+          <th>Repo</th>
+          <th>Latest Completed</th>
+          <th>Active Runs</th>
+          <th>Oldest Active Age</th>
+          <th>Links</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+const API_VER = "2022-11-28";
+const LIVE_STATUSES = ["in_progress","queued","pending","requested","waiting"];
+
+let timer = null;
+
+function parseRepos(input){return input.split(/[\n,]+/).map(s=>s.trim()).filter(Boolean)}
+function fmtDt(iso){return iso?new Date(iso).toLocaleString():""}
+function fmtElapsed(iso){if(!iso)return"";const ms=Date.now()-new Date(iso).getTime();const s=Math.max(0,Math.floor(ms/1000));const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),ss=s%60;return `${h}h ${m}m ${ss}s`}
+function pillConclusion(c){const map={success:"c-success",failure:"c-failure",cancelled:"c-cancelled"};return `<span class="pill ${map[c]||'c-neutral'}">${c||"—"}</span>`}
+function pillStatus(s){const map={in_progress:"s-in_progress",queued:"s-queued",pending:"s-pending",requested:"s-requested",waiting:"s-waiting"};return `<span class="pill ${map[s]||'s-pending'}">${s}</span>`}
+function setStatus(msg, cls="muted"){const el=document.getElementById("statusMsg");el.textContent=msg;el.className=`small ${cls}`}
+
+function globMatch(name, pat){ if(!pat) return true;
+  const esc=pat.replace(/[.+^${}()|[\]\\]/g,"\\$&").replace(/\*/g,".*");
+  return new RegExp(`^${esc}$`, "i").test(name);
+}
+
+function setRateInfo(resp){
+  const rem=resp.headers.get("x-ratelimit-remaining");
+  const lim=resp.headers.get("x-ratelimit-limit");
+  const rst=resp.headers.get("x-ratelimit-reset");
+  const resetStr = rst ? `, resets ${new Date(parseInt(rst,10)*1000).toLocaleTimeString()}` : "";
+  document.getElementById("rateInfo").textContent = rem&&lim ? `Rate: ${rem}/${lim}${resetStr}` : "";
+}
+
+async function ghJson(url, token, okStatuses=[200]){
+  const headers={"Accept":"application/vnd.github+json","X-GitHub-Api-Version":API_VER};
+  if(token) headers.Authorization=`Bearer ${token}`;
+  const resp=await fetch(url,{headers});
+  setRateInfo(resp);
+  if(!okStatuses.includes(resp.status)){
+    const text=await resp.text();
+    throw new Error(`${resp.status} ${resp.statusText}: ${text.slice(0,200)}`);
+  }
+  return resp.json();
+}
+
+async function fetchAllPages(baseUrl, token){
+  let page=1, out=[];
+  while(true){
+    const u=new URL(baseUrl);
+    u.searchParams.set("per_page","100");
+    u.searchParams.set("page",String(page));
+    const headers={"Accept":"application/vnd.github+json","X-GitHub-Api-Version":API_VER};
+    if(token) headers.Authorization=`Bearer ${token}`;
+    const resp=await fetch(u, {headers});
+    setRateInfo(resp);
+    if(resp.status===404) throw new Error("Not found (check owner/org or token access)");
+    if(!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
+    const data=await resp.json();
+    if(!Array.isArray(data) || data.length===0) break;
+    out.push(...data);
+    if(data.length<100) break;
+    page++;
+  }
+  return out;
+}
+
+// ---------- Repo discovery ----------
+async function fetchRepos(){
+  const token=$id("token").value.trim();
+  const owner=$id("owner").value.trim();
+  const source=$id("repoSource").value;
+  const inc=$id("include").value.trim();
+  const exc=$id("exclude").value.trim();
+
+  setStatus("Fetching repositories…");
+
+  try{
+    let repos=[];
+    if(source==="mine"){
+      repos = await fetchAllPages("https://api.github.com/user/repos", token);
+    } else if(source==="owner"){
+      if(!owner){ setStatus("Owner/org is required for owner mode.","warn"); return; }
+      try{
+        repos = await fetchAllPages(`https://api.github.com/orgs/${owner}/repos`, token);
+      }catch{
+        repos = await fetchAllPages(`https://api.github.com/users/${owner}/repos`, token);
+      }
+    } else {
+      setStatus("Manual mode: paste repos below.","warn");
+      return;
+    }
+
+    let names = repos
+      .map(r=>r.name)
+      .filter(n => (!inc || globMatch(n, inc)) && (!exc || !globMatch(n, exc)))
+      .sort((a,b)=>a.localeCompare(b));
+
+    $id("repos").value = names.join("\n");
+    $id("repoCount").textContent = `${names.length} repos loaded`;
+    setStatus(`Loaded ${names.length} repositories.`, "ok");
+  }catch(e){
+    console.error(e);
+    setStatus(`Error fetching repos: ${e.message}`,"err");
+  }
+}
+
+// ---------- Scanning core ----------
+function $id(x){return document.getElementById(x)}
+
+async function latestCompleted(owner, repo, branch, token){
+  const u=new URL(`https://api.github.com/repos/${owner}/${repo}/actions/runs`);
+  u.searchParams.set("status","completed");
+  u.searchParams.set("per_page","1");
+  if(branch) u.searchParams.set("branch", branch);
+  const data=await ghJson(u, token);
+  const r=data.workflow_runs?.[0];
+  if(!r) return null;
+  return { conclusion: r.conclusion, when: r.run_started_at || r.created_at, url: r.html_url, name: r.name||"", number: r.run_number };
+}
+
+async function collectRecentBranches(owner, repo, hours, cap, token){
+  const cutoff = Date.now() - hours*3600*1000;
+  const out = [];
+  let page=1;
+  while(out.length < cap && page <= 5){ // hard stop at 5 pages (500 runs) for sanity
+    const u=new URL(`https://api.github.com/repos/${owner}/${repo}/actions/runs`);
+    u.searchParams.set("per_page","100");
+    u.searchParams.set("page", String(page));
+    const data = await ghJson(u, token);
+    const runs = Array.isArray(data.workflow_runs) ? data.workflow_runs : [];
+    if(runs.length===0) break;
+
+    for(const r of runs){
+      const t = new Date(r.created_at || r.run_started_at).getTime();
+      if(t < cutoff) { page = 9999; break; } // older than window; stop early
+      if(r.head_branch && !out.includes(r.head_branch)) out.push(r.head_branch);
+      if(out.length>=cap) break;
+    }
+    page++;
+  }
+  return out;
+}
+
+async function fetchActiveRuns(owner, repo, token){
+  // Fetch by live statuses (no branch param), then filter later
+  const all=[];
+  for(const st of LIVE_STATUSES){
+    const u=new URL(`https://api.github.com/repos/${owner}/${repo}/actions/runs`);
+    u.searchParams.set("status", st);
+    u.searchParams.set("per_page","50");
+    const data=await ghJson(u, token);
+    if(Array.isArray(data.workflow_runs)) all.push(...data.workflow_runs);
+  }
+  // de-dup by id
+  const seen=new Set();
+  return all.filter(r => !seen.has(r.id) && (seen.add(r.id), true));
+}
+
+function oldestActiveAge(runs){
+  if(!runs.length) return "";
+  const oldest = runs.reduce((a,b)=>{
+    const ta=new Date(a.run_started_at||a.created_at).getTime();
+    const tb=new Date(b.run_started_at||b.created_at).getTime();
+    return ta<tb?a:b;
+  });
+  return fmtElapsed(oldest.run_started_at||oldest.created_at);
+}
+
+function actionsTabLink(owner, repo){
+  return `https://github.com/${owner}/${repo}/actions`;
+}
+
+// ---------- UI render ----------
+function renderSummary(rows){
+  const tb=$id("tbody");
+  tb.innerHTML = rows.map(r=>{
+    const latest = r.latest
+      ? `${pillConclusion(r.latest.conclusion)} <span class="mono">${fmtDt(r.latest.when)}</span> <a href="${r.latest.url}" target="_blank" rel="noopener">#${r.latest.number}</a>`
+      : "—";
+    const activeCount = r.activeFiltered.length;
+    const age = activeCount ? oldestActiveAge(r.activeFiltered) : "";
+    const link = `<a href="${actionsTabLink(r.owner,r.repo)}" target="_blank" rel="noopener">Actions</a>`;
+    const detailsId = `det-${r.owner}-${r.repo}`.replace(/[^a-zA-Z0-9_-]/g,"_");
+    return `
+      <tr>
+        <td class="mono">${r.owner}/${r.repo}
+          <details class="details" id="${detailsId}"><summary class="small">Details</summary>
+            <div class="kv">
+              <div class="muted">Scoping:</div>
+              <div>${r.scopeNote}</div>
+              <div class="muted">Branches scanned:</div>
+              <div>${r.scannedBranches.length ? r.scannedBranches.map(b=>`<span class="badge mono">${b}</span>`).join(' ') : '<span class="muted">all (no scope)</span>'}</div>
+              <div class="muted">Active runs:</div>
+              <div>${r.activeFiltered.length
+                ? r.activeFiltered.map(x=>`<div class="row">
+                    ${pillStatus(x.status)}
+                    <span>${x.name||""}</span>
+                    <span class="mono">#${x.run_number}</span>
+                    <span class="mono">[${x.head_branch||""}]</span>
+                    <span class="mono">${fmtElapsed(x.run_started_at||x.created_at)}</span>
+                    <a href="${x.html_url}" target="_blank" rel="noopener">open</a>
+                  </div>`).join("")
+                : "<span class='muted'>none</span>"}
+              </div>
+              ${r.history && r.history.length ? `
+                <div class="muted">Recent completed:</div>
+                <div>${r.history.map(h=>`
+                  <div class="row">
+                    ${pillConclusion(h.conclusion||"")}
+                    <span>${h.name||""}</span>
+                    <span class="mono">#${h.run_number}</span>
+                    <span class="mono">[${h.head_branch||""}]</span>
+                    <span class="mono">${fmtDt(h.when)}</span>
+                    <a href="${h.url}" target="_blank" rel="noopener">open</a>
+                  </div>`).join("")}
+                </div>` : "" }
+            </div>
+          </details>
+        </td>
+        <td>${latest}</td>
+        <td>${activeCount}</td>
+        <td class="mono">${age}</td>
+        <td>${link}</td>
+      </tr>
+    `;
+  }).join("");
+}
+
+// ---------- Orchestration ----------
+async function scan(){
+  const token=$id("token").value.trim();
+  const ownerInput=$id("owner").value.trim();
+  const source=$id("repoSource").value;
+  const manualOwner = ownerInput; // when repos belong to same owner
+  const branchOverride=$id("branch").value.trim();
+  const include=$id("include").value.trim();
+  const exclude=$id("exclude").value.trim();
+  const repos=parseRepos($id("repos").value);
+  const scopeRecent=$id("scopeRecent").checked;
+  const windowHours=parseInt($id("windowHours").value,10)||48;
+  const maxBranches=parseInt($id("maxBranches").value,10)||5;
+  const showHistory=$id("showHistory").checked;
+
+  if(repos.length===0){ setStatus("No repositories to scan. Fetch or paste a list.","warn"); return; }
+
+  setStatus("Scanning…");
+  const rows=[];
+
+  // Determine owner per repo:
+  // - If owner is provided (org mode), use that.
+  // - If source == mine/manual with mixed owners, we’ll infer owner via a cheap /repos/:owner/:repo GET only if needed.
+  async function inferOwner(repo){
+    if(manualOwner) return manualOwner;
+    // Try to derive by querying via /user/repos list cache? To keep simple, hit a repo endpoint:
+    try{
+      const meta = await ghJson(`https://api.github.com/repos/${repo.includes('/')?repo:(ownerInput?ownerInput+"/":"") + repo}`, token);
+      return meta.owner?.login || ownerInput || "";
+    }catch{
+      // If user provided owner/repo format in textarea, honor that:
+      if(repo.includes('/')) return repo.split('/')[0];
+      // fallback to ownerInput if present
+      return ownerInput || "";
+    }
+  }
+
+  // Utility to split "owner/repo" or plain "repo"
+  function splitRepo(r, ownerGuess){
+    if(r.includes('/')) { const [o,n]=r.split('/'); return {owner:o, repo:n}; }
+    return {owner:ownerGuess, repo:r};
+  }
+
+  try{
+    for(const r of repos){
+      const ownerGuess = await inferOwner(r);
+      const {owner, repo} = splitRepo(r, ownerGuess);
+      if(!owner || !repo){ rows.push({owner:"?", repo:r, latest:null, activeFiltered:[], scannedBranches:[], scopeNote:"invalid owner/repo"}); continue; }
+
+      // 1) Latest completed (branch override respected)
+      const latest = await latestCompleted(owner, repo, branchOverride || "", token);
+
+      // 2) Active runs (no branch param; cheaper to call once per status and filter)
+      const activeAll = await fetchActiveRuns(owner, repo, token);
+
+      // 3) Branch scoping list:
+      let scannedBranches = [];
+      let scopeNote = "all branches";
+      if(branchOverride){
+        scannedBranches = [branchOverride];
+        scopeNote = `override: ${branchOverride}`;
+      } else if(scopeRecent){
+        scannedBranches = await collectRecentBranches(owner, repo, windowHours, maxBranches, token);
+        scopeNote = scannedBranches.length
+          ? `recent ${scannedBranches.length} branch(es) in last ${windowHours}h`
+          : `no recent branches in last ${windowHours}h (showing none)`;
+      } else {
+        // all branches
+        scannedBranches = [];
+        scopeNote = "all branches (no scope)";
+      }
+
+      // 4) Filter active runs to scoped branches (or all if no scope / override empty)
+      let activeFiltered = activeAll;
+      if(branchOverride){
+        activeFiltered = activeAll.filter(x=>x.head_branch===branchOverride);
+      } else if(scopeRecent){
+        if(scannedBranches.length>0){
+          const set=new Set(scannedBranches);
+          activeFiltered = activeAll.filter(x=> set.has(x.head_branch));
+        } else {
+          activeFiltered = []; // no recent branches; show none
+        }
+      } // else no scope: keep all
+
+      // 5) Optional small history list (latest 5 completed)
+      let history = null;
+      if(showHistory){
+        const u=new URL(`https://api.github.com/repos/${owner}/${repo}/actions/runs`);
+        u.searchParams.set("status","completed");
+        u.searchParams.set("per_page","5");
+        if(branchOverride) u.searchParams.set("branch", branchOverride);
+        const data=await ghJson(u, token);
+        history = (data.workflow_runs||[]).map(h=>({
+          conclusion:h.conclusion, when:h.run_started_at||h.created_at, url:h.html_url,
+          name:h.name||"", run_number:h.run_number, head_branch:h.head_branch||""
+        }));
+      }
+
+      // 6) Include/exclude repo filters (by name) at the end too (defensive)
+      if((include && !globMatch(repo, include)) || (exclude && globMatch(repo, exclude))){
+        continue;
+      }
+
+      rows.push({
+        owner, repo, latest,
+        activeFiltered,
+        scannedBranches,
+        scopeNote,
+        history
+      });
+    }
+
+    // Sort: active first, then latest time desc
+    rows.sort((a,b)=>{
+      const aActive = a.activeFiltered.length ? 1 : 0;
+      const bActive = b.activeFiltered.length ? 1 : 0;
+      if(aActive!==bActive) return bActive - aActive;
+      const at = a.latest ? new Date(a.latest.when).getTime() : 0;
+      const bt = b.latest ? new Date(b.latest.when).getTime() : 0;
+      return bt - at;
+    });
+
+    renderSummary(rows);
+
+    const activeRepos = rows.filter(r=>r.activeFiltered.length).length;
+    const msg = `Scanned ${rows.length} repo(s). ${activeRepos} with active runs.`;
+    setStatus(msg, "ok");
+  }catch(e){
+    console.error(e);
+    setStatus(`Error: ${e.message}`, "err");
+  }
+}
+
+// ---------- Events ----------
+$id("fetchReposBtn").addEventListener("click", fetchRepos);
+$id("scanBtn").addEventListener("click", scan);
+$id("clearBtn").addEventListener("click", ()=>{ $id("tbody").innerHTML=""; setStatus("Cleared."); });
+
+$id("autoRefresh").addEventListener("change", e=>{
+  if(e.target.checked){
+    const run=()=>scan();
+    run();
+    const secs=parseInt($id("interval").value,10)||30;
+    timer=setInterval(run, secs*1000);
+    setStatus(`Auto-refresh every ${secs}s`);
+  } else {
+    if(timer) clearInterval(timer);
+    timer=null;
+    setStatus("Auto-refresh off.");
+  }
+});
+$id("interval").addEventListener("change", ()=>{
+  if($id("autoRefresh").checked){
+    $id("autoRefresh").checked=false;
+    if(timer) clearInterval(timer);
+    timer=null;
+    setStatus("Auto-refresh off.");
+  }
+});
+
+// Live “elapsed” updater for detail panels
+setInterval(()=>{
+  document.querySelectorAll(".details .row .mono").forEach(() => {}); // no-op placeholder
+}, 1000);
+</script>
+</body>
+</html>

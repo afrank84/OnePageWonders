@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Kids Chores — 2-Child Dashboard</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --panel: #111827;
+    --accent: #60a5fa;
+    --muted: #94a3b8;
+    --text: #e5e7eb;
+    --good: #22c55e;
+    --warn: #f59e0b;
+    --bad: #ef4444;
+    --ring: #1f2937;
+  }
+  html, body {
+    height: 100%;
+    background: radial-gradient(1200px 800px at 10% -10%, #0b1220, var(--bg));
+    color: var(--text);
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Inter, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+    margin: 0;
+  }
+  .wrap {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 20px clamp(14px, 3vw, 28px) 40px;
+  }
+  header {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 16px;
+    align-items: center;
+    margin-bottom: 14px;
+  }
+  h1 {
+    font-size: clamp(20px, 3.2vw, 28px);
+    margin: 0;
+    letter-spacing: 0.2px;
+  }
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  button, .btn {
+    background: #0b1220;
+    color: var(--text);
+    border: 1px solid #243144;
+    padding: 8px 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: transform .02s ease, background .15s ease, border-color .15s ease;
+    font-weight: 600;
+    font-size: 14px;
+  }
+  button:hover { background: #0e1625; border-color: #2e4057; }
+  button:active { transform: scale(0.99); }
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: clamp(14px, 2.4vw, 26px);
+  }
+  @media (max-width: 900px) {
+    .grid { grid-template-columns: 1fr; }
+  }
+  .card {
+    background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.015));
+    border: 1px solid #1f2937;
+    border-radius: 16px;
+    box-shadow: 0 10px 24px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.03);
+    overflow: hidden;
+  }
+  .card-head {
+    display: grid;
+    grid-template-columns: auto 120px;
+    gap: 14px;
+    align-items: center;
+    padding: 14px 16px 8px 16px;
+    border-bottom: 1px solid var(--ring);
+  }
+  .name-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  .name-row input[type="text"]{
+    background: #0b1220;
+    border: 1px solid #1f2937;
+    color: var(--text);
+    padding: 10px 12px;
+    border-radius: 10px;
+    font-size: 16px;
+    width: 100%;
+  }
+  .chart-box {
+    display: grid;
+    place-items: center;
+    position: relative;
+    width: 120px;
+    height: 120px;
+  }
+  .pct {
+    position: absolute;
+    font-weight: 800;
+    font-size: 20px;
+    color: var(--text);
+    text-shadow: 0 1px 0 rgba(0,0,0,0.2);
+  }
+  .card-body {
+    padding: 14px 16px 16px 16px;
+  }
+  .adder {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .adder input {
+    background: #0b1220;
+    border: 1px solid #1f2937;
+    color: var(--text);
+    padding: 10px 12px;
+    border-radius: 10px;
+    font-size: 14px;
+  }
+  ul.chores { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  .item {
+    display: grid;
+    grid-template-columns: auto 32px;
+    gap: 8px;
+    align-items: center;
+    background: #0c1423;
+    border: 1px solid #1c2636;
+    border-radius: 12px;
+    padding: 10px 10px 10px 12px;
+  }
+  .left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+  .left input[type="checkbox"] {
+    width: 18px; height: 18px; cursor: pointer;
+    accent-color: var(--accent);
+  }
+  .txt {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .rm {
+    width: 28px; height: 28px;
+    display: grid; place-items: center;
+    border-radius: 8px;
+    border: 1px solid #233049;
+    background: #0b1220;
+    cursor: pointer;
+  }
+  .rm:hover { background: #101a2b; }
+  .muted { color: var(--muted); font-size: 12px; }
+  footer { margin-top: 18px; color: var(--muted); font-size: 12px; }
+  .spacer { flex: 1; }
+  .tag {
+    display: inline-block;
+    border: 1px dashed #2a3b54;
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-size: 12px;
+    color: #cbd5e1;
+    background: #0b1220;
+  }
+  dialog {
+    border: 1px solid #243144;
+    border-radius: 14px;
+    padding: 0;
+    background: #0b1220;
+    color: var(--text);
+    max-width: min(800px, 92vw);
+    width: 800px;
+  }
+  .dlg-head {
+    display: flex; align-items: center; gap: 10px;
+    padding: 14px 16px; border-bottom: 1px solid #1f2937;
+  }
+  .dlg-body { padding: 12px 16px 16px 16px; }
+  .dlg-actions {
+    display: flex; gap: 10px; justify-content: flex-end;
+    padding: 12px 16px; border-top: 1px solid #1f2937;
+  }
+  textarea.json-box {
+    width: 100%; min-height: 260px; resize: vertical;
+    background: #0c1423; color: #e5e7eb;
+    border: 1px solid #1f2937; border-radius: 10px;
+    padding: 10px 12px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 13px; line-height: 1.4;
+  }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .danger { border-color: #4b2a2a; color: #fecaca; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Kids Chore Tracker <span class="tag">2 children</span></h1>
+    <div class="toolbar">
+      <button id="btnExport">Export JSON</button>
+      <button id="btnExportFile">Download JSON</button>
+      <button id="btnImport">Import (Paste)</button>
+      <input type="file" id="fileInput" accept="application/json" style="display:none">
+      <button id="btnImportFile">Import (File)</button>
+      <span class="spacer"></span>
+      <button id="btnReset" title="Clear all data" class="danger">Reset</button>
+    </div>
+  </header>
+
+  <div class="grid" id="cards">
+    <!-- Cards injected by JS -->
+  </div>
+
+  <footer>
+    Autosaves to your browser (localStorage). Export JSON to back up or move devices.
+  </footer>
+</div>
+
+<!-- Export / Import Dialog -->
+<dialog id="jsonDialog">
+  <div class="dlg-head">
+    <strong id="dlgTitle">JSON</strong>
+    <span class="spacer"></span>
+    <button id="dlgClose" title="Close">Close</button>
+  </div>
+  <div class="dlg-body">
+    <textarea id="jsonBox" class="json-box" spellcheck="false"></textarea>
+    <div class="hint" id="jsonHint"></div>
+  </div>
+  <div class="dlg-actions" id="dlgActions">
+    <!-- Filled dynamically -->
+  </div>
+</dialog>
+
+<script>
+(function(){
+  const STORAGE_KEY = "kids-chores-v1";
+
+  /*** State ***/
+  let state = {
+    children: [
+      { name: "Child 1", chores: [
+        { id: uid(), text: "Make bed", done: false },
+        { id: uid(), text: "Brush teeth", done: false },
+        { id: uid(), text: "Feed pet", done: false },
+      ]},
+      { name: "Child 2", chores: [
+        { id: uid(), text: "Tidy toys", done: false },
+        { id: uid(), text: "Set the table", done: false },
+      ]},
+    ]
+  };
+
+  /*** Elements ***/
+  const cardsEl = document.getElementById('cards');
+  const btnExport = document.getElementById('btnExport');
+  const btnExportFile = document.getElementById('btnExportFile');
+  const btnImport = document.getElementById('btnImport');
+  const btnImportFile = document.getElementById('btnImportFile');
+  const fileInput = document.getElementById('fileInput');
+  const btnReset = document.getElementById('btnReset');
+
+  const jsonDialog = document.getElementById('jsonDialog');
+  const dlgTitle = document.getElementById('dlgTitle');
+  const dlgClose = document.getElementById('dlgClose');
+  const jsonBox = document.getElementById('jsonBox');
+  const jsonHint = document.getElementById('jsonHint');
+  const dlgActions = document.getElementById('dlgActions');
+
+  /*** Init ***/
+  load();
+  render();
+
+  /*** Event wiring (global) ***/
+  btnExport.addEventListener('click', () => openExportDialog());
+  btnExportFile.addEventListener('click', () => downloadJSON());
+  btnImport.addEventListener('click', () => openImportDialog());
+  btnImportFile.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', handleFileImport);
+  btnReset.addEventListener('click', resetAll);
+  dlgClose.addEventListener('click', () => jsonDialog.close());
+
+  /*** Functions ***/
+  function uid(){ return Math.random().toString(36).slice(2) + Date.now().toString(36); }
+
+  function load(){
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (isValidState(parsed)) state = parsed;
+      }
+    } catch(e) {
+      console.warn("Failed to load saved state:", e);
+    }
+  }
+
+  function save(){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }
+
+  function isValidState(obj){
+    if (!obj || !Array.isArray(obj.children) || obj.children.length !== 2) return false;
+    for (const c of obj.children) {
+      if (typeof c.name !== 'string') return false;
+      if (!Array.isArray(c.chores)) return false;
+      for (const ch of c.chores) {
+        if (typeof ch.id !== 'string' || typeof ch.text !== 'string' || typeof ch.done !== 'boolean') return false;
+      }
+    }
+    return true;
+  }
+
+  function render(){
+    cardsEl.innerHTML = '';
+    state.children.forEach((child, idx) => {
+      const card = document.createElement('section');
+      card.className = 'card';
+      card.innerHTML = `
+        <div class="card-head">
+          <div class="name-row">
+            <input type="text" aria-label="Child ${idx+1} name"
+                   value="${escapeHtml(child.name)}"
+                   data-role="childName" data-index="${idx}">
+          </div>
+          <div class="chart-box">
+            <canvas width="120" height="120" data-role="donut" data-index="${idx}"></canvas>
+            <div class="pct" data-role="pct" data-index="${idx}">0%</div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="adder">
+            <input type="text" placeholder="Add a chore and press Enter"
+                   data-role="addInput" data-index="${idx}">
+            <button data-role="addBtn" data-index="${idx}">Add</button>
+          </div>
+          <ul class="chores" data-role="list" data-index="${idx}">
+            ${child.chores.map(ch => itemTemplate(idx, ch)).join('')}
+          </ul>
+          <div class="muted" style="margin-top:8px">
+            ${child.chores.filter(c=>c.done).length} of ${child.chores.length} completed
+          </div>
+        </div>
+      `;
+      cardsEl.appendChild(card);
+    });
+
+    // Wire per-card handlers after insertion
+    cardsEl.querySelectorAll('[data-role="childName"]').forEach(inp => {
+      inp.addEventListener('input', (e) => {
+        const i = +e.target.dataset.index;
+        state.children[i].name = e.target.value.trim() || `Child ${i+1}`;
+        save();
+      });
+    });
+
+    cardsEl.querySelectorAll('[data-role="addBtn"]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const i = +e.target.dataset.index;
+        const input = cardsEl.querySelector(`[data-role="addInput"][data-index="${i}"]`);
+        tryAddChore(i, input);
+      });
+    });
+
+    cardsEl.querySelectorAll('[data-role="addInput"]').forEach(inp => {
+      inp.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          const i = +e.target.dataset.index;
+          tryAddChore(i, e.target);
+        }
+      });
+    });
+
+    cardsEl.querySelectorAll('ul.chores').forEach(ul => {
+      ul.addEventListener('change', (e) => {
+        const i = +ul.dataset.index;
+        const li = e.target.closest('li.item');
+        if (!li) return;
+        const id = li.dataset.id;
+        const checked = !!e.target.checked;
+        const ch = state.children[i].chores.find(c => c.id === id);
+        if (ch) ch.done = checked;
+        save();
+        updateStatsAndChart(i);
+      });
+      ul.addEventListener('click', (e) => {
+        const btn = e.target.closest('.rm');
+        if (!btn) return;
+        const i = +ul.dataset.index;
+        const li = btn.closest('li.item');
+        const id = li.dataset.id;
+        state.children[i].chores = state.children[i].chores.filter(c => c.id !== id);
+        save();
+        render(); // re-render section to keep things simple
+      });
+    });
+
+    // Draw charts
+    state.children.forEach((_, i) => updateStatsAndChart(i));
+  }
+
+  function itemTemplate(childIndex, ch){
+    return `
+      <li class="item" data-id="${ch.id}">
+        <div class="left">
+          <input type="checkbox" ${ch.done ? 'checked' : ''} aria-label="Mark chore complete">
+          <div class="txt">${escapeHtml(ch.text)}</div>
+        </div>
+        <button class="rm" title="Delete chore" aria-label="Delete chore">✕</button>
+      </li>
+    `;
+  }
+
+  function tryAddChore(i, inputEl){
+    const txt = (inputEl.value || '').trim();
+    if (!txt) return;
+    state.children[i].chores.push({ id: uid(), text: txt, done: false });
+    inputEl.value = '';
+    save();
+    render();
+  }
+
+  function updateStatsAndChart(i){
+    const child = state.children[i];
+    const total = child.chores.length;
+    const done = child.chores.filter(c => c.done).length;
+    const pct = total ? Math.round((done / total) * 100) : 0;
+
+    // Update small text line (completed count)
+    const card = cardsEl.children[i];
+    if (card){
+      const muted = card.querySelector('.muted');
+      if (muted) muted.textContent = `${done} of ${total} completed`;
+    }
+
+    // Update center percentage text
+    const pctEl = document.querySelector(`.pct[data-index="${i}"]`);
+    if (pctEl) pctEl.textContent = `${pct}%`;
+
+    // Draw donut
+    const canvas = document.querySelector(`canvas[data-role="donut"][data-index="${i}"]`);
+    if (canvas) drawDonut(canvas, pct / 100, total);
+  }
+
+  function drawDonut(canvas, ratio, total){
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    ctx.clearRect(0,0,W,H);
+
+    const cx = W/2, cy = H/2, r = 46;
+    const lw = 16;
+
+    // Background ring
+    ctx.beginPath();
+    ctx.lineWidth = lw;
+    ctx.strokeStyle = '#1f2a3a';
+    ctx.arc(cx, cy, r, 0, Math.PI*2);
+    ctx.stroke();
+
+    // Foreground arc
+    const start = -Math.PI/2;
+    const end = start + (Math.PI*2)*ratio;
+    ctx.beginPath();
+    ctx.lineWidth = lw;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = total === 0 ? '#2a3b54' : '#60a5fa';
+    ctx.arc(cx, cy, r, start, end);
+    ctx.stroke();
+
+    // Small inner ring for depth
+    ctx.beginPath();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    ctx.arc(cx, cy, r - lw/2 - 3, 0, Math.PI*2);
+    ctx.stroke();
+  }
+
+  function escapeHtml(s){
+    return s.replace(/[&<>"']/g, c => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[c]));
+  }
+
+  /*** Export / Import ***/
+  function openExportDialog(){
+    dlgTitle.textContent = 'Export JSON';
+    jsonBox.value = JSON.stringify(state, null, 2);
+    jsonHint.textContent = 'Copy this JSON to back up or share your chore setup.';
+    dlgActions.innerHTML = '';
+    const copyBtn = mkBtn('Copy');
+    const closeBtn = mkBtn('Close');
+    copyBtn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(jsonBox.value);
+        copyBtn.textContent = 'Copied!';
+        setTimeout(()=> copyBtn.textContent = 'Copy', 1200);
+      } catch {
+        alert('Clipboard blocked by browser. Manually select and copy.');
+      }
+    });
+    closeBtn.addEventListener('click', ()=> jsonDialog.close());
+    dlgActions.append(copyBtn, closeBtn);
+    jsonDialog.showModal();
+  }
+
+  function openImportDialog(){
+    dlgTitle.textContent = 'Import JSON';
+    jsonBox.value = `{
+  "children": [
+    { "name": "Child 1", "chores": [ { "id": "abc", "text": "Example", "done": false } ] },
+    { "name": "Child 2", "chores": [ { "id": "def", "text": "Sample", "done": true } ] }
+  ]
+}`;
+    jsonHint.textContent = 'Paste your JSON here and click Import.';
+    dlgActions.innerHTML = '';
+    const importBtn = mkBtn('Import');
+    const cancelBtn = mkBtn('Cancel');
+    importBtn.addEventListener('click', () => {
+      try {
+        const incoming = JSON.parse(jsonBox.value);
+        if (!isValidState(incoming)) {
+          alert('Invalid JSON format. Expecting exactly 2 children and chores with id/text/done.');
+          return;
+        }
+        state = incoming;
+        save();
+        render();
+        jsonDialog.close();
+      } catch (e) {
+        alert('Could not parse JSON: ' + e.message);
+      }
+    });
+    cancelBtn.addEventListener('click', ()=> jsonDialog.close());
+    dlgActions.append(importBtn, cancelBtn);
+    jsonDialog.showModal();
+  }
+
+  function handleFileImport(evt){
+    const file = evt.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const incoming = JSON.parse(reader.result);
+        if (!isValidState(incoming)) {
+          alert('Invalid JSON format. Expecting exactly 2 children and chores with id/text/done.');
+          return;
+        }
+        state = incoming;
+        save();
+        render();
+      } catch(e) {
+        alert('Could not parse file: ' + e.message);
+      } finally {
+        fileInput.value = '';
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  function downloadJSON(){
+    const json = JSON.stringify(state, null, 2);
+    const blob = new Blob([json], {type: 'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const stamp = new Date().toISOString().slice(0,10);
+    a.href = url;
+    a.download = `kids-chores-${stamp}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(()=> URL.revokeObjectURL(url), 1500);
+  }
+
+  function resetAll(){
+    if (!confirm('This will clear all chores and names. Continue?')) return;
+    localStorage.removeItem(STORAGE_KEY);
+    state = {
+      children: [
+        { name: "Child 1", chores: [] },
+        { name: "Child 2", chores: [] },
+      ]
+    };
+    save();
+    render();
+  }
+
+  function mkBtn(label){
+    const b = document.createElement('button');
+    b.textContent = label;
+    return b;
+  }
+})();
+</script>
+</body>
+</html>

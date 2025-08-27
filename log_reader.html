@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Log Highlighter — Pro (Offline)</title>
+<style>
+:root{
+  --bg:#0f1220;--panel:#151935;--muted:#8a93b2;--text:#e6e9f7;--accent:#6aa0ff;--border:#232a52;
+  --ok:#2dd4bf;--warn:#fbbf24;--error:#ef4444;--info:#60a5fa;--debug:#9ca3af;--chip:#1d2347;
+}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 ui-sans-serif,system-ui}
+header{display:flex;gap:12px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border)}
+header h1{font-size:16px;margin:0}
+.btn{background:var(--panel);color:var(--text);border:1px solid var(--border);padding:8px 10px;border-radius:10px;cursor:pointer}
+.btn:hover{outline:2px solid rgba(106,160,255,.25)}
+.wrap{padding:12px;display:grid;gap:12px}
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:10px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+label{color:var(--muted);font-size:12px}
+input[type=text],input[type=number],select{background:#0e1330;color:var(--text);border:1px solid var(--border);border-radius:10px;padding:8px 10px}
+textarea{width:100%;height:280px;background:#0b0f22;color:var(--text);border:1px solid var(--border);border-radius:12px;padding:10px;resize:vertical;font-family:ui-monospace,Consolas,monospace;font-size:13px}
+.grid{display:grid;gap:12px;grid-template-columns:1fr 1fr}
+@media(max-width:1100px){.grid{grid-template-columns:1fr}}
+.viewer{border:1px solid var(--border);border-radius:12px;background:#0b0f22;overflow:auto;height:280px;font-family:ui-monospace,Consolas,monospace;font-size:13px}
+.lines{counter-reset:line}
+.line{display:grid;grid-template-columns:auto 1fr;gap:10px;padding:2px 10px;white-space:pre}
+.line::before{counter-increment:line;content:counter(line);color:var(--muted);text-align:right;width:3ch}
+.line:nth-child(odd){background:rgba(255,255,255,.02)}
+mark{padding:0;background:transparent;border-bottom:2px solid var(--accent)}
+.sev-ERROR{background:rgba(239,68,68,.12)}.sev-WARN{background:rgba(251,191,36,.12)}.sev-INFO{background:rgba(96,165,250,.10)}.sev-DEBUG{background:rgba(156,163,175,.10)}.sev-TRACE{background:rgba(99,102,241,.10)}
+.badge{font-size:11px;padding:2px 6px;border-radius:999px;border:1px solid var(--border)}
+#heat{height:280px;width:10px;background:linear-gradient(to bottom,#2dd4bf,#60a5fa,#fbbf24,#ef4444);opacity:.3;border-radius:6px}
+footer{padding:10px 16px;color:var(--muted);border-top:1px solid var(--border);display:flex;justify-content:space-between}
+.toggle{display:inline-flex;gap:6px;align-items:center;border:1px solid var(--border);border-radius:999px;padding:4px 8px;background:#10163b}
+.toggle input{accent-color:#6aa0ff}
+.small{font-size:12px}
+.kbd{padding:2px 6px;border:1px solid var(--border);border-radius:6px;background:#0c1333}
+.add{background:#122b1f;border-color:#1e3a34}
+.danger{background:#27151a;border-color:#3a1a23}
+.light{--bg:#f7f7fb;--panel:#ffffff;--muted:#5f667a;--text:#1d2233;--accent:#365cff;--border:#e6e8f0;--chip:#f0f2fa}
+</style>
+</head>
+<body>
+<header>
+  <h1>Log Highlighter — Pro</h1>
+  <div class="row" style="margin-left:auto">
+    <button class="btn" id="btnLight">Toggle Light/Dark</button>
+    <button class="btn" id="btnSample">Sample</button>
+    <button class="btn" id="btnClear">Clear</button>
+  </div>
+</header>
+
+<div class="wrap">
+  <section class="panel">
+    <div class="row">
+      <label>Patterns (comma or /regex/): <input id="pattern" type="text" placeholder="ERROR, WARN, /timeout|ECONNRESET/" size="40"></label>
+      <label><input id="caseSensitive" type="checkbox"> Case</label>
+      <label><input id="wholeWord" type="checkbox"> Whole word</label>
+      <label><input id="regexMode" type="checkbox"> Force regex</label>
+      <label>Context ±<input id="context" type="number" min="0" max="50" value="0" style="width:70px"></label>
+      <label>Wrap <select id="wrap"><option value="pre">No</option><option value="pre-wrap">Yes</option></select></label>
+    </div>
+    <div class="row">
+      <span class="toggle"><label><input type="checkbox" class="lvl" value="ERROR" checked> ERROR</label><label><input type="checkbox" class="lvl" value="WARN" checked> WARN</label><label><input type="checkbox" class="lvl" value="INFO" checked> INFO</label><label><input type="checkbox" class="lvl" value="DEBUG" checked> DEBUG</label><label><input type="checkbox" class="lvl" value="TRACE" checked> TRACE</label></span>
+      <span class="toggle"><label><input id="showOnlyMatches" type="checkbox"> Show only matches</label></span>
+      <span class="toggle"><label><input id="collapseMinute" type="checkbox"> Collapse by minute</label></span>
+      <span class="toggle"><label><input id="diffMode" type="checkbox"> Diff mode</label></span>
+      <span class="toggle">
+        <select id="profileSelect"></select>
+        <button class="btn add" id="btnSaveProfile">Save profile</button>
+        <button class="btn danger" id="btnDeleteProfile">Delete</button>
+      </span>
+    </div>
+  </section>
+
+  <section class="grid">
+    <div class="panel">
+      <div class="row small" style="justify-content:space-between;align-items:center"><span>Input A</span><span>
+        <input id="fileA" type="file" class="btn" accept=".log,.txt,.json,.yaml,.yml,.ndjson,.csv,.*">
+      </span></div>
+      <textarea id="inputA" placeholder="Paste logs for A or drop a file..."></textarea>
+    </div>
+    <div class="panel">
+      <div class="row small" style="justify-content:space-between;align-items:center"><span>Input B (optional for diff)</span><span>
+        <input id="fileB" type="file" class="btn" accept=".log,.txt,.json,.yaml,.yml,.ndjson,.csv,.*">
+      </span></div>
+      <textarea id="inputB" placeholder="Paste logs for B (optional)"></textarea>
+    </div>
+  </section>
+
+  <section class="grid">
+    <div class="panel">
+      <div class="row small" style="justify-content:space-between;align-items:center">
+        <span>Highlighted Output</span>
+        <span id="counts" class="small"></span>
+      </div>
+      <div class="row" style="gap:6px;align-items:flex-start">
+        <div id="output" class="viewer" style="flex:1"><div class="lines" id="lines"></div></div>
+        <div id="heat" title="Match density"></div>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <button class="btn" id="btnCopy">Copy shown</button>
+        <button class="btn" id="btnDownloadTxt">Download .txt</button>
+        <button class="btn" id="btnDownloadHtml">Download .html</button>
+        <button class="btn" id="btnDownloadCsv">Export CSV</button>
+        <button class="btn" id="btnDownloadJson">Export JSON</button>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="row small" style="justify-content:space-between;align-items:center">
+        <span>Timeline (per minute)</span>
+        <span class="small">drag to zoom: <span class="kbd">Shift + drag</span></span>
+      </div>
+      <canvas id="chart" height="260"></canvas>
+    </div>
+  </section>
+</div>
+
+<footer>
+  <div class="small">Tip: Use <span class="kbd">Ctrl/Cmd+F</span> to search in the highlighted pane.</div>
+  <div class="small">Offline • No data leaves your browser</div>
+</footer>
+
+<script>
+const $ = (id)=>document.getElementById(id);
+const escapeHtml = (s)=>s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
+const qs = (sel,root=document)=>Array.from(root.querySelectorAll(sel));
+
+function splitPatterns(raw){raw=(raw||'').trim();if(!raw) return[];const parts=[];let i=0;while(i<raw.length){if(raw[i]=='/'){let j=i+1,b='';while(j<raw.length&&raw[j]!='/') b+=raw[j++];if(j<raw.length&&raw[j]=='/'){let k=j+1,f='';while(k<raw.length&&/[gimsuyd]/.test(raw[k])) f+=raw[k++];parts.push({type:'regex',value:b,flags:f});i=k;if(raw[i]==',') i++;continue;}}let j=i;while(j<raw.length&&raw[j]!=',') j++;const token=raw.slice(i,j).trim();if(token) parts.push({type:'literal',value:token});i=j+1;}return parts;}
+function buildRegex(parts,{caseSensitive,wholeWord,forceRegex}){const srcs=parts.map(p=>{if(p.type==='regex'||forceRegex) return p.value;return p.value.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');});if(!srcs.length) return null;let src=srcs.join('|');if(wholeWord) src=`(?<!\\w)(?:${src})(?!\\w)`;try{return new RegExp(src,caseSensitive?'g':'gi')}catch(e){return null}}
+function sevOf(line){if(/\bERROR\b/.test(line)) return 'ERROR';if(/\bWARN(?:ING)?\b/.test(line)) return 'WARN';if(/\bINFO\b/.test(line)) return 'INFO';if(/\bDEBUG\b/.test(line)) return 'DEBUG';if(/\bTRACE\b/.test(line)) return 'TRACE';return ''}
+function tsOf(line){const iso=line.match(/(\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2})/);if(iso) return new Date(iso[1].replace(' ','T'));const rfc=line.match(/(\w{3},\s\d{2}\s\w{3}\s\d{4}\s\d{2}:\d{2}:\d{2})/);if(rfc) return new Date(rfc[1]);return null}
+
+function highlightLine(line,regex){const safe=escapeHtml(line);if(!regex) return safe;let out='',last=0;for(const m of safe.matchAll(regex)){out+=safe.slice(last,m.index)+"<mark>"+safe.slice(m.index,m.index+m[0].length)+"</mark>";last=m.index+m[0].length;}return out+safe.slice(last)}
+
+function getActiveLevels(){return new Set(qs('.lvl').filter(x=>x.checked).map(x=>x.value))}
+
+function render(){const A=$('inputA').value.replace(/\r\n?/g,'\n');const B=$('inputB').value.replace(/\r\n?/g,'\n');const linesA=A?A.split('\n'):[];const linesB=B?B.split('\n'):[];const parts=splitPatterns($('pattern').value);const regex=buildRegex(parts,{caseSensitive:$('caseSensitive').checked,wholeWord:$('wholeWord').checked,forceRegex:$('regexMode').checked});const levels=getActiveLevels();const showOnly=$('showOnlyMatches').checked;const ctx=Math.max(0,parseInt($('context').value||'0',10));const wrap=$('wrap').value;const collapse=$('collapseMinute').checked;const doDiff=$('diffMode').checked;
+  const all=doDiff?diffLines(linesA,linesB):linesA; // base set for single view
+  const container=$('lines');container.innerHTML='';container.style.whiteSpace=wrap;
+  const keep=new Set();let totalMatches=0;let buckets=new Map(); // minute=>count
+  const src=doDiff?all:linesA;
+  // pre-scan for showOnly
+  if(showOnly && regex){src.forEach((ln,idx)=>{if(matchLine(ln,regex,levels)){totalMatches++;for(let j=Math.max(0,idx-ctx);j<=Math.min(src.length-1,idx+ctx);j++) keep.add(j);} regex.lastIndex=0;});}
+  const frag=document.createDocumentFragment();let shown=0;src.forEach((ln,i)=>{if(doDiff){ // ln contains diff markers
+      const isAdd=ln.startsWith('+ '),isDel=ln.startsWith('- '),isEq=ln.startsWith('  ');
+      const raw=ln.slice(2);const sev=sevOf(raw);if(levels.size&&sev&&!levels.has(sev)) return;const show=(!showOnly)||matchLine(raw,regex,levels);
+      if(showOnly&&!show) return;
+      const div=document.createElement('div');div.className='line '+(sev?('sev-'+sev):'');div.innerHTML=(isAdd?'[+] ':'   ')+(isDel?'[-] ':'   ')+highlightLine(raw,regex);frag.appendChild(div);shown++; if(regex && regex.test(raw)) totalMatches++; regex && (regex.lastIndex=0);
+      const t=tsOf(raw);if(t){const key=t.toISOString().slice(0,16);buckets.set(key,(buckets.get(key)||0)+1)}
+    } else {
+      let raw=ln;const sev=sevOf(raw);if(levels.size&&sev&&!levels.has(sev)) return;const idx=i;if(showOnly&&!keep.has(idx)) return;const div=document.createElement('div');div.className='line '+(sev?('sev-'+sev):'');if(collapse){const t=tsOf(raw);if(t){raw=`[${t.toISOString().slice(0,16)}] `+raw}}
+      div.innerHTML=highlightLine(raw,regex);frag.appendChild(div);shown++; if(regex && regex.test(raw)) totalMatches++; regex && (regex.lastIndex=0);
+      const t=tsOf(raw);if(t){const key=t.toISOString().slice(0,16);buckets.set(key,(buckets.get(key)||0)+1)}
+    }
+  });
+  container.appendChild(frag);
+  $('counts').textContent=`${src.length} lines • ${shown} shown${regex?` • ${totalMatches} matches`:''}`;
+  drawHeat(src,regex,levels);drawChart(buckets);
+}
+
+function matchLine(line,regex,levels){if(levels.size){const s=sevOf(line);if(s && !levels.has(s)) return false}if(!regex) return true;const ok=regex.test(line);regex.lastIndex=0;return ok}
+
+// Simple diff: line-by-line LCS
+function diffLines(a,b){const m=a.length,n=b.length;const dp=Array(m+1).fill(0).map(()=>Array(n+1).fill(0));for(let i=m-1;i>=0;i--)for(let j=n-1;j>=0;j--)dp[i][j]=a[i]===b[j]?dp[i+1][j+1]+1:Math.max(dp[i+1][j],dp[i][j+1]);const out=[];let i=0,j=0;while(i<m&&j<n){if(a[i]===b[j]){out.push('  '+a[i]);i++;j++;}else if(dp[i+1][j]>=dp[i][j+1]){out.push('- '+a[i]);i++;}else{out.push('+ '+b[j]);j++;}}while(i<m){out.push('- '+a[i++])}while(j<n){out.push('+ '+b[j++])}return out}
+
+function download(name,content,type='text/plain'){const blob=new Blob([content],{type});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1500)}
+function getVisibleText(){const tmp=document.createElement('div');tmp.innerHTML=$('lines').innerHTML.replace(/<mark>|<\/mark>/g,'').replace(/<div class=\"line[^\"]*\">/g,'').replace(/<\/div>/g,'\n').replace(/<span[^>]*>|<\/span>/g,'');return tmp.textContent||''}
+function generateHtmlExport(){const output=$('lines').innerHTML;return `<!doctype html><meta charset="utf-8"><title>Highlighted Log</title><style>body{font-family:ui-monospace,Consolas,monospace;background:#0b0f22;color:#e6e9f7}.line{display:grid;grid-template-columns:auto 1fr;gap:10px;padding:2px 10px;white-space:pre-wrap}.line:nth-child(odd){background:rgba(255,255,255,.03)}mark{padding:0;background:transparent;border-bottom:2px solid #6aa0ff}.sev-ERROR{background:rgba(239,68,68,.12)}.sev-WARN{background:rgba(251,191,36,.12)}.sev-INFO{background:rgba(96,165,250,.10)}.sev-DEBUG{background:rgba(156,163,175,.10)}.lines{counter-reset:line}.line::before{counter-increment:line;content:counter(line);color:#8a93b2;text-align:right;width:3ch}</style><div class="lines">${output}</div>`}
+
+function exportCsv(){const lines=getVisibleText().split('\n').filter(Boolean);const csv=['line,text'];lines.forEach((l,i)=>{csv.push(`${i+1},"${l.replace(/"/g,'""')}"`)});return csv.join('\n')}
+function exportJson(){const lines=getVisibleText().split('\n').filter(Boolean);return JSON.stringify(lines,null,2)}
+
+// Heatmap (very simple density bar)
+function drawHeat(lines,regex,levels){const el=$('heat');const h=el.clientHeight||280;const n=lines.length||1;const canvas=document.createElement('canvas');canvas.width=10;canvas.height=h;const ctx=canvas.getContext('2d');for(let y=0;y<h;y++){const i=Math.floor((y/h)*n);const ln=lines[i]||'';let d=0;if(matchLine(ln,regex,levels)) d=1;ctx.fillStyle=`rgba(106,160,255,${d?0.7:0.05})`;ctx.fillRect(0,y,10,1);}el.innerHTML='';el.appendChild(canvas)}
+
+// Timeline chart (per minute)
+let chartZoom=[0,1];
+function drawChart(buckets){const cvs=$('chart');const w=cvs.clientWidth||cvs.width,h=cvs.height;const ctx=cvs.getContext('2d');ctx.clearRect(0,0,w,h);const entries=[...buckets.entries()].sort(([a],[b])=>a<b?-1:1);if(!entries.length){ctx.fillStyle='#6a7397';ctx.fillText('No timestamps detected',10,20);return}const xs=entries.map(([k])=>new Date(k+':00Z').getTime());const ys=entries.map(([,v])=>v);const minx=xs[0],maxx=xs[xs.length-1];const miny=0,maxy=Math.max(...ys);const zx=minx+(maxx-minx)*chartZoom[0];const zx2=minx+(maxx-minx)*chartZoom[1];function X(t){return Math.round((t-zx)/(zx2-zx)*(w-30))+20}function Y(v){return h-20-Math.round((v-miny)/(maxy-miny||1)*(h-40))}
+  ctx.strokeStyle='#334';ctx.beginPath();ctx.moveTo(20,10);ctx.lineTo(20,h-20);ctx.lineTo(w-10,h-20);ctx.stroke();ctx.beginPath();entries.forEach(([k,v],i)=>{const x=X(new Date(k+':00Z').getTime()),y=Y(v);if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y)});ctx.strokeStyle='#6aa0ff';ctx.lineWidth=2;ctx.stroke();
+  // points
+  entries.forEach(([k,v])=>{const x=X(new Date(k+':00Z').getTime()),y=Y(v);ctx.fillStyle='rgba(106,160,255,.9)';ctx.beginPath();ctx.arc(x,y,2,0,Math.PI*2);ctx.fill();});
+}
+
+// Zoom by Shift+drag
+(function(){const cvs=$('chart');let drag=false,sx=0;function pos(e){const r=cvs.getBoundingClientRect();return (e.clientX-r.left)/(r.width)}cvs.addEventListener('mousedown',e=>{if(!e.shiftKey) return;drag=true;sx=pos(e)});window.addEventListener('mousemove',e=>{if(!drag) return});window.addEventListener('mouseup',e=>{if(!drag) return;drag=false;let ex=pos(e);if(ex<sx){const t=sx;sx=ex;ex=t}chartZoom=[Math.max(0,Math.min(1,sx)),Math.max(0,Math.min(1,ex))];render()});cvs.addEventListener('dblclick',()=>{chartZoom=[0,1];render()});})();
+
+// Profiles (localStorage)
+function loadProfiles(){const raw=localStorage.getItem('loghl_profiles')||'{}';return JSON.parse(raw)}
+function saveProfiles(obj){localStorage.setItem('loghl_profiles',JSON.stringify(obj))}
+function refreshProfileSelect(){const sel=$('profileSelect');const profiles=loadProfiles();sel.innerHTML='<option value="">Profiles…</option>'+Object.keys(profiles).map(k=>`<option>${k}</option>`).join('')}
+$('btnSaveProfile').addEventListener('click',()=>{const name=prompt('Profile name?');if(!name) return;const profiles=loadProfiles();profiles[name]={pattern:$('pattern').value,caseSensitive:$('caseSensitive').checked,wholeWord:$('wholeWord').checked,regexMode:$('regexMode').checked,levels:[...getActiveLevels()],wrap:$('wrap').value};saveProfiles(profiles);refreshProfileSelect()});
+$('btnDeleteProfile').addEventListener('click',()=>{const name=$('profileSelect').value;if(!name) return;const profiles=loadProfiles();delete profiles[name];saveProfiles(profiles);refreshProfileSelect()});
+$('profileSelect').addEventListener('change',e=>{const name=e.target.value;if(!name) return;const p=loadProfiles()[name];if(!p) return;$('pattern').value=p.pattern||'';$('caseSensitive').checked=!!p.caseSensitive;$('wholeWord').checked=!!p.wholeWord;$('regexMode').checked=!!p.regexMode;qs('.lvl').forEach(x=>x.checked=(p.levels||[]).includes(x.value));$('wrap').value=p.wrap||'pre';render()});
+
+// File inputs and drag & drop
+function wireFile(inputEl,textEl){inputEl.addEventListener('change',e=>{const f=e.target.files&&e.target.files[0];if(!f) return;const r=new FileReader();r.onload=()=>{textEl.value=r.result;render()};r.readAsText(f);e.target.value=''})}
+wireFile($('fileA'),$('inputA'));wireFile($('fileB'),$('inputB'));
+['inputA','inputB','pattern','caseSensitive','wholeWord','regexMode','showOnlyMatches','context','wrap','collapseMinute','diffMode']
+  .forEach(id=>$(id).addEventListener('input',render));
+qs('.lvl').forEach(cb=>cb.addEventListener('change',render));
+
+$('btnCopy').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(getVisibleText())}catch{}});
+$('btnDownloadTxt').addEventListener('click',()=>download('highlighted.log.txt',getVisibleText()));
+$('btnDownloadHtml').addEventListener('click',()=>download('highlighted.log.html',generateHtmlExport(),'text/html'));
+$('btnDownloadCsv').addEventListener('click',()=>download('highlighted.csv',exportCsv(),'text/csv'));
+$('btnDownloadJson').addEventListener('click',()=>download('highlighted.json',exportJson(),'application/json'));
+$('btnClear').addEventListener('click',()=>{$('inputA').value='';$('inputB').value='';render()});
+$('btnSample').addEventListener('click',()=>{const s=[
+ '2025-08-18 10:01:13 INFO  web: Starting server on :8080',
+ '2025-08-18 10:01:15 WARN  db: Slow query (1502ms) SELECT * FROM users',
+ '2025-08-18 10:01:18 ERROR api: failed to fetch /v1/items: timeout',
+ '2025-08-18 10:01:20 DEBUG cache: miss for key user:42',
+ '2025-08-18 10:01:22 INFO  job: Completed backup successfully',
+ '2025-08-18 10:02:01 ERROR kubelet: liveness probe failed for pod xyz',
+ '2025-08-18 10:02:05 WARN  nginx: upstream prematurely closed connection while reading response header from upstream' ].join('\n');$('inputA').value=s;$('pattern').value='ERROR, WARN';render()});
+$('btnLight').addEventListener('click',()=>{document.documentElement.classList.toggle('light')});
+
+// Initial
+refreshProfileSelect();render();
+</script>
+</body>
+</html>
