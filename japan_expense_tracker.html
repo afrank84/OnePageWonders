@@ -3,16 +3,15 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Japan Trip Expense Tracker (Bootstrap)</title>
+<title>Japan Trip Expense Tracker (Bootstrap + Area Chart)</title>
 
-<!-- Bootstrap 5.3.3 (your preferred link) -->
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+<!-- Bootstrap 5.3.3 -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXhW+ALEwIH" crossorigin="anonymous">
 
 <!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
 <style>
-  /* Dark theme tuned for Bootstrap cards */
   :root{
     --bg:#0b0e14; --panel:#121826; --soft:#1c2333; --text:#e8e8e8; --muted:#9aa3b2; --accent:#8ab4ff;
   }
@@ -35,46 +34,40 @@
 <nav class="navbar sticky-top">
   <div class="container">
     <h1 class="h5 m-0">Japan Trip Expense Tracker</h1>
-    <span class="text-muted small">JPY & USD • line & donut charts • quick search</span>
+    <span class="text-muted small">JPY & USD • area + donut charts • quick search</span>
   </div>
 </nav>
 
 <div class="container my-3">
-  <!-- TOP ROW: 3 horizontal cards -->
+  <!-- TOP ROW: totals + charts -->
   <div class="row g-3">
     <!-- Totals -->
     <div class="col-12 col-lg-4">
       <div class="card h-100">
         <div class="card-body">
           <h5 class="card-title mb-3">Running Totals</h5>
-          <div class="row g-3">
-            <div class="col-12">
-              <div class="p-3 border rounded">
-                <div class="text-muted">Total (JPY)</div>
-                <div class="total-figure">¥ <span id="totalJPY">0</span>
-                  <span class="subsum" id="daysSpan"></span>
-                </div>
-              </div>
+          <div class="p-3 border rounded mb-3">
+            <div class="text-muted">Total (JPY)</div>
+            <div class="total-figure">¥ <span id="totalJPY">0</span>
+              <span class="subsum" id="daysSpan"></span>
             </div>
-            <div class="col-12">
-              <div class="p-3 border rounded">
-                <div class="text-muted">Total (USD)</div>
-                <div class="total-figure">$ <span id="totalUSD">0.00</span>
-                  <span class="subsum" id="avgPerDay"></span>
-                </div>
-              </div>
+          </div>
+          <div class="p-3 border rounded">
+            <div class="text-muted">Total (USD)</div>
+            <div class="total-figure">$ <span id="totalUSD">0.00</span>
+              <span class="subsum" id="avgPerDay"></span>
             </div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Line chart -->
+    <!-- Area chart -->
     <div class="col-12 col-lg-4">
       <div class="card h-100">
         <div class="card-body">
-          <h5 class="card-title mb-3">Per-Day Spend (Line)</h5>
-          <canvas id="lineChart" aria-label="Daily expenses chart" role="img"></canvas>
+          <h5 class="card-title mb-3">Per-Day Spend (Area)</h5>
+          <canvas id="lineChart"></canvas>
         </div>
       </div>
     </div>
@@ -84,7 +77,7 @@
       <div class="card h-100">
         <div class="card-body">
           <h5 class="card-title mb-3">By Category (Donut)</h5>
-          <canvas id="donutChart" aria-label="Category breakdown chart" role="img"></canvas>
+          <canvas id="donutChart"></canvas>
         </div>
       </div>
     </div>
@@ -92,7 +85,7 @@
 
   <!-- SECOND ROW: form + table -->
   <div class="row g-3 mt-2">
-    <!-- Add Expense + tools -->
+    <!-- Add Expense -->
     <div class="col-12 col-lg-5">
       <div class="card h-100">
         <div class="card-body">
@@ -104,7 +97,7 @@
             </div>
             <div class="col-6">
               <label class="form-label small" for="item">Item</label>
-              <input id="item" type="text" class="form-control" placeholder="e.g., Suica reload, ramen" />
+              <input id="item" type="text" class="form-control" placeholder="e.g., ramen, JR pass" />
             </div>
             <div class="col-6">
               <label class="form-label small" for="category">Category</label>
@@ -115,28 +108,21 @@
             </div>
             <div class="col-6">
               <label class="form-label small" for="amount">Amount (JPY)</label>
-              <input id="amount" type="number" inputmode="numeric" step="1" min="0" class="form-control" placeholder="0" />
+              <input id="amount" type="number" min="0" class="form-control" placeholder="0" />
             </div>
           </div>
           <div class="d-flex gap-2 mt-3">
             <button class="btn btn-primary" id="addBtn">Add</button>
-            <button class="btn btn-outline-light" id="clearBtn" title="Remove all expenses">Clear All</button>
-            <span class="text-muted small ms-auto">Tip: Enter key adds.</span>
+            <button class="btn btn-outline-light" id="clearBtn">Clear All</button>
+            <span class="text-muted small ms-auto">Enter key adds.</span>
           </div>
-
           <hr class="border-secondary my-3" />
-
-          <div class="row g-2 align-items-center">
-            <div class="col-12">
-              <label class="form-label small" for="search">Search</label>
-              <input id="search" class="form-control" placeholder="Date (YYYY-MM-DD) or item name…" />
-            </div>
-            <div class="col-12 form-check mt-1">
-              <input class="form-check-input" type="checkbox" id="filterAffectsAll">
-              <label class="form-check-label small" for="filterAffectsAll">Apply search to charts & totals</label>
-            </div>
+          <label class="form-label small" for="search">Search</label>
+          <input id="search" class="form-control" placeholder="Date (YYYY-MM-DD) or item…" />
+          <div class="form-check mt-2">
+            <input class="form-check-input" type="checkbox" id="filterAffectsAll">
+            <label class="form-check-label small" for="filterAffectsAll">Apply search to charts & totals</label>
           </div>
-
           <div class="row g-2 align-items-center mt-2">
             <div class="col-auto">
               <label class="form-label small mb-0" for="rate">Exchange Rate</label>
@@ -179,20 +165,16 @@
         </div>
       </div>
     </div>
-  </div> <!-- /second row -->
-</div> <!-- /container -->
+  </div>
+</div>
 
 <script>
 (() => {
-  // Storage keys
   const LS_KEY='jp_expenses_v1', RATE_KEY='jp_rate_v1';
-
-  // State
   let expenses = load(LS_KEY) || [];
   let rate = Number(load(RATE_KEY) ?? 155);
 
-  // Elements
-  const $ = (id) => document.getElementById(id);
+  const $=id=>document.getElementById(id);
   const dateEl=$('date'), itemEl=$('item'), catEl=$('category'), amtEl=$('amount'),
         addBtn=$('addBtn'), clearBtn=$('clearBtn'), tbody=$('tbody'),
         totalJPYEl=$('totalJPY'), totalUSDEl=$('totalUSD'),
@@ -200,148 +182,78 @@
         searchEl=$('search'), filterAffectsAllEl=$('filterAffectsAll'),
         rateEl=$('rate'), saveRateBtn=$('saveRate'), resetRateBtn=$('resetRate');
 
-  dateEl.value = new Date().toISOString().slice(0,10);
-  rateEl.value = rate;
+  dateEl.value=new Date().toISOString().slice(0,10);
+  rateEl.value=rate;
 
-  // Charts
   let lineChart, donutChart;
-  const lineCtx  = document.getElementById('lineChart').getContext('2d');
-  const donutCtx = document.getElementById('donutChart').getContext('2d');
+  const lineCtx=document.getElementById('lineChart').getContext('2d');
+  const donutCtx=document.getElementById('donutChart').getContext('2d');
 
-  // Helpers
   function load(k){ try{return JSON.parse(localStorage.getItem(k));}catch{return null} }
   function save(k,v){ localStorage.setItem(k, JSON.stringify(v)); }
-  const yen = (n)=>Number(n||0);
-  const usd = (jpy)=> rate ? yen(jpy)/rate : 0;
-  const fmtJPY = (n)=> new Intl.NumberFormat('ja-JP',{maximumFractionDigits:0}).format(n);
-  const fmtUSD = (n)=> new Intl.NumberFormat('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}).format(n);
+  const yen=n=>Number(n||0);
+  const usd=jpy=>rate?yen(jpy)/rate:0;
+  const fmtJPY=n=>new Intl.NumberFormat('ja-JP',{maximumFractionDigits:0}).format(n);
+  const fmtUSD=n=>new Intl.NumberFormat('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}).format(n);
 
-  // CRUD
   function add(){
     const d=dateEl.value, it=(itemEl.value||'').trim(), c=catEl.value, a=Number(amtEl.value);
-    if(!d||!it||!(a>0)){ alert('Please enter date, item, and a positive JPY amount.'); return; }
-    expenses.push({ id:crypto.randomUUID(), date:d, item:it, category:c, jpy:a });
-    save(LS_KEY, expenses);
-    itemEl.value=''; amtEl.value=''; render(); itemEl.focus();
+    if(!d||!it||!(a>0)){ alert('Enter date, item, and positive JPY.'); return; }
+    expenses.push({id:crypto.randomUUID(), date:d, item:it, category:c, jpy:a});
+    save(LS_KEY,expenses); itemEl.value=''; amtEl.value=''; render(); itemEl.focus();
   }
-  function del(id){ expenses = expenses.filter(e=>e.id!==id); save(LS_KEY,expenses); render(); }
-
-  // Filter
-  function filtered(){
-    const q=(searchEl.value||'').trim().toLowerCase();
-    if(!q) return expenses.slice();
-    return expenses.filter(e => e.item.toLowerCase().includes(q) || e.date.includes(q));
-  }
+  function del(id){ expenses=expenses.filter(e=>e.id!==id); save(LS_KEY,expenses); render(); }
+  function filtered(){ const q=(searchEl.value||'').trim().toLowerCase(); return !q?expenses.slice():expenses.filter(e=>e.item.toLowerCase().includes(q)||e.date.includes(q)); }
   function dataForMetrics(){ const f=filtered(); return filterAffectsAllEl.checked?f:expenses; }
+  function groupByDate(list){ const m={}; for(const e of list){m[e.date]=(m[e.date]||0)+yen(e.jpy);} const dates=Object.keys(m).sort(); return {dates,jpy:dates.map(d=>m[d])}; }
+  function groupByCat(list){ const m={}; for(const e of list){m[e.category]=(m[e.category]||0)+yen(e.jpy);} const labels=Object.keys(m).sort(), values=labels.map(k=>m[k]); return {labels,values}; }
+  function daysCovered(list){ if(!list.length) return 0; const ds=list.map(e=>e.date).sort(); return Math.floor((new Date(ds.at(-1))-new Date(ds[0]))/86400000)+1; }
 
-  // Aggregation
-  function groupByDate(list){
-    const m={}; for(const e of list){ m[e.date]=(m[e.date]||0)+yen(e.jpy); }
-    const dates=Object.keys(m).sort(); return { dates, jpy:dates.map(d=>m[d]) };
-  }
-  function groupByCat(list){
-    const m={}; for(const e of list){ m[e.category]=(m[e.category]||0)+yen(e.jpy); }
-    const labels=Object.keys(m).sort(); const values=labels.map(k=>m[k]); return {labels, values};
-  }
-  function daysCovered(list){
-    if(!list.length) return 0;
-    const ds=list.map(e=>e.date).sort();
-    const a=new Date(ds[0]), b=new Date(ds.at(-1));
-    return Math.floor((b-a)/86400000)+1;
-  }
-
-  // Renderers
   function renderTable(list){
-    const q=(searchEl.value||'').trim().toLowerCase();
-    tbody.innerHTML='';
+    const q=(searchEl.value||'').trim().toLowerCase(); tbody.innerHTML='';
     for(const e of list.sort((a,b)=>a.date.localeCompare(b.date))){
-      const tr=document.createElement('tr');
-      const hi = (txt)=> q ? txt.replace(new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','ig'),'<mark>$1</mark>') : txt;
-      tr.innerHTML = `
+      const hi=txt=>q?txt.replace(new RegExp('('+q.replace(/[.*+?^${}()|[\\]\\\\]/g,'\\\\$&')+')','ig'),'<mark>$1</mark>'):txt;
+      tbody.innerHTML+=`<tr>
         <td class="text-muted">${e.date}</td>
         <td>${hi(e.item)}</td>
         <td><span class="chip">${e.category}</span></td>
         <td class="text-end">¥ ${fmtJPY(e.jpy)}</td>
         <td class="text-end">$ ${fmtUSD(usd(e.jpy))}</td>
-        <td class="text-end"><button class="btn btn-sm btn-outline-light" data-id="${e.id}">✕</button></td>`;
-      tbody.appendChild(tr);
+        <td class="text-end"><button class="btn btn-sm btn-outline-light" onclick="(${del})('${e.id}')">✕</button></td>
+      </tr>`;
     }
-    tbody.querySelectorAll('button[data-id]').forEach(b => b.onclick = ()=>del(b.dataset.id));
   }
 
   function renderTotals(list){
-    const sumJPY = list.reduce((a,e)=>a+yen(e.jpy),0);
-    const sumUSD = usd(sumJPY);
-    totalJPYEl.textContent = fmtJPY(sumJPY);
-    totalUSDEl.textContent = fmtUSD(sumUSD);
-    const d = daysCovered(list);
-    daysSpan.textContent = d ? `covering ${d} day${d>1?'s':''}` : '';
-    avgPerDay.textContent = d ? `≈ $${fmtUSD(sumUSD/d)} / day` : '';
-  }
+    const sumJPY=list.reduce((a,e)=>a+yen(e.jpy),0), sumUSD=usd(sumJPY);
+    totalJPYEl.textContent=fmtJPY(sumJPY);
+    totalUSDEl.textContent=fmtUSD(sumUSD);
+    const d=daysCovered(list); daysSpan.textContent=d?`covering ${d} day${d>1?'s':''}`:''; avgPerDay.textContent=d?`≈ $${fmtUSD(sumUSD/d)} / day`:''; }
 
   function renderCharts(list){
-    const byDate = groupByDate(list);
-    const lineData = {
-      labels: byDate.dates,
-      datasets: [
-        { label:'JPY', data:byDate.jpy, tension:.25 },
-        { label:'USD', data:byDate.jpy.map(v=>usd(v)), yAxisID:'y1', borderDash:[4,4], tension:.25 }
-      ]
-    };
-    const lineOpts = {
-      responsive:true, interaction:{mode:'index',intersect:false},
-      plugins:{ legend:{labels:{color:'#cfd6e8'}},
-        tooltip:{callbacks:{label:ctx=>ctx.dataset.label==='JPY' ? ` JPY: ¥ ${fmtJPY(ctx.parsed.y)}` : ` USD: $ ${fmtUSD(ctx.parsed.y)}`}}
-      },
-      scales:{
-        x:{ticks:{color:'#aab3c9'}, grid:{color:'#1a2236'}},
-        y:{position:'left', ticks:{color:'#aab3c9', callback:v=>'¥ '+fmtJPY(v)}, grid:{color:'#1a2236'}},
-        y1:{position:'right', ticks:{color:'#aab3c9', callback:v=>'$ '+fmtUSD(v)}, grid:{drawOnChartArea:false}}
-      }
-    };
-    if(lineChart){ lineChart.data=lineData; lineChart.options=lineOpts; lineChart.update(); }
-    else{ lineChart = new Chart(lineCtx,{type:'line',data:lineData,options:lineOpts}); }
-
-    const byCat = groupByCat(list);
-    const donutData = { labels:byCat.labels, datasets:[{ data:byCat.values }] };
-    const donutOpts = {
-      plugins:{ legend:{position:'bottom',labels:{color:'#cfd6e8'}},
-        tooltip:{callbacks:{label:ctx=>{
-          const total = byCat.values.reduce((a,b)=>a+b,0)||1;
-          const pct = Math.round(100*ctx.parsed/total);
-          return ` ${ctx.label}: ¥ ${fmtJPY(ctx.parsed)} (${pct}%)`;
-        }}} },
-      cutout:'60%'
-    };
-    if(donutChart){ donutChart.data=donutData; donutChart.options=donutOpts; donutChart.update(); }
-    else{ donutChart = new Chart(donutCtx,{type:'doughnut',data:donutData,options:donutOpts}); }
+    const byDate=groupByDate(list);
+    const labels=byDate.dates, jpyVals=byDate.jpy, usdVals=jpyVals.map(v=>usd(v));
+    const grad=lineCtx.createLinearGradient(0,0,0,340); grad.addColorStop(0,'rgba(138,180,255,0.35)'); grad.addColorStop(1,'rgba(138,180,255,0)');
+    const lineData={labels,datasets:[
+      {label:'JPY',data:jpyVals,tension:0.35,borderWidth:2,borderColor:'#8ab4ff',fill:true,backgroundColor:grad,pointRadius:2,pointHoverRadius:4},
+      {label:'USD',data:usdVals,yAxisID:'y1',tension:0.35,borderWidth:2,borderDash:[4,4],borderColor:'#ff6b6b',fill:false,pointRadius:0,pointHoverRadius:3}
+    ]};
+    const lineOpts={responsive:true,interaction:{mode:'index',intersect:false},plugins:{legend:{labels:{color:'#cfd6e8'}},tooltip:{callbacks:{label:ctx=>ctx.dataset.label==='JPY'?` JPY: ¥ ${fmtJPY(ctx.parsed.y)}`:` USD: $ ${fmtUSD(ctx.parsed.y)}`}}},scales:{x:{ticks:{color:'#aab3c9'},grid:{color:'#1a2236'}},y:{position:'left',ticks:{color:'#aab3c9',callback:v=>'¥ '+fmtJPY(v)},grid:{color:'#1a2236'}},y1:{position:'right',ticks:{color:'#aab3c9',callback:v=>'$ '+fmtUSD(v)},grid:{drawOnChartArea:false}}}};
+    if(lineChart){lineChart.data=lineData;lineChart.options=lineOpts;lineChart.update();} else{lineChart=new Chart(lineCtx,{type:'line',data:lineData,options:lineOpts});}
+    const byCat=groupByCat(list); const donutData={labels:byCat.labels,datasets:[{data:byCat.values}]};
+    const donutOpts={plugins:{legend:{position:'bottom',labels:{color:'#cfd6e8'}},tooltip:{callbacks:{label:ctx=>{const t=byCat.values.reduce((a,b)=>a+b,0)||1;return` ${ctx.label}: ¥ ${fmtJPY(ctx.parsed)} (${Math.round(100*ctx.parsed/t)}%)`;}}}},cutout:'60%'};
+    if(donutChart){donutChart.data=donutData;donutChart.options=donutOpts;donutChart.update();} else{donutChart=new Chart(donutCtx,{type:'doughnut',data:donutData,options:donutOpts});}
   }
 
-  function render(){
-    const rows = filtered(); renderTable(rows);
-    const metrics = dataForMetrics(); renderTotals(metrics); renderCharts(metrics);
-  }
+  function render(){const rows=filtered();renderTable(rows);const metrics=dataForMetrics();renderTotals(metrics);renderCharts(metrics);}
 
-  // Events
-  addBtn.onclick = add;
-  [dateEl,itemEl,catEl,amtEl].forEach(el=>el.addEventListener('keydown',e=>{ if(e.key==='Enter') add(); }));
-  clearBtn.onclick = ()=>{ if(confirm('Delete ALL expenses?')){ expenses=[]; save(LS_KEY,expenses); render(); } };
-  searchEl.oninput = render;
-  filterAffectsAllEl.onchange = render;
-  saveRateBtn.onclick = ()=>{ const n=Number(rateEl.value); if(!(n>0)) return alert('Enter positive JPY per $1'); rate=n; save(RATE_KEY,n); render(); };
-  resetRateBtn.onclick = ()=>{ rate=155; rateEl.value=rate; save(RATE_KEY,rate); render(); };
+  addBtn.onclick=add; [dateEl,itemEl,catEl,amtEl].forEach(el=>el.addEventListener('keydown',e=>{if(e.key==='Enter')add();}));
+  clearBtn.onclick=()=>{if(confirm('Delete ALL expenses?')){expenses=[];save(LS_KEY,expenses);render();}};
+  searchEl.oninput=render; filterAffectsAllEl.onchange=render;
+  saveRateBtn.onclick=()=>{const n=Number(rateEl.value);if(!(n>0))return alert('Enter positive JPY per $1');rate=n;save(RATE_KEY,n);render();};
+  resetRateBtn.onclick=()=>{rate=155;rateEl.value=rate;save(RATE_KEY,rate);render();};
 
-  // Seed sample rows once for a fresh view
-  if(expenses.length===0){
-    const t=new Date(); const d=o=>{const x=new Date(t); x.setDate(x.getDate()-o); return x.toISOString().slice(0,10);};
-    expenses = [
-      {id:crypto.randomUUID(), date:d(3), item:'Narita Express', category:'Transport', jpy:3200},
-      {id:crypto.randomUUID(), date:d(2), item:'Ramen (Shinjuku)', category:'Food', jpy:980},
-      {id:crypto.randomUUID(), date:d(2), item:'7-Eleven Snacks', category:'Food', jpy:620},
-      {id:crypto.randomUUID(), date:d(1), item:'TeamLab Planets', category:'Attraction', jpy:3800},
-    ];
-    save(LS_KEY,expenses);
-  }
+  if(expenses.length===0){const t=new Date();const d=o=>{const x=new Date(t);x.setDate(x.getDate()-o);return x.toISOString().slice(0,10);};expenses=[{id:crypto.randomUUID(),date:d(3),item:'Narita Express',category:'Transport',jpy:3200},{id:crypto.randomUUID(),date:d(2),item:'Ramen (Shinjuku)',category:'Food',jpy:980},{id:crypto.randomUUID(),date:d(2),item:'7-Eleven Snacks',category:'Food',jpy:620},{id:crypto.randomUUID(),date:d(1),item:'TeamLab Planets',category:'Attraction',jpy:3800}];save(LS_KEY,expenses);}
   render();
 })();
 </script>
