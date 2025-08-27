@@ -3,32 +3,31 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>ESP32-WROOM-32E • Clickable Pinout</title>
+<title>ESP32-WROOM-32E • Clickable Pinout (Color Coded)</title>
 <style>
-  /* ========= CALIBRATION (adjust to line up with your image) ========= */
+  /* ========= CALIBRATION ========= */
   :root{
-    /* Where the first pin sits (as % of the image box height) */
     --y-start: 10.5%;
-    /* Distance between pins vertically */
     --y-step: 6.25%;
-    /* X of left and right pin columns (as % of image box width) */
     --x-left:  12.5%;
     --x-right: 87.5%;
-    /* Size of pin hotspot (as % of image box) */
     --hot-w: 16%;
     --hot-h: 4.9%;
-    /* Fine-tune per side (use 0 to start) */
-    --left-dx:  0%;
-    --right-dx: 0%;
-    --left-dy:  0%;
-    --right-dy: 0%;
+    --left-dx:  0%; --right-dx: 0%;
+    --left-dy:  0%; --right-dy: 0%;
 
     /* Layout/theme */
     --bg:#0b0e14; --ink:#e8e8e8; --muted:#9aa4b2; --line:#24314d; --card:#0f1320;
     --gap:12px; --side-w:min(320px,28vw); --img-max:min(560px,60vw);
-    --hot-border:#8ab4ff66; --hot-active:#8ab4ff;
+
+    /* Category colors */
+    --c-spi:#ffb454; --c-i2c:#8ab4ff; --c-uart:#7cd9ff; --c-adc:#facc15;
+    --c-touch:#f472b6; --c-dac:#7ee787; --c-power:#ff6b6b; --c-gnd:#94a3b8;
+    --chip-alpha: .18;   /* background tint strength inside hotspots */
   }
-  .light{ --bg:#f7f8fb; --ink:#161a20; --muted:#66708a; --line:#d7dce6; --card:#ffffff; --hot-border:#4a6cff55; --hot-active:#334bff; }
+  .light{
+    --bg:#f7f8fb; --ink:#161a20; --muted:#66708a; --line:#d7dce6; --card:#ffffff;
+  }
 
   *{box-sizing:border-box}
   html,body{height:100%}
@@ -38,9 +37,8 @@
   h2{font-size:18px;margin:0}
   .toggle{border:1px solid var(--line);background:transparent;color:var(--ink);padding:6px 10px;border-radius:10px;cursor:pointer}
 
-  /* 3-column grid with tight gutters */
+  /* 3-column grid */
   .grid{display:grid;grid-template-columns:var(--side-w) minmax(300px,var(--img-max)) var(--side-w);gap:var(--gap);align-items:start}
-
   .panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px;min-height:140px}
   .panel h3{margin:.3rem 0 .4rem;font-size:14px}
   .muted{color:var(--muted)}
@@ -51,18 +49,44 @@
   .imgwrap{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:6px;display:grid;place-items:center;position:relative}
   .imgwrap img{display:block;max-width:100%;height:auto;margin:0}
 
-  /* Hotspots live in a 0..100% positioned layer */
+  /* Hotspot layer */
   .hotlayer{position:absolute;inset:6px;border-radius:10px;pointer-events:none}
   .hot{position:absolute;transform:translate(-50%,-50%);width:var(--hot-w);height:var(--hot-h);
-        border:1.75px dashed var(--hot-border);border-radius:9px;background:transparent;
-        pointer-events:auto;cursor:pointer;outline:none}
-  .hot:hover{border-color:var(--hot-active)}
-  .hot.active{border-color:var(--hot-active);box-shadow:0 0 0 2px color-mix(in oklab, var(--hot-active) 40%, transparent)}
-  .hot .label{position:absolute;inset:0;display:grid;place-items:center;font-size:12px;color:var(--ink);text-shadow:0 1px 0 rgba(0,0,0,.25);pointer-events:none}
+       border:1.6px dashed currentColor;border-radius:9px;background:transparent;
+       pointer-events:auto;cursor:pointer;outline:none;display:grid;place-items:center}
+  .hot .label{font-size:12px;color:var(--ink);text-shadow:0 1px 0 rgba(0,0,0,.25);padding:.05rem .2rem;border-radius:6px}
 
-  /* Search */
+  /* Category tints (only the hotspot, not the image) */
+  .spi   { color:var(--c-spi); }
+  .i2c   { color:var(--c-i2c); }
+  .uart  { color:var(--c-uart); }
+  .adc   { color:var(--c-adc); }
+  .touch { color:var(--c-touch); }
+  .dac   { color:var(--c-dac); }
+  .power { color:var(--c-power); }
+  .gnd   { color:var(--c-gnd); }
+  .spi   .label{ background:color-mix(in oklab, var(--c-spi)  var(--chip-alpha*100%), transparent); }
+  .i2c   .label{ background:color-mix(in oklab, var(--c-i2c)  var(--chip-alpha*100%), transparent); }
+  .uart  .label{ background:color-mix(in oklab, var(--c-uart) var(--chip-alpha*100%), transparent); }
+  .adc   .label{ background:color-mix(in oklab, var(--c-adc)  var(--chip-alpha*100%), transparent); color:#111; }
+  .touch .label{ background:color-mix(in oklab, var(--c-touch)var(--chip-alpha*100%), transparent); }
+  .dac   .label{ background:color-mix(in oklab, var(--c-dac)  var(--chip-alpha*100%), transparent); color:#0a2; }
+  .power .label{ background:color-mix(in oklab, var(--c-power)var(--chip-alpha*100%), transparent); }
+  .gnd   .label{ background:color-mix(in oklab, var(--c-gnd) var(--chip-alpha*100%), transparent); }
+
+  .hot:hover{filter:brightness(1.08)}
+  .hot.active{outline:2px solid currentColor; outline-offset:2px}
+
+  /* Search + Legend */
   .search{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font:inherit;outline:none;margin-bottom:8px;background:transparent;color:var(--ink)}
   .search::placeholder{color:var(--muted)}
+  .legend{display:flex;flex-wrap:wrap;gap:6px;margin:.25rem 0 .5rem}
+  .chip{border:1px solid var(--line);padding:.3rem .6rem;border-radius:999px;cursor:pointer;font-size:12px}
+  .chip.spi{border-color:var(--c-spi)} .chip.i2c{border-color:var(--c-i2c)}
+  .chip.uart{border-color:var(--c-uart)} .chip.adc{border-color:var(--c-adc)}
+  .chip.touch{border-color:var(--c-touch)} .chip.dac{border-color:var(--c-dac)}
+  .chip.power{border-color:var(--c-power)} .chip.gnd{border-color:var(--c-gnd)}
+  .chip.active{background:currentColor;color:#000;border-color:currentColor}
 
   /* Responsive */
   @media (max-width:980px){
@@ -108,17 +132,26 @@
 
       <!-- CENTER -->
       <div class="imgwrap">
-        <!-- Your wireframe image (transparent background strongly recommended) -->
-        <img src="./images/esp32-wroom.png" alt="ESP32 wireframe pinout" />
-
-        <!-- Hotspot overlay (positions scale with the image) -->
+        <img src="./images/esp32-wroom.png" alt="ESP32 board wireframe (no labels)" />
         <div class="hotlayer" id="hotlayer"></div>
       </div>
 
       <!-- RIGHT -->
       <aside class="panel" id="rightPanel">
+        <div class="legend" id="legend">
+          <span class="chip" data-cat="all">All</span>
+          <span class="chip spi"   style="color:var(--c-spi)"   data-cat="spi">SPI</span>
+          <span class="chip i2c"   style="color:var(--c-i2c)"   data-cat="i2c">I²C</span>
+          <span class="chip uart"  style="color:var(--c-uart)"  data-cat="uart">UART</span>
+          <span class="chip adc"   style="color:var(--c-adc)"   data-cat="adc">ADC</span>
+          <span class="chip touch" style="color:var(--c-touch)" data-cat="touch">Touch</span>
+          <span class="chip dac"   style="color:var(--c-dac)"   data-cat="dac">DAC</span>
+          <span class="chip power" style="color:var(--c-power)" data-cat="power">Power</span>
+          <span class="chip gnd"   style="color:var(--c-gnd)"   data-cat="gnd">GND</span>
+        </div>
+
         <h3 id="pinTitle">Select a pin</h3>
-        <div id="pinMeta" class="muted" style="margin-bottom:6px">Click a label to see capabilities.</div>
+        <div id="pinMeta" class="muted" style="margin-bottom:6px">Click any label to see capabilities.</div>
         <ul id="pinList"></ul>
 
         <h3>SPI & UART</h3>
@@ -133,77 +166,76 @@
   </div>
 
 <script>
-/* ---------- Pin Data (edit freely) ---------- */
+/* ---------- Pin Data (now with tags for color) ---------- */
 const PINS = [
-  // Left side (top->bottom)
-  {side:'L', label:'3V3',  key:'3v3', roles:['3.3V supply / VCC']},
-  {side:'L', label:'EN',   key:'en',  roles:['Enable / Reset (active high)']},
-  {side:'L', label:'GPIO36', key:'gpio36', roles:['ADC1_CH0','Input-only']},
-  {side:'L', label:'GPIO39', key:'gpio39', roles:['ADC1_CH3','Input-only']},
-  {side:'L', label:'GPIO34', key:'gpio34', roles:['ADC1_CH6','Input-only']},
-  {side:'L', label:'GPIO35', key:'gpio35', roles:['ADC1_CH7','Input-only']},
-  {side:'L', label:'GPIO32', key:'gpio32', roles:['ADC1_CH4','Touch T9','PWM capable']},
-  {side:'L', label:'GPIO33', key:'gpio33', roles:['ADC1_CH5','Touch T8','PWM capable']},
-  {side:'L', label:'GPIO25', key:'gpio25', roles:['ADC2_CH8','DAC1','PWM capable']},
-  {side:'L', label:'GPIO26', key:'gpio26', roles:['ADC2_CH9','DAC2','PWM capable']},
-  {side:'L', label:'GPIO27', key:'gpio27', roles:['ADC2_CH7','Touch T7','PWM capable']},
-  {side:'L', label:'GPIO14', key:'gpio14', roles:['ADC2_CH6','HSPI SCK','PWM capable']},
-  {side:'L', label:'GPIO12', key:'gpio12', roles:['ADC2_CH5','HSPI MISO','Boot-strap','PWM capable']},
-  {side:'L', label:'GND',  key:'gnd-l', roles:['Ground']},
+  // Left
+  {side:'L', label:'3V3',   key:'3v3',   roles:['3.3V supply / VCC'],                tags:['power']},
+  {side:'L', label:'EN',    key:'en',    roles:['Enable / Reset (active high)'],     tags:['power']},
+  {side:'L', label:'GPIO36',key:'gpio36',roles:['ADC1_CH0','Input-only'],             tags:['adc']},
+  {side:'L', label:'GPIO39',key:'gpio39',roles:['ADC1_CH3','Input-only'],             tags:['adc']},
+  {side:'L', label:'GPIO34',key:'gpio34',roles:['ADC1_CH6','Input-only'],             tags:['adc']},
+  {side:'L', label:'GPIO35',key:'gpio35',roles:['ADC1_CH7','Input-only'],             tags:['adc']},
+  {side:'L', label:'GPIO32',key:'gpio32',roles:['ADC1_CH4','Touch T9','PWM capable'], tags:['adc','touch']},
+  {side:'L', label:'GPIO33',key:'gpio33',roles:['ADC1_CH5','Touch T8','PWM capable'], tags:['adc','touch']},
+  {side:'L', label:'GPIO25',key:'gpio25',roles:['ADC2_CH8','DAC1','PWM capable'],     tags:['adc','dac']},
+  {side:'L', label:'GPIO26',key:'gpio26',roles:['ADC2_CH9','DAC2','PWM capable'],     tags:['adc','dac']},
+  {side:'L', label:'GPIO27',key:'gpio27',roles:['ADC2_CH7','Touch T7','PWM capable'], tags:['adc','touch']},
+  {side:'L', label:'GPIO14',key:'gpio14',roles:['ADC2_CH6','HSPI SCK','PWM capable'], tags:['adc','spi']},
+  {side:'L', label:'GPIO12',key:'gpio12',roles:['ADC2_CH5','HSPI MISO','Boot-strap','PWM capable'], tags:['adc','spi','power']},
+  {side:'L', label:'GND',   key:'gnd-l', roles:['Ground'],                            tags:['gnd']},
 
-  // Right side
-  {side:'R', label:'GND',   key:'gnd-r', roles:['Ground']},
-  {side:'R', label:'5V',    key:'5v',    roles:['VIN/USB 5V to regulator']},
-  {side:'R', label:'GPIO13',key:'gpio13',roles:['HSPI MOSI','Touch T4','PWM capable']},
-  {side:'R', label:'GPIO23',key:'gpio23',roles:['VSPI MOSI','PWM capable']},
-  {side:'R', label:'GPIO22',key:'gpio22',roles:['I²C SCL','PWM capable']},
-  {side:'R', label:'GPIO1', key:'gpio1', roles:['UART0 TX0','Boot-strap','PWM capable']},
-  {side:'R', label:'GPIO3', key:'gpio3', roles:['UART0 RX0']},
-  {side:'R', label:'GPIO21',key:'gpio21',roles:['I²C SDA','PWM capable']},
-  {side:'R', label:'GPIO19',key:'gpio19',roles:['VSPI MISO','PWM capable']},
-  {side:'R', label:'GPIO18',key:'gpio18',roles:['VSPI SCK','PWM capable']},
-  {side:'R', label:'GPIO5', key:'gpio5', roles:['VSPI CS','Boot-strap','PWM capable']},
-  {side:'R', label:'GPIO17',key:'gpio17',roles:['UART2 TX2','PWM capable']},
-  {side:'R', label:'GPIO16',key:'gpio16',roles:['UART2 RX2','PWM capable']},
-  {side:'R', label:'GPIO4', key:'gpio4', roles:['ADC2_CH0','Touch T0','Boot-strap','PWM capable']},
+  // Right
+  {side:'R', label:'GND',   key:'gnd-r', roles:['Ground'],                           tags:['gnd']},
+  {side:'R', label:'5V',    key:'5v',    roles:['VIN/USB 5V to regulator'],         tags:['power']},
+  {side:'R', label:'GPIO13',key:'gpio13',roles:['HSPI MOSI','Touch T4','PWM capable'], tags:['spi','touch']},
+  {side:'R', label:'GPIO23',key:'gpio23',roles:['VSPI MOSI','PWM capable'],          tags:['spi']},
+  {side:'R', label:'GPIO22',key:'gpio22',roles:['I²C SCL','PWM capable'],            tags:['i2c']},
+  {side:'R', label:'GPIO1', key:'gpio1', roles:['UART0 TX0','Boot-strap','PWM capable'], tags:['uart','power']},
+  {side:'R', label:'GPIO3', key:'gpio3', roles:['UART0 RX0'],                        tags:['uart']},
+  {side:'R', label:'GPIO21',key:'gpio21',roles:['I²C SDA','PWM capable'],            tags:['i2c']},
+  {side:'R', label:'GPIO19',key:'gpio19',roles:['VSPI MISO','PWM capable'],          tags:['spi']},
+  {side:'R', label:'GPIO18',key:'gpio18',roles:['VSPI SCK','PWM capable'],           tags:['spi']},
+  {side:'R', label:'GPIO5', key:'gpio5', roles:['VSPI CS','Boot-strap','PWM capable'], tags:['spi','power']},
+  {side:'R', label:'GPIO17',key:'gpio17',roles:['UART2 TX2','PWM capable'],          tags:['uart']},
+  {side:'R', label:'GPIO16',key:'gpio16',roles:['UART2 RX2','PWM capable'],          tags:['uart']},
+  {side:'R', label:'GPIO4', key:'gpio4', roles:['ADC2_CH0','Touch T0','Boot-strap','PWM capable'], tags:['adc','touch','power']},
 ];
 
-/* ---------- Build overlay ---------- */
-const layer = document.getElementById('hotlayer');
-const pinTitle = document.getElementById('pinTitle');
-const pinMeta  = document.getElementById('pinMeta');
-const pinList  = document.getElementById('pinList');
-const q        = document.getElementById('q');
+/* ---------- Build overlay (colored classes based on tags) ---------- */
+const layer   = document.getElementById('hotlayer');
+const pinTitle= document.getElementById('pinTitle');
+const pinMeta = document.getElementById('pinMeta');
+const pinList = document.getElementById('pinList');
+const q       = document.getElementById('q');
 
 function yForIndex(i, side){
-  const start = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--y-start')) / 100;
-  const step  = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--y-step')) / 100;
-  const dy    = parseFloat(getComputedStyle(document.documentElement).getPropertyValue(side==='L'?'--left-dy':'--right-dy')) / 100;
+  const s = getComputedStyle(document.documentElement);
+  const start = parseFloat(s.getPropertyValue('--y-start'))/100;
+  const step  = parseFloat(s.getPropertyValue('--y-step'))/100;
+  const dy    = parseFloat(s.getPropertyValue(side==='L'?'--left-dy':'--right-dy'))/100;
   return (start + i*step + dy) * layer.clientHeight;
 }
 function xForSide(side){
-  const base = parseFloat(getComputedStyle(document.documentElement).getPropertyValue(side==='L'?'--x-left':'--x-right')) / 100;
-  const dx   = parseFloat(getComputedStyle(document.documentElement).getPropertyValue(side==='L'?'--left-dx':'--right-dx')) / 100;
+  const s = getComputedStyle(document.documentElement);
+  const base = parseFloat(s.getPropertyValue(side==='L'?'--x-left':'--x-right'))/100;
+  const dx   = parseFloat(s.getPropertyValue(side==='L'?'--left-dx':'--right-dx'))/100;
   return (base + dx) * layer.clientWidth;
 }
-function sizePX(vvar){
-  return (parseFloat(getComputedStyle(document.documentElement).getPropertyValue(vvar)) / 100);
-}
+function pcent(varname){return parseFloat(getComputedStyle(document.documentElement).getPropertyValue(varname))/100;}
+
 function rebuild(){
   layer.innerHTML = '';
-  const hotW = sizePX('--hot-w') * layer.clientWidth;
-  const hotH = sizePX('--hot-h') * layer.clientHeight;
+  const hotW = pcent('--hot-w') * layer.clientWidth;
+  const hotH = pcent('--hot-h') * layer.clientHeight;
 
-  // compute per-side ordinal index (top-to-bottom)
   const left  = PINS.filter(p=>p.side==='L');
   const right = PINS.filter(p=>p.side==='R');
-
-  const indexOf = (p)=> (p.side==='L'? left.indexOf(p): right.indexOf(p));
+  const idxOf = p => (p.side==='L' ? left.indexOf(p) : right.indexOf(p));
 
   PINS.forEach(p=>{
     const btn = document.createElement('button');
-    btn.className = 'hot';
-    const i = indexOf(p);
+    btn.className = 'hot ' + (p.tags||[]).join(' ');
+    const i = idxOf(p);
     btn.style.left = xForSide(p.side)+'px';
     btn.style.top  = yForIndex(i, p.side)+'px';
     btn.style.width  = hotW+'px';
@@ -211,6 +243,7 @@ function rebuild(){
     btn.dataset.key = p.key;
     btn.dataset.side = p.side;
     btn.dataset.index = i;
+    btn.dataset.tags = (p.tags||[]).join(',');
 
     const span = document.createElement('span');
     span.className = 'label';
@@ -218,39 +251,55 @@ function rebuild(){
     btn.appendChild(span);
 
     btn.addEventListener('click', ()=>selectPin(p.key));
-    btn.addEventListener('keydown', (e)=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); selectPin(p.key); }});
+    btn.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); selectPin(p.key) }});
     layer.appendChild(btn);
   });
   applyFilter(q.value);
+  applyLegend();
 }
+
 function selectPin(key){
   document.querySelectorAll('.hot').forEach(h=>h.classList.toggle('active', h.dataset.key===key));
   const p = PINS.find(x=>x.key===key);
   if(!p) return;
   pinTitle.textContent = p.label;
   pinMeta.textContent  = `${p.side==='L'?'Left':'Right'} side ${p.key.startsWith('gpio')?'• '+p.key.toUpperCase():''}`;
-  pinList.innerHTML    = (p.roles||[]).map(r=>`<li><code>${r}</code></li>`).join('') || '<li class="muted">No extra notes</li>';
+  pinList.innerHTML    = (p.roles||[]).map(r=>`<li><code>${r}</code></li>`).join('') || '<li class="muted">No notes</li>';
 }
+
+/* --- Search + Legend filters --- */
 function applyFilter(termRaw){
   const term = (termRaw||'').trim().toLowerCase();
   document.querySelectorAll('.hot').forEach(h=>{
     const p = PINS.find(x=>x.key===h.dataset.key);
-    const hay = [p.label, ...(p.roles||[]), p.key].join(' ').toLowerCase();
-    h.style.display = (!term || hay.includes(term)) ? 'block' : 'none';
+    const hay = [p.label, p.key, ...(p.roles||[]), ...(p.tags||[])].join(' ').toLowerCase();
+    h.style.display = (!term || hay.includes(term)) ? 'grid' : 'none';
   });
 }
-window.addEventListener('resize', rebuild);
-window.addEventListener('load', rebuild);
+const qEl = document.getElementById('q');
+qEl.addEventListener('input', ()=>applyFilter(qEl.value));
+window.addEventListener('keydown', e=>{ if(e.key==='/' && document.activeElement!==qEl){ e.preventDefault(); qEl.focus(); }});
 
-/* Search UX */
-q.addEventListener('input', ()=>applyFilter(q.value));
-window.addEventListener('keydown', (e)=>{ if(e.key==='/' && document.activeElement!==q){ e.preventDefault(); q.focus(); }});
+let currentCat = 'all';
+const legend = document.getElementById('legend');
+legend.addEventListener('click', e=>{
+  const chip = e.target.closest('.chip'); if(!chip) return;
+  currentCat = chip.dataset.cat;
+  [...legend.querySelectorAll('.chip')].forEach(c=>c.classList.toggle('active', c===chip));
+  applyLegend();
+});
+function applyLegend(){
+  document.querySelectorAll('.hot').forEach(h=>{
+    const tags = (h.dataset.tags||'').split(',').filter(Boolean);
+    h.style.visibility = (currentCat==='all' || tags.includes(currentCat)) ? 'visible' : 'hidden';
+  });
+}
+
+window.addEventListener('resize', rebuild);
+window.addEventListener('load', ()=>{ rebuild(); selectPin('gpio23'); });
 
 /* Theme toggle */
 document.getElementById('themeBtn').addEventListener('click', ()=>document.body.classList.toggle('light'));
-
-/* Preselect a common pin */
-window.addEventListener('load', ()=>selectPin('gpio23'));
 </script>
 </body>
 </html>
