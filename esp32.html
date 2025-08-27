@@ -2,385 +2,150 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>ESP32-WROOM-32E Interactive Pinout (Wireframe)</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>ESP32 WROOM 32E • Pinout Layout</title>
 <style>
   :root{
-    --bg:#0b0e14; --card:#0f1320; --ink:#e8e8e8; --muted:#9aa4b2;
-    --line:#24314d; --accent:#8ab4ff; --chip:#141a2a; --hi:#2a3553;
-    --pin:#1a2236; --pin-hover:#2b3a5a; --pin-active:#31446d;
-    --green:#7ee787; --blue:#8ab4ff; --cyan:#7cd9ff; --mag:#f472b6;
-    --yellow:#facc15; --orange:#ffb454; --purple:#c792ea; --red:#ff6b6b;
+    --bg:#0b0e14;       /* dark default */
+    --ink:#e8e8e8;
+    --muted:#a9b1c0;
+    --line:#24314d;
+    --card:#0f1320;
+    --gap:12px;         /* tight gutter next to the image */
+    --side-w: min(320px, 28vw);
+    --img-max: min(560px, 60vw);
+  }
+  .light{
+    --bg:#f7f8fb; --ink:#161a20; --muted:#66708a; --line:#d7dce6; --card:#ffffff;
   }
   *{box-sizing:border-box}
   html,body{height:100%}
   body{
     margin:0; background:var(--bg); color:var(--ink);
-    font:14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif;
+    font:14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
   }
-  a{color:var(--accent)}
-  .wrap{
-    display:grid; grid-template-columns: 360px 1fr; gap:16px;
-    height:100%; padding:16px; max-width:1300px; margin:0 auto;
+  .page{max-width:1320px;margin:0 auto;padding:14px}
+  header{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}
+  h2{font-size:18px;margin:0}
+  .toggle{
+    border:1px solid var(--line); background:transparent; color:var(--ink);
+    padding:6px 10px; border-radius:10px; cursor:pointer;
   }
+
+  /* 3-column grid with tight gutters */
+  .grid{
+    display:grid;
+    grid-template-columns: var(--side-w) minmax(300px, var(--img-max)) var(--side-w);
+    gap: var(--gap);
+    align-items:start;
+  }
+
   .panel{
     background:var(--card); border:1px solid var(--line); border-radius:12px;
-    padding:14px; display:flex; flex-direction:column; min-height:0;
+    padding:10px; min-height:140px;
   }
-  .panel h2{margin:.25rem 0 .5rem 0; font-size:16px}
-  .searchbar{display:flex; gap:8px; align-items:center; margin:.25rem 0 .5rem}
-  input[type="search"]{
-    flex:1; background:#0b1020; color:var(--ink); border:1px solid var(--line);
-    padding:10px 12px; border-radius:10px; outline:none;
-  }
-  .chips{display:flex; flex-wrap:wrap; gap:6px; margin:.25rem 0 8px}
-  .chip{
-    background:rgba(255,255,255,.08); border:1px solid var(--line);
-    padding:6px 10px; border-radius:999px; cursor:pointer; user-select:none;
-    font-size:12px
-  }
-  .chip.active{outline:2px solid var(--accent); outline-offset:1px}
-  .toggles{display:flex; gap:10px; align-items:center; margin:6px 0 8px; flex-wrap:wrap}
-  label.switch{display:flex; gap:8px; align-items:center; font-size:12px; color:var(--muted)}
-  .legend{display:flex; flex-wrap:wrap; gap:8px; margin-top:4px}
-  .tag{padding:.25rem .5rem; border-radius:999px; font-size:11px; border:1px solid var(--line)}
-  .t-spi{background:rgba(255,180,84,.15); color:var(--orange)}
-  .t-i2c{background:rgba(138,180,255,.15); color:var(--blue)}
-  .t-uart{background:rgba(124,217,255,.15); color:var(--cyan)}
-  .t-adc{background:rgba(250,204,21,.15); color:var(--yellow)}
-  .t-dac{background:rgba(126,231,135,.15); color:var(--green)}
-  .t-touch{background:rgba(244,114,182,.15); color:var(--mag)}
-  .t-pwm{background:rgba(199,146,234,.15); color:var(--purple)}
-  .t-power{background:rgba(255,107,107,.15); color:var(--red)}
+  .panel h3{margin:.3rem 0 .4rem; font-size:14px}
+  .panel .muted{color:var(--muted)}
+  .panel ul{margin:.2rem 0 .6rem; padding-left:1.1rem}
+  .panel li{margin:.15rem 0}
 
-  .info{overflow:auto; border-top:1px dashed var(--line); padding-top:10px; margin-top:6px}
-  .info h3{margin:.4rem 0 .25rem; font-size:14px}
-  .kv{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size:12px; color:var(--muted)}
-  .list{margin:.25rem 0 .5rem; padding-left:1rem}
-  .list li{margin:.15rem 0}
-
-  /* Canvas area */
-  .stage{
-    background:var(--card); border:1px solid var(--line); border-radius:12px;
-    display:grid; place-items:center; position:relative; overflow:hidden;
-    min-height:0;
+  /* Image container: zero excess spacing */
+  .imgwrap{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:6px;          /* small frame */
+    display:grid; place-items:center;
   }
-  svg{width:100%; height:100%}
-  .board{fill:var(--chip); stroke:var(--line); stroke-width:2}
-  .chip-label{font-size:12px; fill:var(--muted)}
-  .pin-rect{
-    fill:var(--pin); stroke:var(--line); stroke-width:1.2; rx:5; ry:5; cursor:pointer;
-    transition:transform .06s ease, fill .1s ease;
+  .imgwrap img{
+    display:block;
+    max-width:100%;
+    height:auto;
+    margin:0;            /* absolutely minimal margin */
+    image-rendering: -webkit-optimize-contrast;
   }
-  .pin-rect.hoverable:hover{ fill:var(--pin-hover) }
-  .pin-rect.active{ fill:var(--pin-active) }
-  .pin-text{ font-size:11px; fill:var(--ink); pointer-events:none; }
-  .pin-sub{ font-size:10px; fill:var(--muted); pointer-events:none; }
-  .hl{ stroke:var(--accent); stroke-width:2.2; opacity:.8 }
-  .layer-spi{ fill:rgba(255,180,84,.18) }
-  .layer-i2c{ fill:rgba(138,180,255,.18) }
-  .layer-uart{ fill:rgba(124,217,255,.18) }
-  .layer-adc{ fill:rgba(250,204,21,.18) }
-  .layer-touch{ fill:rgba(244,114,182,.18) }
-  .layer-none{ fill:transparent }
 
-  .footer{color:var(--muted); font-size:12px; text-align:center; margin-top:6px}
-  @media (max-width: 980px){ .wrap{grid-template-columns:1fr} }
+  /* Badge row for quick hints (optional) */
+  .badges{display:flex;flex-wrap:wrap;gap:6px;margin:.3rem 0 .6rem}
+  .badge{border:1px solid var(--line); border-radius:999px; padding:.2rem .5rem; font-size:11px; color:var(--muted)}
+
+  /* Responsive: collapse to single column on narrow screens */
+  @media (max-width: 980px){
+    :root{ --side-w: 100%; --img-max: 100vw; }
+    .grid{ grid-template-columns: 1fr; }
+    .imgwrap{ order: -1; } /* image first on mobile */
+  }
 </style>
 </head>
-<body>
-<div class="wrap">
-  <section class="panel" id="left">
-    <h2>ESP32-WROOM-32E • Interactive Pinout</h2>
-    <div class="searchbar">
-      <input id="q" type="search" placeholder="Search pins or functions (e.g., gpio23, i2c, adc1, tx, touch) …" />
+<body class="">
+  <div class="page">
+    <header>
+      <h2>ESP32-WROOM-32E Pinout</h2>
+      <button class="toggle" id="themeBtn" aria-label="Toggle theme">Toggle theme</button>
+    </header>
+
+    <div class="grid">
+      <!-- LEFT CONTENT -->
+      <aside class="panel" id="leftPanel">
+        <h3>Power & Boot Notes</h3>
+        <ul>
+          <li><strong>3V3</strong>: regulated 3.3 V output / VCC rail.</li>
+          <li><strong>EN</strong>: chip enable (active high) — tie high to run, pull low to reset.</li>
+          <li><strong>GND</strong>: common ground.</li>
+          <li class="muted">Boot straps: GPIO0 / GPIO2 / GPIO5 / GPIO12 can affect boot mode depending on board.</li>
+        </ul>
+
+        <h3>I²C (typical)</h3>
+        <div class="badges">
+          <span class="badge">SCL: GPIO22</span>
+          <span class="badge">SDA: GPIO21</span>
+        </div>
+        <p class="muted">You can move these if a library supports custom pins.</p>
+
+        <h3>Analog</h3>
+        <ul>
+          <li><strong>ADC1</strong>: GPIO36, 39, 34, 35, 32, 33</li>
+          <li><strong>ADC2</strong>: GPIO4, 12–15, 25–27</li>
+          <li><strong>DAC</strong>: GPIO25 (DAC1), GPIO26 (DAC2)</li>
+        </ul>
+      </aside>
+
+      <!-- CENTER IMAGE (minimal spacing, no title inside the image) -->
+      <div class="imgwrap">
+        <!-- Swap the src with your transparent PNG/SVG.
+             Using your current file name from this chat: esp32-wroom.png -->
+        <img src="esp32-wroom.png" alt="ESP32 WROOM 32E wireframe pinout" />
+      </div>
+
+      <!-- RIGHT CONTENT -->
+      <aside class="panel" id="rightPanel">
+        <h3>Serial & SPI</h3>
+        <ul>
+          <li><strong>UART0</strong>: TX0 GPIO1, RX0 GPIO3 (USB-serial on most dev boards)</li>
+          <li><strong>UART2</strong>: TX2 GPIO17, RX2 GPIO16</li>
+          <li><strong>VSPI</strong>: SCK GPIO18, MISO GPIO19, MOSI GPIO23, CS GPIO5</li>
+          <li><strong>HSPI</strong>: SCK GPIO14, MISO GPIO12, MOSI GPIO13 (alt bus)</li>
+        </ul>
+
+        <h3>PWM (LEDC)</h3>
+        <p class="muted">Most GPIOs support PWM via LEDC except the “input-only” pins (GPIO34–39).</p>
+
+        <h3>Tips</h3>
+        <ul>
+          <li>Keep the image **transparent** with minimal margins for tight side content.</li>
+          <li>Use CSS Grid (like this page) to keep columns aligned.</li>
+          <li>For interactivity later, layer an invisible SVG over the image to capture pin clicks.</li>
+        </ul>
+      </aside>
     </div>
-
-    <div class="chips" id="chips">
-      <div class="chip" data-layer="all" title="Show all labels">All</div>
-      <div class="chip" data-layer="spi" title="VSPI & HSPI">SPI</div>
-      <div class="chip" data-layer="i2c">I²C</div>
-      <div class="chip" data-layer="uart">UART</div>
-      <div class="chip" data-layer="adc">ADC</div>
-      <div class="chip" data-layer="touch">Touch</div>
-    </div>
-
-    <div class="toggles">
-      <label class="switch"><input type="checkbox" id="hoverToggle" checked /> Hover highlight</label>
-      <label class="switch"><input type="checkbox" id="denseToggle" /> Dense labels</label>
-      <label class="switch"><input type="checkbox" id="pwmToggle" checked /> Show PWM tags</label>
-    </div>
-
-    <div class="legend">
-      <span class="tag t-spi">SPI</span>
-      <span class="tag t-i2c">I²C</span>
-      <span class="tag t-uart">UART</span>
-      <span class="tag t-adc">ADC</span>
-      <span class="tag t-dac">DAC</span>
-      <span class="tag t-touch">Touch</span>
-      <span class="tag t-pwm">PWM</span>
-      <span class="tag t-power">Power/Boot</span>
-    </div>
-
-    <div class="info" id="info">
-      <h3>How to use</h3>
-      <ul class="list">
-        <li>Click any <b>pin</b> rectangle to view its capabilities.</li>
-        <li>Click the <b>chip body</b> to cycle layers: SPI → I²C → UART → ADC → Touch → All.</li>
-        <li>Search understands names and roles (e.g., <code>rx0</code>, <code>vs pi</code>, <code>adc2_6</code>, <code>dac</code>).</li>
-        <li>Most GPIOs support PWM (ledc); boot-strap pins are flagged.</li>
-      </ul>
-      <div class="kv" id="status">Tip: try clicking <code>GPIO23</code> (VSPI MOSI) or search for <code>i2c</code>.</div>
-    </div>
-
-    <div class="footer">
-      Wireframe only—verify against your specific board before wiring peripherals.
-    </div>
-  </section>
-
-  <section class="stage panel">
-    <svg viewBox="0 0 900 520" role="img" aria-label="ESP32 board wireframe">
-      <!-- board outline -->
-      <rect x="180" y="40" width="540" height="440" class="board"></rect>
-      <!-- chip area for layer toggling -->
-      <rect id="chipArea" x="370" y="100" width="220" height="240" rx="12" ry="12" fill="#101628" stroke="var(--line)" stroke-width="2"></rect>
-      <text x="480" y="180" text-anchor="middle" class="chip-label">ESP32-WROOM-32E</text>
-      <text x="480" y="200" text-anchor="middle" class="chip-label">Dual-Core Wi-Fi / BT</text>
-      <text x="480" y="220" text-anchor="middle" class="chip-label">(click to cycle layers)</text>
-
-      <!-- left pins (top→bottom) -->
-      <g id="leftPins"></g>
-      <!-- right pins -->
-      <g id="rightPins"></g>
-
-      <!-- layer tint -->
-      <rect id="layerTint" x="180" y="40" width="540" height="440" class="layer-none" pointer-events="none"></rect>
-    </svg>
-  </section>
-</div>
+  </div>
 
 <script>
-/* --- Data model (concise but practical) --- */
-const PINS = [
-  // LEFT side (top to bottom)
-  {side:'L', y:70,  name:'3V3', type:'power', roles:['3v3','power','vcc']},
-  {side:'L', y:100, name:'EN',  type:'power', roles:['enable','reset','boot']},
-  {side:'L', y:130, name:'GPIO36', gpio:36, roles:['adc1_0','input-only','sens_vp','adc'], tags:['ADC']},
-  {side:'L', y:160, name:'GPIO39', gpio:39, roles:['adc1_3','input-only','sens_vn','adc'], tags:['ADC']},
-  {side:'L', y:190, name:'GPIO34', gpio:34, roles:['adc1_6','input-only','adc'], tags:['ADC']},
-  {side:'L', y:220, name:'GPIO35', gpio:35, roles:['adc1_7','input-only','adc'], tags:['ADC']},
-  {side:'L', y:250, name:'GPIO32', gpio:32, roles:['adc1_4','touch_t9','xtal_32k','adc','touch','pwm'], tags:['ADC','TOUCH','PWM']},
-  {side:'L', y:280, name:'GPIO33', gpio:33, roles:['adc1_5','touch_t8','adc','touch','pwm'], tags:['ADC','TOUCH','PWM']},
-  {side:'L', y:310, name:'GPIO25', gpio:25, roles:['adc2_8','dac1','adc','dac','pwm'], tags:['ADC','DAC','PWM']},
-  {side:'L', y:340, name:'GPIO26', gpio:26, roles:['adc2_9','dac2','adc','dac','pwm'], tags:['ADC','DAC','PWM']},
-  {side:'L', y:370, name:'GPIO27', gpio:27, roles:['adc2_7','touch_t7','adc','touch','pwm'], tags:['ADC','TOUCH','PWM']},
-  {side:'L', y:400, name:'GPIO14', gpio:14, roles:['adc2_6','hspi_sck','pwm','adc','spi','boot'], tags:['ADC','SPI','PWM']},
-  {side:'L', y:430, name:'GPIO12', gpio:12, roles:['adc2_5','hspi_miso','jtag','boot','pwm','adc','spi'], tags:['ADC','SPI','PWM']},
-  {side:'L', y:460, name:'GND', type:'power', roles:['gnd','ground']},
-
-  // RIGHT side (top to bottom)
-  {side:'R', y:70,  name:'VIN(5V)', type:'power', roles:['5v','vin','usb5v']},
-  {side:'R', y:100, name:'GND', type:'power', roles:['gnd']},
-  {side:'R', y:130, name:'GPIO13', gpio:13, roles:['adc2_4','hspi_mosi','touch_t4','adc','touch','spi','pwm'], tags:['ADC','SPI','TOUCH','PWM']},
-  {side:'R', y:160, name:'GPIO23', gpio:23, roles:['vspi_mosi','spi','pwm'], tags:['SPI','PWM']},
-  {side:'R', y:190, name:'GPIO22', gpio:22, roles:['i2c_scl','scl','pwm'], tags:['I2C','PWM']},
-  {side:'R', y:220, name:'GPIO1',  gpio:1,  roles:['uart0_tx','tx0','pwm','boot'], tags:['UART','PWM']},
-  {side:'R', y:250, name:'GPIO3',  gpio:3,  roles:['uart0_rx','rx0'], tags:['UART']},
-  {side:'R', y:280, name:'GPIO21', gpio:21, roles:['i2c_sda','sda','pwm'], tags:['I2C','PWM']},
-  {side:'R', y:310, name:'GPIO19', gpio:19, roles:['vspi_miso','spi','pwm'], tags:['SPI','PWM']},
-  {side:'R', y:340, name:'GPIO18', gpio:18, roles:['vspi_sck','spi','pwm'], tags:['SPI','PWM']},
-  {side:'R', y:370, name:'GPIO5',  gpio:5,  roles:['vspi_cs','spi','boot','pwm'], tags:['SPI','PWM']},
-  {side:'R', y:400, name:'GPIO17', gpio:17, roles:['uart2_tx','tx2','pwm'], tags:['UART','PWM']},
-  {side:'R', y:430, name:'GPIO16', gpio:16, roles:['uart2_rx','rx2','pwm'], tags:['UART','PWM']},
-  {side:'R', y:460, name:'GPIO4',  gpio:4,  roles:['adc2_0','touch_t0','boot','adc','touch','pwm'], tags:['ADC','TOUCH','PWM']},
-];
-
-const LAYERS = ['spi','i2c','uart','adc','touch','all'];
-let currentLayerIndex = 5;
-
-/* --- Build SVG pins --- */
-const leftG  = document.getElementById('leftPins');
-const rightG = document.getElementById('rightPins');
-const layerTint = document.getElementById('layerTint');
-const info = document.getElementById('info');
-const status = document.getElementById('status');
-
-function pinColor(pin){
-  const set = new Set(pin.tags||[]);
-  if(set.has('SPI')) return 'var(--orange)';
-  if(set.has('I2C')) return 'var(--blue)';
-  if(set.has('UART'))return 'var(--cyan)';
-  if(set.has('ADC')) return 'var(--yellow)';
-  if(set.has('TOUCH'))return 'var(--mag)';
-  if(set.has('DAC')) return 'var(--green)';
-  if(pin.type==='power') return 'var(--red)';
-  return 'var(--ink)';
-}
-function makePin(pin, idx){
-  const x = pin.side==='L' ? 190 : 710;
-  const textAnchor = pin.side==='L' ? 'start' : 'end';
-  const tx = pin.side==='L' ? x+8 : x-8;
-  const subY = pin.y+13;
-
-  const g = document.createElementNS('http://www.w3.org/2000/svg','g');
-  g.dataset.index = idx;
-
-  const rect = document.createElementNS('http://www.w3.org/2000/svg','rect');
-  rect.setAttribute('x', x);
-  rect.setAttribute('y', pin.y-12);
-  rect.setAttribute('width', 180);
-  rect.setAttribute('height', 24);
-  rect.setAttribute('class','pin-rect hoverable');
-  rect.style.stroke = pinColor(pin);
-  g.appendChild(rect);
-
-  const label = document.createElementNS('http://www.w3.org/2000/svg','text');
-  label.setAttribute('x', tx);
-  label.setAttribute('y', pin.y-1);
-  label.setAttribute('class','pin-text');
-  label.setAttribute('text-anchor', textAnchor);
-  label.textContent = pin.name;
-  g.appendChild(label);
-
-  const sub = document.createElementNS('http://www.w3.org/2000/svg','text');
-  sub.setAttribute('x', tx);
-  sub.setAttribute('y', subY);
-  sub.setAttribute('class','pin-sub');
-  sub.setAttribute('text-anchor', textAnchor);
-  sub.textContent = (pin.roles||[]).slice(0,2).join(' • ');
-  g.appendChild(sub);
-
-  g.addEventListener('click', ()=>selectPin(idx));
-  return g;
-}
-
-function renderPins(){
-  leftG.innerHTML = ''; rightG.innerHTML = '';
-  PINS.filter(p=>p.side==='L').forEach((p,i)=>{
-    leftG.appendChild(makePin(p, PINS.findIndex(x=>x===p)));
+  // Simple theme toggle: dark (default) / light
+  const btn = document.getElementById('themeBtn');
+  btn.addEventListener('click', () => {
+    document.body.classList.toggle('light');
   });
-  PINS.filter(p=>p.side==='R').forEach((p,i)=>{
-    rightG.appendChild(makePin(p, PINS.findIndex(x=>x===p)));
-  });
-}
-renderPins();
-
-/* --- Selection & info panel --- */
-let activeIndex = null;
-
-function selectPin(idx){
-  activeIndex = idx;
-  document.querySelectorAll('.pin-rect').forEach(n=>n.classList.remove('active'));
-  const g = [...document.querySelectorAll('g')].find(el=>el.dataset.index==idx);
-  if(!g) return;
-  g.querySelector('.pin-rect').classList.add('active');
-  const p = PINS[idx];
-
-  const caps = [];
-  if(p.tags?.includes('ADC'))  caps.push('<span class="tag t-adc">ADC</span>');
-  if(p.tags?.includes('DAC'))  caps.push('<span class="tag t-dac">DAC</span>');
-  if(p.tags?.includes('TOUCH'))caps.push('<span class="tag t-touch">Touch</span>');
-  if(p.tags?.includes('SPI'))  caps.push('<span class="tag t-spi">SPI</span>');
-  if(p.tags?.includes('I2C'))  caps.push('<span class="tag t-i2c">I²C</span>');
-  if(p.tags?.includes('UART')) caps.push('<span class="tag t-uart">UART</span>');
-  if(p.tags?.includes('PWM') && document.getElementById('pwmToggle').checked) caps.push('<span class="tag t-pwm">PWM</span>');
-  if(p.type==='power') caps.push('<span class="tag t-power">Power</span>');
-
-  info.innerHTML = `
-    <h3>${p.name}</h3>
-    <div style="display:flex; gap:6px; flex-wrap:wrap; margin:.25rem 0 .4rem">${caps.join('')}</div>
-    <div class="kv">Side: ${p.side==='L'?'Left':'Right'} • ${p.gpio!==undefined ? 'GPIO '+p.gpio : (p.type==='power'?'Fixed supply/strap':'Signal')}</div>
-    <h3>Roles & Notes</h3>
-    <ul class="list">${(p.roles||[]).map(r=>`<li><code>${r}</code></li>`).join('')}</ul>
-    <div class="kv">Tip: press <kbd>/</kbd> to focus search, <kbd>Enter</kbd> on the chip to cycle layer.</div>
-  `;
-  status.textContent = `${p.name} selected`;
-}
-
-/* --- Layers & filters --- */
-const chipArea = document.getElementById('chipArea');
-chipArea.addEventListener('click', cycleLayer);
-
-function cycleLayer(){
-  currentLayerIndex = (currentLayerIndex + 1) % LAYERS.length;
-  applyLayer();
-}
-
-function applyLayer(){
-  const layer = LAYERS[currentLayerIndex];
-  document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('active', c.dataset.layer===layer || (layer==='all' && c.dataset.layer==='all')));
-  const densify = document.getElementById('denseToggle').checked;
-  const hover = document.getElementById('hoverToggle').checked;
-
-  // layer tint
-  const map = {spi:'layer-spi', i2c:'layer-i2c', uart:'layer-uart', adc:'layer-adc', touch:'layer-touch', all:'layer-none'};
-  layerTint.setAttribute('class', map[layer] || 'layer-none');
-
-  // show/hide based on layer
-  [...document.querySelectorAll('g')].forEach(g=>{
-    const idx = +g.dataset.index; if(Number.isNaN(idx)) return;
-    const p = PINS[idx];
-    const tags = new Set(p.tags||[]);
-    const rect = g.querySelector('.pin-rect');
-    const txt  = g.querySelector('.pin-text');
-    const sub  = g.querySelector('.pin-sub');
-
-    // hover toggle
-    rect.classList.toggle('hoverable', hover);
-
-    // density
-    sub.style.display = densify ? 'none' : 'block';
-
-    // layer visibility emphasis
-    let focus = true;
-    if(layer!=='all'){
-      if(layer==='spi')   focus = tags.has('SPI');
-      if(layer==='i2c')   focus = tags.has('I2C');
-      if(layer==='uart')  focus = tags.has('UART');
-      if(layer==='adc')   focus = tags.has('ADC') || tags.has('DAC');
-      if(layer==='touch') focus = tags.has('TOUCH');
-    }
-    const alpha = focus ? 1 : .28;
-    rect.style.opacity = alpha; txt.style.opacity = alpha; sub.style.opacity = alpha;
-  });
-
-  status.textContent = `Layer: ${layer.toUpperCase()}`;
-}
-applyLayer();
-
-document.getElementById('chips').addEventListener('click', (e)=>{
-  const btn = e.target.closest('.chip'); if(!btn) return;
-  const layer = btn.dataset.layer; currentLayerIndex = LAYERS.indexOf(layer); applyLayer();
-});
-
-document.getElementById('hoverToggle').addEventListener('change', applyLayer);
-document.getElementById('denseToggle').addEventListener('change', applyLayer);
-document.getElementById('pwmToggle').addEventListener('change', ()=>{
-  // refresh current selection badges
-  if(activeIndex!==null) selectPin(activeIndex);
-});
-
-/* --- Search --- */
-const q = document.getElementById('q');
-q.addEventListener('input', ()=>{
-  const term = q.value.trim().toLowerCase();
-  [...document.querySelectorAll('g')].forEach(g=>{
-    const idx = +g.dataset.index; if(Number.isNaN(idx)) return;
-    const p = PINS[idx];
-    const hay = [p.name, ...(p.roles||[]), ...(p.tags||[])].join(' ').toLowerCase();
-    const hit = hay.includes(term);
-    g.style.display = (!term || hit) ? 'block' : 'none';
-  });
-  status.textContent = term ? `Filtered by “${term}”` : 'Filter cleared';
-});
-window.addEventListener('keydown', (e)=>{
-  if(e.key==='/' && document.activeElement!==q){ e.preventDefault(); q.focus(); }
-  if(e.key==='Enter' && document.activeElement!==q){ cycleLayer(); }
-});
-
-/* --- Initial focus pin --- */
-const firstSpi = PINS.findIndex(p=>p.tags?.includes('SPI'));
-if(firstSpi>=0) selectPin(firstSpi);
 </script>
 </body>
 </html>
