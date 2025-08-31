@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="auto">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -8,24 +8,52 @@
   :root{
     --page-w: 8.5in;
     --page-h: 11in;
-    --margin: 0.5in;
     --ink: #222;
     --muted: #6b7280;
     --line: #cfd6e3;
     --accent: #4f46e5;
-    --bg: #f7f9fc;
+    --bg: #e9eef5;
+    --paper-top: #f4f7fb;
+    --paper-bot: #eef2f9;
+    --card: #ffffff;
+    --card-border: #e5eaf4;
+    --shadow: 0 10px 25px rgba(30,41,59,.12);
   }
+  /* Dark theme */
+  :root[data-theme="dark"]{
+    --ink: #e5e7eb;
+    --muted: #9aa3b2;
+    --line: #2d3648;
+    --accent: #8b87f8;
+    --bg: #0b0e14;
+    --paper-top: #111725;
+    --paper-bot: #0c111b;
+    --card: #0f1625;
+    --card-border: #1f2a3d;
+    --shadow: 0 10px 25px rgba(0,0,0,.45);
+  }
+
   *{box-sizing:border-box}
-  html,body{height:100%;background:#e9eef5}
-  body{display:flex;align-items:center;justify-content:center;padding:16px;margin:0;font:14px/1.3 system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;color:var(--ink)}
-  .page{
-    width:var(--page-w); height:var(--page-h);
-    background:linear-gradient(#f4f7fb,#eef2f9);
-    border:1px solid #dde3ef; border-radius:8px;
-    box-shadow:0 10px 25px rgba(30,41,59,.12);
-    padding:calc(var(--margin) - .15in);
+  html,body{min-height:100%}
+  body{
+    margin:0;
+    padding:24px 16px 40px; /* Top margin */
+    background:var(--bg);
+    color:var(--ink);
+    font:14px/1.3 system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
   }
-  .head{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:12px}
+
+  .page{
+    width:min(100%, var(--page-w));
+    margin:0 auto;
+    background:linear-gradient(var(--paper-top),var(--paper-bot));
+    border:1px solid var(--card-border);
+    border-radius:10px;
+    box-shadow:var(--shadow);
+    padding:18px;
+  }
+
+  .head{display:flex;justify-content:space-between;align-items:flex-end;gap:8px;margin-bottom:12px;flex-wrap:wrap}
   .title{font-weight:700;letter-spacing:.04em;font-size:22px}
   .date{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--muted)}
   .date input{
@@ -37,7 +65,6 @@
     display:grid;
     grid-template-columns: 1.25fr .75fr;
     gap:18px;
-    height:calc(100% - 58px);
   }
   .col{display:flex;flex-direction:column;gap:12px;min-height:0}
 
@@ -46,27 +73,56 @@
     font-size:11px;
     font-weight:700;
     letter-spacing:.06em;
-    color:#475569;
+    color:var(--muted);
     text-transform:uppercase;
   }
 
   /* Cards */
   .card{
-    background:white;border:1px solid #e5eaf4;border-radius:8px;padding:10px 12px;
+    background:var(--card);
+    border:1px solid var(--card-border);
+    border-radius:10px;
+    padding:10px 12px;
     box-shadow:0 1px 0 rgba(0,0,0,.02);
   }
 
   /* Schedule */
-  .schedule{display:flex;flex-direction:column;gap:6px;min-height:0}
-  .row{
+  .schedule .row{
     display:grid;grid-template-columns: 60px 1fr 16px;align-items:center;gap:8px;
     padding:4px 0;
     border-bottom:1px dashed var(--line);
   }
-  .row:last-child{border-bottom:none}
+  .schedule .row:last-child{border-bottom:none}
   .time{color:var(--muted);font-size:12px;white-space:nowrap}
-  .line{height:22px;border-bottom:1px solid #ecf0f6;margin-top:-10px}
-  .note-bullet{width:10px;height:10px;border:1px solid #c9d2e5;border-radius:50%}
+  .note-bullet{width:10px;height:10px;border:1px solid var(--line);border-radius:50%}
+
+  /* Editable schedule slot */
+  .slot{
+    height:22px;
+    border-bottom:1px solid var(--line);
+    margin-top:-10px;
+    outline:none;
+    white-space:nowrap;
+    overflow:hidden;
+  }
+  .slot:empty::before{
+    content:"Add note";
+    color:#98a2b3;
+  }
+
+  /* 2-column schedule option */
+  #schedule.two-col{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap:6px 12px; /* row-gap / col-gap */
+  }
+
+  /* Scrollable schedule option (applies to the card) */
+  .schedule.scroll #schedule{
+    max-height:clamp(360px, 60vh, 740px);
+    overflow:auto;
+    padding-right:4px;
+  }
 
   /* Lists */
   .checkline{
@@ -75,43 +131,48 @@
   }
   .checkline:last-child{border-bottom:none}
   input[type="checkbox"]{
-    width:14px;height:14px;border:1px solid #cbd5e1;border-radius:3px;appearance:none;
-    display:inline-grid;place-content:center;cursor:pointer;background:#fff;
+    width:14px;height:14px;border:1px solid var(--line);border-radius:3px;appearance:none;
+    display:inline-grid;place-content:center;cursor:pointer;background:var(--card);
   }
   input[type="checkbox"]:checked{background:var(--accent);border-color:var(--accent)}
   input[type="checkbox"]:checked::after{content:"✓";font-size:12px;color:white;line-height:1}
 
-  .freewrite{
-    min-height:70px;border:1px dashed var(--line);border-radius:6px;padding:8px;background:#fff
-  }
-
-  /* Make lines typeable (so JSON can store text) */
+  /* Type-on lines */
   .write-line{
-    height:22px;border-bottom:1px solid #e9edf5;
+    height:22px;border-bottom:1px solid var(--line);
   }
-  .write-line[contenteditable="true"]{
-    outline:none; white-space:nowrap; overflow:hidden;
-  }
-  .write-line[contenteditable="true"]:empty::before{
-    content:"Type here";
-    color:#98a2b3;
+  .write-line[contenteditable="true"]{outline:none;white-space:nowrap;overflow:hidden}
+  .write-line[contenteditable="true"]:empty::before{content:"Type here";color:#98a2b3}
+
+  .freewrite{
+    min-height:90px;border:1px dashed var(--line);border-radius:8px;padding:8px;background:var(--card)
   }
 
   /* Controls (hidden on print) */
-  .controls{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:8px}
+  .controls{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:10px}
   .btn{
-    background:#ffffff;border:1px solid #d7deee;border-radius:8px;padding:8px 12px;cursor:pointer;
-    font-size:13px
+    background:var(--card);border:1px solid var(--card-border);border-radius:10px;padding:8px 12px;cursor:pointer;
+    font-size:13px;color:var(--ink)
   }
-  .btn:hover{border-color:#bcc7e6;box-shadow:0 1px 0 rgba(0,0,0,.04)}
+  .btn:hover{border-color:#bcc7e6}
   #fileInput{display:none}
 
+  /* Responsive */
+  @media (max-width: 1024px){
+    .grid{grid-template-columns: 1fr}
+    .title{font-size:20px}
+  }
+
   @media print{
-    html,body{background:white}
-    .page{box-shadow:none;border:none;width:auto;height:auto;padding:0;margin:0}
+    :root{
+      --ink:#111; --muted:#444; --line:#cfd6e3; --bg:#fff; --paper-top:#fff; --paper-bot:#fff;
+      --card:#fff; --card-border:#e5eaf4; --shadow:none;
+    }
+    body{background:#fff;padding:0}
+    .page{box-shadow:none;border:none;width:var(--page-w);height:var(--page-h);margin:0;padding:0}
     .controls{display:none}
-    .card{break-inside:avoid}
-    .write-line[contenteditable="true"]:empty::before{content:""}
+    .slot:empty::before, .write-line[contenteditable="true"]:empty::before{content:""}
+    .schedule #schedule{max-height:none;overflow:visible}
   }
 </style>
 </head>
@@ -120,6 +181,9 @@
     <div class="controls">
       <button class="btn" onclick="window.print()">Print / Save as PDF</button>
       <button class="btn" id="clearAll">Clear checks</button>
+      <button class="btn" id="toggleCols">2-Col Schedule</button>
+      <button class="btn" id="toggleScroll">Scroll Schedule</button>
+      <button class="btn" id="themeToggle">Dark/Light</button>
       <button class="btn" id="exportJson">Export JSON</button>
       <button class="btn" id="importJson">Import JSON</button>
       <input type="file" id="fileInput" accept="application/json,.json">
@@ -133,13 +197,13 @@
     <div class="grid">
       <!-- LEFT: Schedule -->
       <div class="col">
-        <div class="card schedule">
+        <div class="card schedule" id="scheduleCard">
           <h3>Schedule</h3>
           <div id="schedule"></div>
         </div>
       </div>
 
-      <!-- RIGHT: Priorities / Lists / Notes -->
+      <!-- RIGHT: Priorities / Lists / Notes (notes kept with rest) -->
       <div class="col">
         <div class="card" id="workTop3">
           <h3>Top 3 Work Priorities</h3>
@@ -150,35 +214,33 @@
 
         <div class="card" id="workList">
           <h3>Work To-Do List</h3>
-          <!-- 8 lines -->
-          <div class="checkline"><input type="checkbox"><div class="write-line" contenteditable="true" aria-label="Work task 1"></div></div>
-          <div class="checkline"><input type="checkbox"><div class="write-line" contenteditable="true" aria-label="Work task 2"></div></div>
-          <div class="checkline"><input type="checkbox"><div class="write-line" contenteditable="true" aria-label="Work task 3"></div></div>
-          <div class="checkline"><input type="checkbox"><div class="write-line" contenteditable="true" aria-label="Work task 4"></div></div>
-          <div class="checkline"><input type="checkbox"><div class="write-line" contenteditable="true" aria-label="Work task 5"></div></div>
-          <div class="checkline"><input type="checkbox"><div class="write-line" contenteditable="true" aria-label="Work task 6"></div></div>
-          <div class="checkline"><input type="checkbox"><div class="write-line" contenteditable="true" aria-label="Work task 7"></div></div>
-          <div class="checkline"><input type="checkbox"><div class="write-line" contenteditable="true" aria-label="Work task 8"></div></div>
+          <div class="checkline"><input type="checkbox"><div class="write-line" contenteditable="true"></div></div>
+          <div class="checkline"><input type="checkbox"><div class="write-line" contenteditable="true"></div></div>
+          <div class="checkline"><input type="checkbox"><div class="write-line" contenteditable="true"></div></div>
+          <div class="checkline"><input type="checkbox"><div class="write-line" contenteditable="true"></div></div>
+          <div class="checkline"><input type="checkbox"><div class="write-line" contenteditable="true"></div></div>
+          <div class="checkline"><input type="checkbox"><div class="write-line" contenteditable="true"></div></div>
+          <div class="checkline"><input type="checkbox"><div class="write-line" contenteditable="true"></div></div>
+          <div class="checkline"><input type="checkbox"><div class="write-line" contenteditable="true"></div></div>
         </div>
 
         <div class="card" id="personalTop3">
           <h3>Top 3 Personal Priorities</h3>
-          <div class="checkline"><input type="checkbox"><div class="write-line" contenteditable="true" aria-label="Personal priority 1"></div></div>
-          <div class="checkline"><input type="checkbox"><div class="write-line" contenteditable="true" aria-label="Personal priority 2"></div></div>
-          <div class="checkline"><input type="checkbox"><div class="write-line" contenteditable="true" aria-label="Personal priority 3"></div></div>
+          <div class="checkline"><input type="checkbox"><div class="write-line" contenteditable="true"></div></div>
+          <div class="checkline"><input type="checkbox"><div class="write-line" contenteditable="true"></div></div>
+          <div class="checkline"><input type="checkbox"><div class="write-line" contenteditable="true"></div></div>
         </div>
 
         <div class="card" id="personalList">
           <h3>Personal To-Do List</h3>
-          <!-- 8 lines -->
-          <div class="checkline"><input type="checkbox"><div class="write-line" contenteditable="true" aria-label="Personal task 1"></div></div>
-          <div class="checkline"><input type="checkbox"><div class="write-line" contenteditable="true" aria-label="Personal task 2"></div></div>
-          <div class="checkline"><input type="checkbox"><div class="write-line" contenteditable="true" aria-label="Personal task 3"></div></div>
-          <div class="checkline"><input type="checkbox"><div class="write-line" contenteditable="true" aria-label="Personal task 4"></div></div>
-          <div class="checkline"><input type="checkbox"><div class="write-line" contenteditable="true" aria-label="Personal task 5"></div></div>
-          <div class="checkline"><input type="checkbox"><div class="write-line" contenteditable="true" aria-label="Personal task 6"></div></div>
-          <div class="checkline"><input type="checkbox"><div class="write-line" contenteditable="true" aria-label="Personal task 7"></div></div>
-          <div class="checkline"><input type="checkbox"><div class="write-line" contenteditable="true" aria-label="Personal task 8"></div></div>
+          <div class="checkline"><input type="checkbox"><div class="write-line" contenteditable="true"></div></div>
+          <div class="checkline"><input type="checkbox"><div class="write-line" contenteditable="true"></div></div>
+          <div class="checkline"><input type="checkbox"><div class="write-line" contenteditable="true"></div></div>
+          <div class="checkline"><input type="checkbox"><div class="write-line" contenteditable="true"></div></div>
+          <div class="checkline"><input type="checkbox"><div class="write-line" contenteditable="true"></div></div>
+          <div class="checkline"><input type="checkbox"><div class="write-line" contenteditable="true"></div></div>
+          <div class="checkline"><input type="checkbox"><div class="write-line" contenteditable="true"></div></div>
+          <div class="checkline"><input type="checkbox"><div class="write-line" contenteditable="true"></div></div>
         </div>
 
         <div class="card">
@@ -190,15 +252,34 @@
   </div>
 
 <script>
-  // Auto-fill today's date
-  (function(){
-    const f = document.getElementById('dateField');
-    const today = new Date();
-    f.value = today.toISOString().slice(0,10);
-  })();
+  // ---------- Theme ----------
+  const root = document.documentElement;
+  function applyTheme(mode){
+    if(mode === 'dark'){ root.setAttribute('data-theme','dark'); }
+    else if(mode === 'light'){ root.setAttribute('data-theme','light'); }
+    else {
+      root.setAttribute('data-theme', (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light');
+    }
+  }
+  applyTheme(localStorage.getItem('planner-theme') || 'auto');
 
-  // Build schedule 6:00 AM – 10:30 PM in 30-min increments
-  (function(){
+  document.getElementById('themeToggle').addEventListener('click', ()=>{
+    const current = root.getAttribute('data-theme');
+    const next = current === 'dark' ? 'light' : 'dark';
+    applyTheme(next);
+    localStorage.setItem('planner-theme', next);
+  });
+
+  // Respect OS changes when in auto (no stored pref)
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', ()=>{
+    if(!localStorage.getItem('planner-theme')) applyTheme('auto');
+  });
+
+  // ---------- Date ----------
+  (()=>{ document.getElementById('dateField').value = new Date().toISOString().slice(0,10); })();
+
+  // ---------- Schedule builder (6:00 AM – 10:30 PM, 30-min) ----------
+  (()=> {
     const start = 6 * 60, end = 22 * 60 + 30;
     const wrap = document.getElementById('schedule');
     for(let m = start; m <= end; m += 30){
@@ -211,19 +292,41 @@
       row.className = 'row';
       row.innerHTML = `
         <div class="time">${label}</div>
-        <div class="line"></div>
+        <div class="slot" contenteditable="true" data-time="${m}"></div>
         <div class="note-bullet" aria-hidden="true"></div>
       `;
       wrap.appendChild(row);
     }
   })();
 
+  // ---------- Controls ----------
   // Clear all checkboxes
   document.getElementById('clearAll').addEventListener('click', ()=>{
     document.querySelectorAll('input[type="checkbox"]').forEach(c=>c.checked=false);
   });
 
-  // ------- JSON Import/Export -------
+  // Toggle 2-column schedule
+  document.getElementById('toggleCols').addEventListener('click', ()=>{
+    document.getElementById('schedule').classList.toggle('two-col');
+  });
+
+  // Toggle scrollable schedule
+  document.getElementById('toggleScroll').addEventListener('click', ()=>{
+    document.getElementById('scheduleCard').classList.toggle('scroll');
+  });
+
+  // Keep single-line behavior in contenteditable (no newlines)
+  document.addEventListener('keydown', (e)=>{
+    if(
+      (e.target.matches('.write-line[contenteditable="true"]') || e.target.matches('.slot[contenteditable="true"]')) &&
+      e.key === 'Enter'
+    ){
+      e.preventDefault();
+      e.target.blur();
+    }
+  });
+
+  // ---------- JSON Import/Export ----------
   const $ = (s, root=document) => root.querySelector(s);
   const $$ = (s, root=document) => Array.from(root.querySelectorAll(s));
 
@@ -247,10 +350,19 @@
   }
 
   function exportJSON(){
+    const scheduleData = Array.from(document.querySelectorAll('#schedule .slot'))
+      .map(el => ({ m: +el.dataset.time || null, text: (el.innerText || '').trim() }));
+
     const data = {
-      version: 1,
+      version: 3,
       generatedAt: new Date().toISOString(),
       date: $('#dateField').value,
+      theme: root.getAttribute('data-theme'),
+      scheduleLayout: {
+        twoCol: $('#schedule').classList.contains('two-col'),
+        scroll: $('#scheduleCard').classList.contains('scroll')
+      },
+      schedule: scheduleData,
       sections: {
         workTop3: readList('workTop3'),
         workList: readList('workList'),
@@ -277,15 +389,29 @@
       try{
         const data = JSON.parse(e.target.result);
         if(data.date) $('#dateField').value = data.date;
+
         if(data.sections){
           populateList('workTop3', data.sections.workTop3);
           populateList('workList', data.sections.workList);
           populateList('personalTop3', data.sections.personalTop3);
           populateList('personalList', data.sections.personalList);
         }
-        if(typeof data.notesHtml === 'string'){
-          $('#notesArea').innerHTML = data.notesHtml;
+
+        if(Array.isArray(data.schedule)){
+          data.schedule.forEach(({ m, text }) => {
+            const el = (m != null) ? document.querySelector(`#schedule .slot[data-time="${m}"]`) : null;
+            if (el) el.innerText = text || '';
+          });
         }
+
+        if(typeof data.notesHtml === 'string') $('#notesArea').innerHTML = data.notesHtml;
+
+        if(data.theme){ applyTheme(data.theme); localStorage.setItem('planner-theme', data.theme); }
+        if(data.scheduleLayout){
+          $('#schedule').classList.toggle('two-col', !!data.scheduleLayout.twoCol);
+          $('#scheduleCard').classList.toggle('scroll', !!data.scheduleLayout.scroll);
+        }
+
         alert('Plan loaded successfully.');
       }catch(err){
         console.error(err);
@@ -300,15 +426,7 @@
   $('#fileInput').addEventListener('change', (e)=>{
     const file = e.target.files && e.target.files[0];
     if(file) importJSONFile(file);
-    e.target.value = ''; // reset so same file can be chosen again later
-  });
-
-  // Optional: keep single-line behavior in contenteditable (prevent Enter from adding new lines)
-  document.addEventListener('keydown', (e)=>{
-    if(e.target.matches('.write-line[contenteditable="true"]') && e.key === 'Enter'){
-      e.preventDefault();
-      e.target.blur();
-    }
+    e.target.value = ''; // allow re-choosing same file later
   });
 </script>
 </body>
