@@ -6,8 +6,13 @@
 <title>Daily Planner</title>
 <style>
   :root{
+    /* Print (letter) */
     --page-w: 8.5in;
     --page-h: 11in;
+
+    /* Screen */
+    --screen-max-w: 1200px;
+
     --ink: #222;
     --muted: #6b7280;
     --line: #cfd6e3;
@@ -37,14 +42,14 @@
   html,body{min-height:100%}
   body{
     margin:0;
-    padding:24px 16px 40px; /* Top margin */
+    padding:24px 8px 40px;  /* slimmer left/right, comfy top margin */
     background:var(--bg);
     color:var(--ink);
     font:14px/1.3 system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
   }
 
   .page{
-    width:min(100%, var(--page-w));
+    width:min(96vw, var(--screen-max-w)); /* wider on desktop, minimal waste */
     margin:0 auto;
     background:linear-gradient(var(--paper-top),var(--paper-bot));
     border:1px solid var(--card-border);
@@ -63,7 +68,7 @@
 
   .grid{
     display:grid;
-    grid-template-columns: 1.25fr .75fr;
+    grid-template-columns: 1.2fr .8fr;
     gap:18px;
   }
   .col{display:flex;flex-direction:column;gap:12px;min-height:0}
@@ -88,7 +93,7 @@
 
   /* Schedule */
   .schedule .row{
-    display:grid;grid-template-columns: 60px 1fr 16px;align-items:center;gap:8px;
+    display:grid;grid-template-columns: 64px 1fr 16px;align-items:center;gap:8px;
     padding:4px 0;
     border-bottom:1px dashed var(--line);
   }
@@ -96,7 +101,7 @@
   .time{color:var(--muted);font-size:12px;white-space:nowrap}
   .note-bullet{width:10px;height:10px;border:1px solid var(--line);border-radius:50%}
 
-  /* Editable schedule slot */
+  /* Editable schedule slot (no placeholder) */
   .slot{
     height:22px;
     border-bottom:1px solid var(--line);
@@ -105,16 +110,12 @@
     white-space:nowrap;
     overflow:hidden;
   }
-  .slot:empty::before{
-    content:"Add note";
-    color:#98a2b3;
-  }
 
   /* 2-column schedule option */
   #schedule.two-col{
     display:grid;
     grid-template-columns: 1fr 1fr;
-    gap:6px 12px; /* row-gap / col-gap */
+    gap:6px 12px;
   }
 
   /* Scrollable schedule option (applies to the card) */
@@ -171,7 +172,7 @@
     body{background:#fff;padding:0}
     .page{box-shadow:none;border:none;width:var(--page-w);height:var(--page-h);margin:0;padding:0}
     .controls{display:none}
-    .slot:empty::before, .write-line[contenteditable="true"]:empty::before{content:""}
+    .write-line[contenteditable="true"]:empty::before{content:""}
     .schedule #schedule{max-height:none;overflow:visible}
   }
 </style>
@@ -203,7 +204,7 @@
         </div>
       </div>
 
-      <!-- RIGHT: Priorities / Lists / Notes (notes kept with rest) -->
+      <!-- RIGHT: Priorities / Lists / Notes -->
       <div class="col">
         <div class="card" id="workTop3">
           <h3>Top 3 Work Priorities</h3>
@@ -252,36 +253,48 @@
   </div>
 
 <script>
-  // ---------- Theme ----------
+  // ---------- Utils ----------
+  const $ = (s, root=document) => root.querySelector(s);
+  const $$ = (s, root=document) => Array.from(root.querySelectorAll(s));
   const root = document.documentElement;
+  const stateKeyFor = (date) => `planner/day/${date}`;
+
+  // Debounce helper
+  const debounce = (fn, ms=300) => {
+    let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args), ms); };
+  };
+
+  // ---------- Theme ----------
   function applyTheme(mode){
     if(mode === 'dark'){ root.setAttribute('data-theme','dark'); }
     else if(mode === 'light'){ root.setAttribute('data-theme','light'); }
     else {
-      root.setAttribute('data-theme', (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light');
+      root.setAttribute('data-theme',
+        (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light'
+      );
     }
   }
   applyTheme(localStorage.getItem('planner-theme') || 'auto');
 
-  document.getElementById('themeToggle').addEventListener('click', ()=>{
+  $('#themeToggle').addEventListener('click', ()=>{
     const current = root.getAttribute('data-theme');
     const next = current === 'dark' ? 'light' : 'dark';
     applyTheme(next);
     localStorage.setItem('planner-theme', next);
+    saveState(); // persist chosen theme with the day too
   });
 
-  // Respect OS changes when in auto (no stored pref)
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', ()=>{
     if(!localStorage.getItem('planner-theme')) applyTheme('auto');
   });
 
   // ---------- Date ----------
-  (()=>{ document.getElementById('dateField').value = new Date().toISOString().slice(0,10); })();
+  (()=>{ $('#dateField').value = new Date().toISOString().slice(0,10); })();
 
   // ---------- Schedule builder (6:00 AM – 10:30 PM, 30-min) ----------
   (()=> {
     const start = 6 * 60, end = 22 * 60 + 30;
-    const wrap = document.getElementById('schedule');
+    const wrap = $('#schedule');
     for(let m = start; m <= end; m += 30){
       const h = Math.floor(m/60), mm = m%60;
       const ampm = h < 12 ? 'am' : 'pm';
@@ -299,37 +312,7 @@
     }
   })();
 
-  // ---------- Controls ----------
-  // Clear all checkboxes
-  document.getElementById('clearAll').addEventListener('click', ()=>{
-    document.querySelectorAll('input[type="checkbox"]').forEach(c=>c.checked=false);
-  });
-
-  // Toggle 2-column schedule
-  document.getElementById('toggleCols').addEventListener('click', ()=>{
-    document.getElementById('schedule').classList.toggle('two-col');
-  });
-
-  // Toggle scrollable schedule
-  document.getElementById('toggleScroll').addEventListener('click', ()=>{
-    document.getElementById('scheduleCard').classList.toggle('scroll');
-  });
-
-  // Keep single-line behavior in contenteditable (no newlines)
-  document.addEventListener('keydown', (e)=>{
-    if(
-      (e.target.matches('.write-line[contenteditable="true"]') || e.target.matches('.slot[contenteditable="true"]')) &&
-      e.key === 'Enter'
-    ){
-      e.preventDefault();
-      e.target.blur();
-    }
-  });
-
-  // ---------- JSON Import/Export ----------
-  const $ = (s, root=document) => root.querySelector(s);
-  const $$ = (s, root=document) => Array.from(root.querySelectorAll(s));
-
+  // ---------- Collect & Apply State ----------
   function readList(containerId){
     return $$('#'+containerId+' .checkline').map(line=>{
       const cb = $('input[type="checkbox"]', line);
@@ -337,7 +320,6 @@
       return { checked: !!cb.checked, text: (txt.innerText || '').trim() };
     });
   }
-
   function populateList(containerId, arr){
     const lines = $$('#'+containerId+' .checkline');
     for(let i=0;i<lines.length;i++){
@@ -349,13 +331,11 @@
     }
   }
 
-  function exportJSON(){
-    const scheduleData = Array.from(document.querySelectorAll('#schedule .slot'))
+  function getState(){
+    const scheduleData = $$('#schedule .slot')
       .map(el => ({ m: +el.dataset.time || null, text: (el.innerText || '').trim() }));
-
-    const data = {
-      version: 3,
-      generatedAt: new Date().toISOString(),
+    return {
+      version: 4,
       date: $('#dateField').value,
       theme: root.getAttribute('data-theme'),
       scheduleLayout: {
@@ -371,7 +351,108 @@
       },
       notesHtml: $('#notesArea').innerHTML
     };
+  }
 
+  function applyState(data){
+    if(!data) return;
+    if(data.theme){ applyTheme(data.theme); }
+    if(data.scheduleLayout){
+      $('#schedule').classList.toggle('two-col', !!data.scheduleLayout.twoCol);
+      $('#scheduleCard').classList.toggle('scroll', !!data.scheduleLayout.scroll);
+    }
+    if(Array.isArray(data.schedule)){
+      data.schedule.forEach(({ m, text }) => {
+        const el = (m != null) ? document.querySelector(`#schedule .slot[data-time="${m}"]`) : null;
+        if (el) el.innerText = text || '';
+      });
+    }
+    if(data.sections){
+      populateList('workTop3', data.sections.workTop3);
+      populateList('workList', data.sections.workList);
+      populateList('personalTop3', data.sections.personalTop3);
+      populateList('personalList', data.sections.personalList);
+    }
+    if(typeof data.notesHtml === 'string') $('#notesArea').innerHTML = data.notesHtml;
+  }
+
+  function clearDayUI(){
+    // Uncheck and clear text fields for a fresh day
+    $$('#schedule .slot').forEach(el => el.innerText = '');
+    ['workTop3','workList','personalTop3','personalList'].forEach(id=>{
+      $$('#'+id+' .checkline').forEach(line=>{
+        $('input[type="checkbox"]', line).checked = false;
+        $('.write-line', line).innerText = '';
+      });
+    });
+    $('#notesArea').innerHTML = '';
+    $('#schedule').classList.remove('two-col');
+    $('#scheduleCard').classList.remove('scroll');
+  }
+
+  // ---------- Persistence ----------
+  const saveState = debounce(()=>{
+    try{
+      const k = stateKeyFor($('#dateField').value);
+      localStorage.setItem(k, JSON.stringify(getState()));
+    }catch(e){ console.warn('Save failed:', e); }
+  }, 250);
+
+  function loadStateForDate(dateStr){
+    try{
+      const k = stateKeyFor(dateStr);
+      const raw = localStorage.getItem(k);
+      if(raw){
+        clearDayUI();
+        applyState(JSON.parse(raw));
+        return true;
+      }
+    }catch(e){ console.warn('Load failed:', e); }
+    return false;
+  }
+
+  // Initial load: try to restore today's state
+  loadStateForDate($('#dateField').value);
+
+  // When date changes, load that day's saved state (or start fresh)
+  $('#dateField').addEventListener('change', ()=>{
+    const ok = loadStateForDate($('#dateField').value);
+    if(!ok){ clearDayUI(); saveState(); }
+  });
+
+  // Save on interactions
+  document.addEventListener('input', (e)=>{
+    if(
+      e.target.matches('.write-line[contenteditable="true"]') ||
+      e.target.matches('.slot[contenteditable="true"]') ||
+      e.target.id === 'notesArea'
+    ){ saveState(); }
+  });
+  document.addEventListener('change', (e)=>{
+    if(e.target.matches('input[type="checkbox"]')) saveState();
+  });
+
+  // ---------- Controls ----------
+  // Clear all checkboxes (then save)
+  $('#clearAll').addEventListener('click', ()=>{
+    $$('input[type="checkbox"]').forEach(c=>c.checked=false);
+    saveState();
+  });
+
+  // Toggle 2-column schedule
+  $('#toggleCols').addEventListener('click', ()=>{
+    $('#schedule').classList.toggle('two-col');
+    saveState();
+  });
+
+  // Toggle scrollable schedule
+  $('#toggleScroll').addEventListener('click', ()=>{
+    $('#scheduleCard').classList.toggle('scroll');
+    saveState();
+  });
+
+  // ---------- JSON Import/Export ----------
+  function exportJSON(){
+    const data = getState();
     const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
     const a = document.createElement('a');
     const fname = `daily-plan-${data.date || new Date().toISOString().slice(0,10)}.json`;
@@ -388,30 +469,11 @@
     reader.onload = (e)=>{
       try{
         const data = JSON.parse(e.target.result);
-        if(data.date) $('#dateField').value = data.date;
-
-        if(data.sections){
-          populateList('workTop3', data.sections.workTop3);
-          populateList('workList', data.sections.workList);
-          populateList('personalTop3', data.sections.personalTop3);
-          populateList('personalList', data.sections.personalList);
-        }
-
-        if(Array.isArray(data.schedule)){
-          data.schedule.forEach(({ m, text }) => {
-            const el = (m != null) ? document.querySelector(`#schedule .slot[data-time="${m}"]`) : null;
-            if (el) el.innerText = text || '';
-          });
-        }
-
-        if(typeof data.notesHtml === 'string') $('#notesArea').innerHTML = data.notesHtml;
-
-        if(data.theme){ applyTheme(data.theme); localStorage.setItem('planner-theme', data.theme); }
-        if(data.scheduleLayout){
-          $('#schedule').classList.toggle('two-col', !!data.scheduleLayout.twoCol);
-          $('#scheduleCard').classList.toggle('scroll', !!data.scheduleLayout.scroll);
-        }
-
+        if(data.date) $('#dateField').value = data.date; // switch to that day
+        clearDayUI();
+        applyState(data);
+        // Persist imported state to localStorage for that date
+        localStorage.setItem(stateKeyFor($('#dateField').value), JSON.stringify(getState()));
         alert('Plan loaded successfully.');
       }catch(err){
         console.error(err);
@@ -427,6 +489,17 @@
     const file = e.target.files && e.target.files[0];
     if(file) importJSONFile(file);
     e.target.value = ''; // allow re-choosing same file later
+  });
+
+  // Keep single-line behavior in contenteditable (no newlines)
+  document.addEventListener('keydown', (e)=>{
+    if(
+      (e.target.matches('.write-line[contenteditable="true"]') || e.target.matches('.slot[contenteditable="true"]')) &&
+      e.key === 'Enter'
+    ){
+      e.preventDefault();
+      e.target.blur();
+    }
   });
 </script>
 </body>
