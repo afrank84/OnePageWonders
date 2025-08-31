@@ -335,14 +335,21 @@ function renderPersonList() {
 
   const q = ($("#personSearch").value || "").trim().toLowerCase();
   const items = store.people[who];
+
+  // filter (by search) then ALWAYS sort alphabetically by name (case-insensitive)
   const vis = items.filter(it=>{
     if (!q) return true;
     return (it.name||"").toLowerCase().includes(q) || (it.notes||"").toLowerCase().includes(q);
   });
+  const sorted = vis.slice().sort((a,b)=>{
+    const an = (a.name||"").toLowerCase();
+    const bn = (b.name||"").toLowerCase();
+    return an.localeCompare(bn);
+  });
 
-  $("#personStats").textContent = `${humanCountPacked(items)}${q ? ` • Showing ${vis.length}/${items.length}` : ""}`;
+  $("#personStats").textContent = `${humanCountPacked(items)}${q ? ` • Showing ${sorted.length}/${items.length}` : ""}`;
 
-  vis.forEach(it=>{
+  sorted.forEach(it=>{
     const row = document.createElement("div");
     row.className = "item";
     row.dataset.id = it.id;
@@ -409,6 +416,7 @@ function renderPersonList() {
     root.appendChild(row);
   });
 }
+
 
 // --- Charts + Master Table ---
 function computeProgress(){
