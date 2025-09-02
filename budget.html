@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Simple Monthly Budget</title>
+
+<!-- Bootstrap 5.3.3 (CSS only, as you prefer) -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+
+<style>
+  :root {
+    --card-gap: 1rem;
+  }
+  body { padding: 1rem; }
+  .app-title { letter-spacing: .3px; }
+  .summary-card .big { font-size: clamp(1.3rem, 3vw, 1.8rem); font-weight: 700; }
+  .summary-card .sub { font-size: .9rem; opacity: .85; }
+  .sticky-actions {
+    position: sticky; top: 0; z-index: 10; backdrop-filter: blur(6px);
+  }
+  .table-sm td, .table-sm th { vertical-align: middle; }
+  .pointer { cursor: pointer; }
+  .progress { height: 10px; }
+  .section-card { height: 100%; }
+  .placeholder-muted { opacity: .75; }
+  /* Hide native number spinners for cleaner look (still works with arrows on desktop) */
+  input[type=number]::-webkit-outer-spin-button,
+  input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  input[type=number] { -moz-appearance: textfield; }
+  /* File input hidden, trigger by button */
+  #importFile { display: none; }
+</style>
+</head>
+<body>
+
+<header class="sticky-actions pb-3 mb-3 border-bottom">
+  <div class="d-flex flex-wrap align-items-center gap-2">
+    <h1 class="h4 m-0 app-title">Simple Monthly Budget</h1>
+    <div class="ms-auto d-flex align-items-center gap-2">
+      <div class="form-check form-switch m-0">
+        <input class="form-check-input" type="checkbox" id="themeToggle" checked>
+        <label class="form-check-label" for="themeToggle">Dark</label>
+      </div>
+      <button class="btn btn-outline-secondary btn-sm" id="exportBtn" title="Export JSON">Export</button>
+      <button class="btn btn-outline-secondary btn-sm" id="importBtn" title="Import JSON">Import</button>
+      <input type="file" id="importFile" accept="application/json">
+      <button class="btn btn-outline-danger btn-sm" id="resetBtn" title="Clear all data">Reset</button>
+    </div>
+  </div>
+</header>
+
+<!-- Summary row -->
+<section class="mb-3">
+  <div class="row g-2">
+    <div class="col-6 col-md-3">
+      <div class="card summary-card h-100">
+        <div class="card-body">
+          <div class="sub text-secondary">Total Income (Monthly)</div>
+          <div class="big" id="sumIncome">$0.00</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card summary-card h-100">
+        <div class="card-body">
+          <div class="sub text-secondary">Fixed Bills</div>
+          <div class="big" id="sumBills">$0.00</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card summary-card h-100">
+        <div class="card-body">
+          <div class="sub text-secondary">Other Expenses</div>
+          <div class="big" id="sumExpenses">$0.00</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card summary-card h-100">
+        <div class="card-body">
+          <div class="sub text-secondary">Remaining (End of Month)</div>
+          <div class="big" id="sumRemaining">$0.00</div>
+          <div class="mt-2">
+            <div class="progress" title="Expense load (Bills + Expenses vs Income)">
+              <div class="progress-bar" id="loadBar" style="width:0%"></div>
+            </div>
+            <small class="text-secondary" id="loadLabel">0% of income allocated</small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- What-if row -->
+<section class="mb-4">
+  <div class="card">
+    <div class="card-body d-flex flex-wrap align-items-end gap-2">
+      <div>
+        <label class="form-label mb-1" for="whatIfName">What-if purchase</label>
+        <input class="form-control" id="whatIfName" placeholder="e.g., New tires">
+      </div>
+      <div>
+        <label class="form-label mb-1" for="whatIfAmt">Amount</label>
+        <input type="number" min="0" step="0.01" class="form-control" id="whatIfAmt" placeholder="0.00">
+      </div>
+      <button class="btn btn-primary" id="whatIfBtn">Check</button>
+      <div class="ms-auto">
+        <span id="whatIfResult" class="fw-semibold"></span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Three columns: Income, Bills, Expenses -->
+<section class="mb-5">
+  <div class="row g-3">
+    <!-- Income -->
+    <div class="col-12 col-lg-4">
+      <div class="card section-card">
+        <div class="card-body">
+          <div class="d-flex align-items-center justify-content-between">
+            <h2 class="h5 m-0">Income</h2>
+            <small class="text-secondary">Monthly amounts</small>
+          </div>
+          <form class="row g-2 mt-2" id="incomeForm">
+            <div class="col-7">
+              <input class="form-control" id="incomeName" placeholder="e.g., Paycheck">
+            </div>
+            <div class="col-5">
+              <input type="number" min="0" step="0.01" class="form-control" id="incomeAmt" placeholder="0.00">
+            </div>
+            <div class="col-12">
+              <button class="btn btn-success w-100" type="submit">Add Income</button>
+            </div>
+          </form>
+          <div class="table-responsive mt-3">
+            <table class="table table-sm align-middle">
+              <thead>
+                <tr><th>Name</th><th class="text-end">Amount</th><th class="text-end">Actions</th></tr>
+              </thead>
+              <tbody id="incomeTbody">
+                <tr class="placeholder-muted"><td colspan="3">No income added yet.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bills -->
+    <div class="col-12 col-lg-4">
+      <div class="card section-card">
+        <div class="card-body">
+          <div class="d-flex align-items-center justify-content-between">
+            <h2 class="h5 m-0">Bills (Fixed)</h2>
+            <small class="text-secondary">Monthly amounts</small>
+          </div>
+          <form class="row g-2 mt-2" id="billForm">
+            <div class="col-7">
+              <input class="form-control" id="billName" placeholder="e.g., Rent/Mortgage">
+            </div>
+            <div class="col-5">
+              <input type="number" min="0" step="0.01" class="form-control" id="billAmt" placeholder="0.00">
+            </div>
+            <div class="col-12">
+              <button class="btn btn-warning w-100" type="submit">Add Bill</button>
+            </div>
+          </form>
+          <div class="table-responsive mt-3">
+            <table class="table table-sm align-middle">
+              <thead>
+                <tr><th>Name</th><th class="text-end">Amount</th><th class="text-end">Actions</th></tr>
+              </thead>
+              <tbody id="billTbody">
+                <tr class="placeholder-muted"><td colspan="3">No bills added yet.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Expenses -->
+    <div class="col-12 col-lg-4">
+      <div class="card section-card">
+        <div class="card-body">
+          <div class="d-flex align-items-center justify-content-between">
+            <h2 class="h5 m-0">Other Expenses</h2>
+            <small class="text-secondary">Monthly amounts</small>
+          </div>
+          <form class="row g-2 mt-2" id="expenseForm">
+            <div class="col-7">
+              <input class="form-control" id="expenseName" placeholder="e.g., Groceries">
+            </div>
+            <div class="col-5">
+              <input type="number" min="0" step="0.01" class="form-control" id="expenseAmt" placeholder="0.00">
+            </div>
+            <div class="col-12">
+              <button class="btn btn-danger w-100" type="submit">Add Expense</button>
+            </div>
+          </form>
+          <div class="table-responsive mt-3">
+            <table class="table table-sm align-middle">
+              <thead>
+                <tr><th>Name</th><th class="text-end">Amount</th><th class="text-end">Actions</th></tr>
+              </thead>
+              <tbody id="expenseTbody">
+                <tr class="placeholder-muted"><td colspan="3">No expenses added yet.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<footer class="text-center text-secondary">
+  <small>Tip: Enter just the big picture—paychecks, rent, utilities, groceries. It autosaves locally.</small>
+</footer>
+
+<script>
+(() => {
+  // ====== State & Persistence ======
+  const LS_KEY = 'simple_budget_v1';
+  const $ = sel => document.querySelector(sel);
+  const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n ?? 0);
+
+  let state = {
+    theme: 'dark',
+    incomes: [],
+    bills: [],
+    expenses: []
+  };
+
+  // Load from localStorage if present
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (raw) state = { ...state, ...JSON.parse(raw) };
+  } catch (e) {
+    console.warn('Failed to load saved budget:', e);
+  }
+
+  // ====== Theme Toggle ======
+  const themeToggle = $('#themeToggle');
+  const root = document.documentElement; // <html>
+  function applyTheme() {
+    root.setAttribute('data-bs-theme', state.theme);
+    themeToggle.checked = (state.theme === 'dark');
+    themeToggle.nextElementSibling.textContent = state.theme === 'dark' ? 'Dark' : 'Light';
+  }
+  themeToggle.addEventListener('change', () => {
+    state.theme = themeToggle.checked ? 'dark' : 'light';
+    save(); applyTheme();
+  });
+  applyTheme();
+
+  // ====== Save helper ======
+  function save() {
+    localStorage.setItem(LS_KEY, JSON.stringify(state));
+    render();
+  }
+
+  // ====== CRUD helpers ======
+  const uid = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
+
+  function addItem(listName, name, amount) {
+    if (!name || !isFinite(+amount) || +amount <= 0) return false;
+    state[listName].push({ id: uid(), name: name.trim(), amount: +(+amount).toFixed(2) });
+    return true;
+  }
+  function editItem(listName, id, name, amount) {
+    const idx = state[listName].findIndex(x => x.id === id);
+    if (idx === -1) return false;
+    state[listName][idx].name = name.trim();
+    state[listName][idx].amount = +(+amount).toFixed(2);
+    return true;
+  }
+  function deleteItem(listName, id) {
+    state[listName] = state[listName].filter(x => x.id !== id);
+  }
+
+  // ====== Rendering ======
+  const incomeTbody = $('#incomeTbody');
+  const billTbody = $('#billTbody');
+  const expenseTbody = $('#expenseTbody');
+
+  function renderTable(tbody, listName) {
+    const items = state[listName];
+    if (!items.length) {
+      tbody.innerHTML = `<tr class="placeholder-muted"><td colspan="3">No ${listName} added yet.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = '';
+    for (const row of items) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>
+          <input class="form-control form-control-sm" value="${row.name.replaceAll('"','&quot;')}" data-role="name" />
+        </td>
+        <td class="text-end" style="min-width:120px">
+          <input type="number" min="0" step="0.01" class="form-control form-control-sm text-end" value="${row.amount.toFixed(2)}" data-role="amount" />
+        </td>
+        <td class="text-end">
+          <button class="btn btn-sm btn-outline-primary me-1" data-action="save" title="Save changes">Save</button>
+          <button class="btn btn-sm btn-outline-secondary me-1" data-action="revert" title="Revert">Revert</button>
+          <button class="btn btn-sm btn-outline-danger" data-action="delete" title="Delete">Delete</button>
+        </td>`;
+      tr.querySelector('[data-action="save"]').addEventListener('click', () => {
+        const name = tr.querySelector('[data-role="name"]').value;
+        const amt = parseFloat(tr.querySelector('[data-role="amount"]').value);
+        if (!name || !isFinite(amt) || amt <= 0) {
+          alert('Please enter a valid name and a positive amount.');
+          return;
+        }
+        editItem(listName, row.id, name, amt);
+        save();
+      });
+      tr.querySelector('[data-action="revert"]').addEventListener('click', () => render());
+      tr.querySelector('[data-action="delete"]').addEventListener('click', () => {
+        if (confirm('Delete this item?')) {
+          deleteItem(listName, row.id);
+          save();
+        }
+      });
+      tbody.appendChild(tr);
+    }
+  }
+
+  function renderSummary() {
+    const totalIncome  = state.incomes.reduce((a, b) => a + b.amount, 0);
+    const totalBills   = state.bills.reduce((a, b) => a + b.amount, 0);
+    const totalExp     = state.expenses.reduce((a, b) => a + b.amount, 0);
+    const remaining    = totalIncome - totalBills - totalExp;
+
+    $('#sumIncome').textContent   = fmt(totalIncome);
+    $('#sumBills').textContent    = fmt(totalBills);
+    $('#sumExpenses').textContent = fmt(totalExp);
+    $('#sumRemaining').textContent= fmt(remaining);
+
+    // Progress bar represents (Bills + Expenses) as % of Income
+    const load = totalIncome > 0 ? Math.min(100, ((totalBills + totalExp) / totalIncome) * 100) : 0;
+    const loadBar = $('#loadBar');
+    loadBar.style.width = load.toFixed(0) + '%';
+    loadBar.className = 'progress-bar';
+    if (load < 60) loadBar.classList.add('bg-success');
+    else if (load < 90) loadBar.classList.add('bg-warning');
+    else loadBar.classList.add('bg-danger');
+    $('#loadLabel').textContent = `${isFinite(load) ? load.toFixed(0) : 0}% of income allocated`;
+  }
+
+  function render() {
+    renderTable(incomeTbody, 'incomes');
+    renderTable(billTbody, 'bills');
+    renderTable(expenseTbody, 'expenses');
+    renderSummary();
+  }
+
+  // ====== Forms ======
+  $('#incomeForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const name = $('#incomeName').value.trim();
+    const amt  = parseFloat($('#incomeAmt').value);
+    if (!addItem('incomes', name, amt)) return alert('Enter a name and positive amount.');
+    $('#incomeName').value = ''; $('#incomeAmt').value = '';
+    save();
+  });
+  $('#billForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const name = $('#billName').value.trim();
+    const amt  = parseFloat($('#billAmt').value);
+    if (!addItem('bills', name, amt)) return alert('Enter a name and positive amount.');
+    $('#billName').value = ''; $('#billAmt').value = '';
+    save();
+  });
+  $('#expenseForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const name = $('#expenseName').value.trim();
+    const amt  = parseFloat($('#expenseAmt').value);
+    if (!addItem('expenses', name, amt)) return alert('Enter a name and positive amount.');
+    $('#expenseName').value = ''; $('#expenseAmt').value = '';
+    save();
+  });
+
+  // ====== What-if ======
+  $('#whatIfBtn').addEventListener('click', () => {
+    const amt = parseFloat($('#whatIfAmt').value);
+    const name = $('#whatIfName').value.trim() || 'this item';
+    if (!isFinite(amt) || amt <= 0) {
+      $('#whatIfResult').textContent = 'Enter a positive amount to check.';
+      $('#whatIfResult').className = 'text-warning fw-semibold';
+      return;
+    }
+    const totalIncome  = state.incomes.reduce((a, b) => a + b.amount, 0);
+    const totalBills   = state.bills.reduce((a, b) => a + b.amount, 0);
+    const totalExp     = state.expenses.reduce((a, b) => a + b.amount, 0);
+    const remaining    = totalIncome - totalBills - totalExp;
+    const after        = remaining - amt;
+
+    const txt = after >= 0
+      ? `Yes — you would still have ${fmt(after)} after adding ${name} (${fmt(amt)}).`
+      : `Caution — you would be short by ${fmt(Math.abs(after))} if you add ${name} (${fmt(amt)}).`;
+
+    $('#whatIfResult').textContent = txt;
+    $('#whatIfResult').className = after >= 0 ? 'text-success fw-semibold' : 'text-danger fw-semibold';
+  });
+
+  // ====== Export / Import / Reset ======
+  $('#exportBtn').addEventListener('click', () => {
+    const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = Object.assign(document.createElement('a'), { href: url, download: 'budget.json' });
+    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  });
+
+  $('#importBtn').addEventListener('click', () => $('#importFile').click());
+  $('#importFile').addEventListener('change', (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(reader.result);
+        // Basic sanity check
+        if (!data || !('incomes' in data) || !('bills' in data) || !('expenses' in data)) {
+          alert('That file does not look like a budget export.'); return;
+        }
+        state = { theme: state.theme, ...data }; // preserve current theme
+        save();
+        e.target.value = '';
+      } catch (err) {
+        alert('Failed to import JSON: ' + err.message);
+      }
+    };
+    reader.readAsText(file);
+  });
+
+  $('#resetBtn').addEventListener('click', () => {
+    if (!confirm('This will clear all incomes, bills, and expenses. Continue?')) return;
+    state.incomes = []; state.bills = []; state.expenses = [];
+    save();
+  });
+
+  // Initial paint
+  render();
+})();
+</script>
+</body>
+</html>
