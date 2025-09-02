@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Outdoor Space Planner</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#0b1224; --panel-2:#0c162d; --text:#e5e7eb; --muted:#94a3b8;
+    --accent:#60a5fa; --ok:#34d399; --warn:#fbbf24; --danger:#f87171; --border:#1f2937;
+    --grid:#1a2642; --grid-bold:#223257;
+  }
+  html,body{height:100%}
+  body{margin:0;background:linear-gradient(160deg,#0b1022,#0f172a 50%,#0b1224 100%);color:var(--text);font-family:system-ui,Segoe UI,Roboto,Ubuntu,Helvetica,Arial}
+  .app{display:grid;grid-template-rows:auto 1fr;grid-template-columns:260px 1fr 280px;grid-template-areas:
+    "top top top" "left center right";height:100%}
+  .topbar{grid-area:top;display:flex;gap:.5rem;align-items:center;padding:.5rem .75rem;border-bottom:1px solid var(--border);background:rgba(0,0,0,.25);backdrop-filter:blur(6px);position:sticky;top:0;z-index:5}
+  .left{grid-area:left;border-right:1px solid var(--border);background:rgba(0,0,0,.15);padding:.75rem;overflow:auto}
+  .right{grid-area:right;border-left:1px solid var(--border);background:rgba(0,0,0,.15);padding:.75rem;overflow:auto}
+  .center{grid-area:center;position:relative;overflow:hidden}
+  .toolbar, .panel{display:grid;gap:.5rem}
+  .toolbar{grid-template-columns:repeat(2,1fr)}
+  .panel h3, .panel h4{margin:.5rem 0 .25rem;font-weight:600;color:#cfd8ea}
+  .btn{background:linear-gradient(180deg,#17223e,#121a31);border:1px solid var(--border);color:var(--text);padding:.45rem .6rem;border-radius:.6rem;cursor:pointer}
+  .btn:hover{border-color:#2b3b5f}
+  .btn.active{outline:2px solid var(--accent)}
+  .btn.danger{background:linear-gradient(180deg,#3a0f16,#250a0f);border-color:#422028}
+  .row{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
+  .row label{font-size:.85rem;color:var(--muted)}
+  input[type="number"], input[type="text"], input[type="color"], select{background:#0b1022;color:var(--text);border:1px solid var(--border);border-radius:.5rem;padding:.35rem .5rem}
+  input[type="range"]{width:100%}
+  .chip{font-size:.8rem;background:#0b1224;padding:.25rem .5rem;border:1px solid var(--border);border-radius:999px;color:var(--muted)}
+  .hint{font-size:.8rem;color:var(--muted)}
+  .kbd{padding:.1rem .3rem;border:1px solid var(--border);border-radius:.35rem;background:#0b1224;color:#cfe0ff;font-size:.75rem}
+  .card{border:1px solid var(--border);background:linear-gradient(180deg,#0e1530,#0b1126);padding:.6rem;border-radius:.8rem}
+  #canvasWrap{position:absolute;inset:0;overflow:auto;background:#071022}
+  svg{background:transparent;user-select:none;touch-action:none}
+  .overlay{position:absolute;right:.75rem;bottom:.75rem;display:flex;gap:.5rem}
+  .mini{font-size:.75rem}
+  .legend{position:absolute;left:.75rem;bottom:.75rem;background:rgba(0,0,0,.35);border:1px solid var(--border);border-radius:.5rem;padding:.35rem .5rem}
+  .legend div{font-size:.8rem;color:#d6e3ff}
+  .ghost{pointer-events:none}
+  .handle{fill:#e3f2ff;stroke:#0b213f;stroke-width:1}
+  .rotate-handle{fill:#ffd47b;stroke:#3b2a0a;stroke-width:1}
+  .selection-rect{fill:rgba(96,165,250,.12);stroke:#60a5fa;stroke-dasharray:4 3}
+  .measure-label, .dim-label{font-size:11px;fill:#e5f2ff;paint-order:stroke;stroke:#0a1a2f;stroke-width:3px}
+  .gridline{stroke:var(--grid);stroke-width:1}
+  .gridline.bold{stroke:var(--grid-bold);stroke-width:1.5}
+  .ruler{stroke:#8ab4ff;stroke-dasharray:6 4}
+  .ruler-end{fill:#8ab4ff}
+  .shape{cursor:move}
+  .shape[aria-selected="true"]{filter:drop-shadow(0 0 0.7rem rgba(96,165,250,.35))}
+  .stamp{display:flex;align-items:center;gap:.5rem;border:1px dashed var(--border);padding:.35rem .5rem;border-radius:.6rem}
+  .stamp button{margin-left:auto}
+  .muted{color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <button class="btn" id="newBtn" title="Start a fresh design">New</button>
+    <button class="btn" id="undoBtn" title="Ctrl+Z">Undo</button>
+    <button class="btn" id="redoBtn" title="Ctrl+Shift+Z">Redo</button>
+    <button class="btn" id="saveBtn" title="Download JSON">Save JSON</button>
+    <button class="btn" id="loadBtn" title="Load JSON file">Load JSON</button>
+    <button class="btn" id="exportSVGBtn" title="Export as SVG">Export SVG</button>
+    <button class="btn" id="exportPNGBtn" title="Export as PNG">Export PNG</button>
+    <div class="row" style="margin-left:auto">
+      <label class="chip">Grid <input id="gridPx" type="number" min="5" step="1" value="40" style="width:70px"> px</label>
+      <label class="chip">Scale 1 grid = <input id="unitsPerGrid" type="number" min="0.01" step="0.01" value="1" style="width:70px">
+        <select id="unitName"><option value="ft">ft</option><option value="m">m</option></select></label>
+      <label class="chip"><input id="snap" type="checkbox" checked> Snap</label>
+      <label class="chip">Zoom <button class="btn mini" id="zoomOut">−</button><span id="zoomLabel" class="muted">100%</span><button class="btn mini" id="zoomIn">+</button></label>
+      <label class="chip">BG Opacity <input id="bgOpacity" type="range" min="0" max="1" step="0.05" value="0.6" style="width:120px"></label>
+      <input id="bgFile" type="file" accept="image/*" style="display:none">
+      <button class="btn" id="bgBtn">Background</button>
+      <button class="btn" id="darkBtn">Dark ◐</button>
+    </div>
+  </div>
+
+  <div class="left">
+    <div class="panel">
+      <h3>Tools</h3>
+      <div class="toolbar">
+        <button class="btn tool" data-tool="select" title="V">Select</button>
+        <button class="btn tool" data-tool="measure" title="M">Measure</button>
+        <button class="btn tool" data-tool="rect" title="R">Rectangle</button>
+        <button class="btn tool" data-tool="circle" title="C">Circle</button>
+        <button class="btn tool" data-tool="poly" title="P">Polygon</button>
+        <button class="btn tool" data-tool="text" title="T">Text</button>
+      </div>
+      <div class="hint" style="margin-top:.35rem">Shortcuts: <span class="kbd">V</span> Select • <span class="kbd">R</span> Rect • <span class="kbd">C</span> Circle • <span class="kbd">P</span> Poly • <span class="kbd">M</span> Measure • <span class="kbd">T</span> Text • <span class="kbd">Del</span> Delete • <span class="kbd">Q/E</span> Rotate</div>
+    </div>
+
+    <div class="panel" style="margin-top:1rem">
+      <h3>Quick Stamps</h3>
+      <div class="stamp"><span>Tree</span><span class="muted">(Ø 3 ft)</span><button class="btn mini" data-stamp="tree">Add</button></div>
+      <div class="stamp"><span>Shrub</span><span class="muted">(Ø 2 ft)</span><button class="btn mini" data-stamp="shrub">Add</button></div>
+      <div class="stamp"><span>Raised Bed</span><span class="muted">(4×8 ft)</span><button class="btn mini" data-stamp="bed">Add</button></div>
+      <div class="stamp"><span>Patio</span><span class="muted">(10×12 ft)</span><button class="btn mini" data-stamp="patio">Add</button></div>
+      <div class="stamp"><span>Path</span><span class="muted">(poly)</span><button class="btn mini" data-stamp="path">Add</button></div>
+      <div class="stamp"><span>Water Feature</span><span class="muted">(6×6 ft)</span><button class="btn mini" data-stamp="water">Add</button></div>
+    </div>
+
+    <div class="panel" style="margin-top:1rem">
+      <h3>Help</h3>
+      <div class="card">
+        <div>1) Set <b>grid</b> & <b>scale</b> (e.g., 1 grid = 1 ft).</div>
+        <div>2) Draw shapes. <span class="muted">Double-click to finish polygons.</span></div>
+        <div>3) Select to edit: drag, resize handles, <span class="kbd">Q/E</span> rotate.</div>
+        <div>4) Use <b>Measure</b> to drop a ruler.</div>
+        <div>5) Save JSON • Export PNG/SVG.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="center">
+    <div id="canvasWrap">
+      <svg id="svg" xmlns="http://www.w3.org/2000/svg" width="2400" height="1600" viewBox="0 0 2400 1600">
+        <defs>
+          <pattern id="grid" patternUnits="userSpaceOnUse" x="0" y="0" width="40" height="40">
+            <path class="gridline" d="M 40 0 L 0 0 0 40" />
+          </pattern>
+          <pattern id="gridBold" patternUnits="userSpaceOnUse" x="0" y="0" width="200" height="200">
+            <path class="gridline bold" d="M 200 0 L 0 0 0 200" />
+          </pattern>
+          <pattern id="hatch" patternUnits="userSpaceOnUse" width="8" height="8" patternTransform="rotate(45)">
+            <line x1="0" y1="0" x2="0" y2="8" stroke="#33537a" stroke-width="1"/>
+          </pattern>
+        </defs>
+        <rect id="gridRectBold" x="0" y="0" width="100%" height="100%" fill="url(#gridBold)"/>
+        <rect id="gridRect" x="0" y="0" width="100%" height="100%" fill="url(#grid)"/>
+        <g id="viewport">
+          <image id="bg" x="0" y="0" width="2400" height="1600" opacity="0.6" preserveAspectRatio="xMidYMid meet"/>
+          <g id="shapes"></g>
+          <g id="rulers"></g>
+          <g id="handles" class="ghost"></g>
+        </g>
+      </svg>
+    </div>
+    <div class="legend">
+      <div>Units: <span id="unitsReadout">1 grid = 1 ft</span></div>
+      <div>Snap: <span id="snapReadout">On</span></div>
+    </div>
+    <div class="overlay">
+      <button class="btn mini" id="fitBtn" title="Fit to screen">Fit</button>
+      <button class="btn mini" id="centerBtn" title="Center">Center</button>
+      <button class="btn mini" id="clearMeasureBtn" title="Clear rulers">Clear Rulers</button>
+    </div>
+  </div>
+
+  <div class="right">
+    <div class="panel">
+      <h3>Selected</h3>
+      <div id="noneSel" class="muted">Nothing selected</div>
+      <div id="props" style="display:none" class="card">
+        <div class="row"><label>ID</label><input id="propId" type="text"/></div>
+        <div class="row"><label>Type</label><span id="propType" class="chip"></span></div>
+        <div class="row"><label>Fill</label><input id="propFill" type="color" value="#2a9d8f"><label>Stroke</label><input id="propStroke" type="color" value="#e5e7eb"><label>W</label><input id="propStrokeW" type="number" min="0" step="0.5" value="2" style="width:70px"></div>
+        <div id="dimRect">
+          <div class="row"><label>W</label><input id="propW" type="number" step="1" style="width:80px"><label>H</label><input id="propH" type="number" step="1" style="width:80px"></div>
+        </div>
+        <div id="dimCircle" style="display:none">
+          <div class="row"><label>Radius</label><input id="propR" type="number" step="1" style="width:120px"></div>
+        </div>
+        <div id="dimPoly" style="display:none">
+          <div class="row"><button class="btn mini" id="simplifyPoly">Simplify</button><span class="hint">reduces points</span></div>
+        </div>
+        <div class="row"><label>Rotation</label><input id="propRot" type="number" step="1" style="width:100px"><span class="hint">deg (Q/E to rotate)</span></div>
+        <div class="row"><label>Label</label><input id="propLabel" type="text"><label><input type="checkbox" id="propShowDim"> Show dims</label></div>
+        <div class="row">
+          <button id="bringF" class="btn mini">Bring Forward</button>
+          <button id="sendB" class="btn mini">Send Back</button>
+          <button id="dup" class="btn mini">Duplicate</button>
+          <button id="del" class="btn mini danger">Delete</button>
+        </div>
+        <div class="row">
+          <span class="chip" id="readoutSize">—</span>
+          <span class="chip" id="readoutArea">—</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top:1rem">
+      <h3>Autosave</h3>
+      <div class="card">
+        <div class="row"><button class="btn mini" id="loadAuto">Load Autosave</button><button class="btn mini" id="clearAuto">Clear</button></div>
+        <div class="hint">Saves on each change. Stored locally in your browser.</div>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top:1rem">
+      <h3>Notes</h3>
+      <textarea id="notes" rows="8" style="width:100%;background:#0b1022;color:var(--text);border:1px solid var(--border);border-radius:.6rem;padding:.5rem" placeholder="Plant lists, materials, to-dos…"></textarea>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const $ = sel => document.querySelector(sel);
+  const $$ = sel => Array.from(document.querySelectorAll(sel));
+
+  const svg = $('#svg');
+  const viewport = $('#viewport');
+  const shapes = $('#shapes');
+  const rulers = $('#rulers');
+  const handles = $('#handles');
+  const bg = $('#bg');
+
+  const tools = $$('.tool');
+  const state = {
+    tool:'select',
+    dragging:false,
+    drawing:null, // element being created
+    selected:null,
+    selBox:null,
+    action:null, // 'move' | 'resize' | 'rotate' | 'draw'
+    start:{x:0,y:0},
+    snap:true,
+    gridPx:40,
+    unitsPerGrid:1,
+    unitName:'ft',
+    zoom:1,
+    pan:{x:0,y:0},
+    rotStep:2,
+    history:[],
+    historyIndex:-1
+  };
+
+  // UI references
+  const gridPx = $('#gridPx');
+  const unitsPerGrid = $('#unitsPerGrid');
+  const unitName = $('#unitName');
+  const snapCk = $('#snap');
+  const unitsReadout = $('#unitsReadout');
+  const snapReadout = $('#snapReadout');
+  const zoomIn = $('#zoomIn'), zoomOut = $('#zoomOut'), zoomLabel = $('#zoomLabel');
+  const fitBtn = $('#fitBtn'), centerBtn = $('#centerBtn');
+  const clearMeasureBtn = $('#clearMeasureBtn');
+  const bgBtn = $('#bgBtn'), bgFile = $('#bgFile'), bgOpacity = $('#bgOpacity');
+  const darkBtn = $('#darkBtn');
+  const newBtn = $('#newBtn');
+  const undoBtn = $('#undoBtn');
+  const redoBtn = $('#redoBtn');
+  const saveBtn = $('#saveBtn');
+  const loadBtn = $('#loadBtn');
+  const exportSVGBtn = $('#exportSVGBtn');
+  const exportPNGBtn = $('#exportPNGBtn');
+  const loadAuto = $('#loadAuto');
+  const clearAuto = $('#clearAuto');
+  const notes = $('#notes');
+
+  const noneSel = $('#noneSel');
+  const props = $('#props');
+  const propId = $('#propId');
+  const propType = $('#propType');
+  const propFill = $('#propFill');
+  const propStroke = $('#propStroke');
+  const propStrokeW = $('#propStrokeW');
+  const propW = $('#propW');
+  const propH = $('#propH');
+  const propR = $('#propR');
+  const propRot = $('#propRot');
+  const propLabel = $('#propLabel');
+  const propShowDim = $('#propShowDim');
+  const dimRect = $('#dimRect');
+  const dimCircle = $('#dimCircle');
+  const dimPoly = $('#dimPoly');
+  const readoutSize = $('#readoutSize');
+  const readoutArea = $('#readoutArea');
+  const bringF = $('#bringF');
+  const sendB = $('#sendB');
+  const delBtn = $('#del');
+  const dupBtn = $('#dup');
+  const simplifyPolyBtn = $('#simplifyPoly');
+
+  // Setup
+  setTool('select');
+  refreshGrid();
+  updateLegend();
+  pushHistory();
+
+  // ===== Helpers =====
+  function svgPoint(evt){
+    const pt = svg.createSVGPoint();
+    pt.x = evt.clientX; pt.y = evt.clientY;
+    const global = pt.matrixTransform(svg.getScreenCTM().inverse());
+    // account for zoom/pan on viewport group
+    const m = viewport.getCTM();
+    const inv = m.inverse();
+    const p = pt.matrixTransform(inv);
+    return {x:p.x, y:p.y};
+  }
+  function snap(v){
+    return state.snap ? Math.round(v/state.gridPx)*state.gridPx : v;
+  }
+  function dist(a,b){ const dx=a.x-b.x, dy=a.y-b.y; return Math.hypot(dx,dy); }
+  function fmt(n,dec=2){ return (+n).toFixed(dec); }
+  function uid(prefix='item'){ return prefix+"_"+Math.random().toString(36).slice(2,8); }
+  function sel(el){ if(state.selected===el) return; clearSelection(); state.selected=el; if(el){ el.setAttribute('aria-selected','true'); showHandles(el); updatePropsPanel(el); } }
+  function clearSelection(){ if(state.selected){ state.selected.removeAttribute('aria-selected'); } state.selected=null; handles.innerHTML=''; hidePropsPanel(); }
+  function pushHistory(){
+    const snapshot = JSON.stringify({
+      shapes: shapes.innerHTML,
+      rulers: rulers.innerHTML,
+      settings: {
+        gridPx: state.gridPx,
+        unitsPerGrid: state.unitsPerGrid,
+        unitName: state.unitName,
+        zoom: state.zoom,
+        pan: state.pan,
+        notes: notes.value
+      }
+    });
+    state.history = state.history.slice(0,state.historyIndex+1);
+    state.history.push(snapshot); state.historyIndex++;
+    autosave();
+  }
+  function restoreHistory(idx){
+    if(idx<0||idx>=state.history.length) return;
+    const snap = JSON.parse(state.history[idx]);
+    shapes.innerHTML = snap.shapes; rulers.innerHTML=snap.rulers;
+    state.gridPx = snap.settings.gridPx; gridPx.value=state.gridPx;
+    state.unitsPerGrid = snap.settings.unitsPerGrid; unitsPerGrid.value=state.unitsPerGrid;
+    state.unitName = snap.settings.unitName; unitName.value=state.unitName;
+    state.zoom=snap.settings.zoom||1; state.pan=snap.settings.pan||{x:0,y:0};
+    notes.value = snap.settings.notes||'';
+    applyZoomPan(); refreshGrid(); updateLegend();
+    clearSelection();
+  }
+  function autosave(){
+    const data = state.history[state.historyIndex];
+    if(data) localStorage.setItem('gardenDesignerV1', data);
+  }
+  function loadAutosave(){
+    const data = localStorage.getItem('gardenDesignerV1');
+    if(!data) return alert('No autosave found.');
+    state.history=[data]; state.historyIndex=0; restoreHistory(0);
+  }
+  function clearAutosave(){ localStorage.removeItem('gardenDesignerV1'); alert('Autosave cleared.'); }
+
+  function updateLegend(){
+    unitsReadout.textContent = `1 grid = ${state.unitsPerGrid} ${state.unitName}`;
+    snapReadout.textContent = state.snap? 'On' : 'Off';
+  }
+  function applyZoomPan(){
+    viewport.setAttribute('transform', `translate(${state.pan.x},${state.pan.y}) scale(${state.zoom})`);
+    zoomLabel.textContent = Math.round(state.zoom*100)+'%';
+  }
+  function refreshGrid(){
+    const g = state.gridPx;
+    $('#grid').setAttribute('width', g); $('#grid').setAttribute('height', g);
+    $('#gridBold').setAttribute('width', g*5); $('#gridBold').setAttribute('height', g*5);
+  }
+  function setTool(name){ state.tool=name; tools.forEach(b=>b.classList.toggle('active', b.dataset.tool===name)); svg.style.cursor = name==='select'?'default': (name==='measure'?'crosshair':'crosshair'); }
+
+  // ===== Creation helpers =====
+  function createRect(x,y,w,h){
+    const id = uid('rect');
+    const g = el('g',{class:'shape', id});
+    const r = el('rect',{x,y,width:w,height:h,fill:'#2a9d8f',stroke:'#e5e7eb','stroke-width':2, 'vector-effect':'non-scaling-stroke'});
+    g.dataset.type='rect'; g.appendChild(r); shapes.appendChild(g); return g;
+  }
+  function createCircle(cx,cy,r){
+    const id = uid('circle');
+    const g = el('g',{class:'shape', id});
+    const c = el('circle',{cx,cy,r,fill:'#3b82f6',stroke:'#e5e7eb','stroke-width':2, 'vector-effect':'non-scaling-stroke'});
+    g.dataset.type='circle'; g.appendChild(c); shapes.appendChild(g); return g;
+  }
+  function createPoly(points){
+    const id=uid('poly');
+    const g = el('g',{class:'shape', id});
+    const p = el('polygon',{points:ptsToAttr(points), fill:'url(#hatch)', stroke:'#90caf9', 'stroke-width':2, 'vector-effect':'non-scaling-stroke'});
+    g.dataset.type='poly'; g.appendChild(p); shapes.appendChild(g); return g;
+  }
+  function createText(x,y,str){
+    const id=uid('text');
+    const g = el('g',{class:'shape', id});
+    const t = el('text',{x,y,fill:'#e5e7eb','font-size':20,'font-family':'system-ui,Segoe UI,Roboto', 'stroke':'#0a1a2f','stroke-width':3,'paint-order':'stroke'});
+    t.textContent=str||'Label'; g.dataset.type='text'; g.appendChild(t); shapes.appendChild(g); return g;
+  }
+  function el(tag,attrs){ const e=document.createElementNS('http://www.w3.org/2000/svg',tag); for(const k in attrs){ e.setAttribute(k,attrs[k]); } return e; }
+  function ptsToAttr(pts){ return pts.map(p=>`${p.x},${p.y}`).join(' '); }
+  function attrToPts(attr){ return attr.trim().split(/\s+/).map(s=>{const [x,y]=s.split(',').map(Number); return {x,y};}); }
+
+  // ===== Selection handles =====
+  function showHandles(g){
+    handles.innerHTML='';
+    const box = g.getBBox();
+    const pad=6;
+    const s = el('rect',{x:box.x-pad,y:box.y-pad,width:box.width+pad*2,height:box.height+pad*2, class:'selection-rect'});
+    handles.appendChild(s);
+    const points=[
+      {x:box.x,y:box.y, c:'nw'},{x:box.x+box.width/2,y:box.y, c:'n'},{x:box.x+box.width,y:box.y, c:'ne'},
+      {x:box.x,y:box.y+box.height/2, c:'w'},{x:box.x+box.width,y:box.y+box.height/2,c:'e'},
+      {x:box.x,y:box.y+box.height, c:'sw'},{x:box.x+box.width/2,y:box.y+box.height,c:'s'},{x:box.x+box.width,y:box.y+box.height,c:'se'}
+    ];
+    points.forEach(p=>{
+      const h = el('rect',{x:p.x-5,y:p.y-5,width:10,height:10,class:'handle','data-corner':p.c}); handles.appendChild(h);
+    });
+    const rh = el('circle',{cx:box.x+box.width/2, cy:box.y-24, r:6, class:'rotate-handle','data-rotate':'1'}); handles.appendChild(rh);
+  }
+  function updateHandles(){ if(state.selected) showHandles(state.selected); }
+
+  // ===== Pointer handlers =====
+  svg.addEventListener('pointerdown', e=>{
+    const p = svgPoint(e);
+    state.start=p; state.dragging=true; const t=state.tool;
+    if(t==='rect'){ const g=createRect(snap(p.x),snap(p.y),1,1); state.drawing=g; state.action='draw'; sel(g); }
+    else if(t==='circle'){ const g=createCircle(snap(p.x),snap(p.y),1); state.drawing=g; state.action='draw'; sel(g); }
+    else if(t==='poly'){
+      if(state.drawing && state.drawing.dataset.type==='poly'){
+        const poly = state.drawing.querySelector('polygon');
+        const pts = attrToPts(poly.getAttribute('points')); pts.push({x:snap(p.x),y:snap(p.y)});
+        poly.setAttribute('points', ptsToAttr(pts)); updatePropsPanel(state.drawing);
+      } else {
+        const g=createPoly([{x:snap(p.x),y:snap(p.y)},{x:snap(p.x),y:snap(p.y)}]); state.drawing=g; state.action='draw'; sel(g);
+      }
+    }
+    else if(t==='text'){ const g=createText(snap(p.x), snap(p.y), 'Label'); state.drawing=g; state.action='idle'; sel(g); pushHistory(); }
+    else if(t==='measure'){
+      const id=uid('r'); const rline=el('line',{x1:p.x,y1:p.y,x2:p.x,y2:p.y, class:'ruler'}); const rend=el('circle',{cx:p.x,cy:p.y,r:3,class:'ruler-end'});
+      const lbl=el('text',{x:p.x,y:p.y-8,class:'measure-label'}); lbl.textContent='0';
+      const g = el('g',{id}); g.append(rline,rend,lbl); rulers.appendChild(g); state.drawing=g; state.action='measure';
+    }
+    else if(t==='select'){
+      const target = e.target;
+      if(target.closest('#handles')){
+        if(target.hasAttribute('data-corner')){ state.action='resize'; state.corner=target.getAttribute('data-corner'); }
+        else if(target.hasAttribute('data-rotate')){ state.action='rotate'; }
+      } else {
+        const g = target.closest('.shape');
+        if(g){ sel(g); state.action='move'; } else { clearSelection(); state.action='pan'; }
+      }
+    }
+  });
+
+  svg.addEventListener('pointermove', e=>{
+    if(!state.dragging) return;
+    const p = svgPoint(e); const s = state.start; const t=state.tool;
+    if(state.action==='draw' && state.drawing){
+      const g=state.drawing; if(g.dataset.type==='rect'){
+        const r = g.querySelector('rect'); const x=Math.min(snap(s.x),snap(p.x)); const y=Math.min(snap(s.y),snap(p.y));
+        const w=Math.abs(snap(p.x)-snap(s.x)); const h=Math.abs(snap(p.y)-snap(s.y)); r.setAttribute('x',x); r.setAttribute('y',y); r.setAttribute('width',Math.max(1,w)); r.setAttribute('height',Math.max(1,h)); updateHandles(); updatePropsPanel(g);
+      } else if(g.dataset.type==='circle'){
+        const c = g.querySelector('circle'); const r=dist(s,{x:snap(p.x),y:snap(p.y)}); c.setAttribute('r',Math.max(1,r)); updateHandles(); updatePropsPanel(g);
+      } else if(g.dataset.type==='poly'){
+        const poly = g.querySelector('polygon'); const pts = attrToPts(poly.getAttribute('points')); pts[pts.length-1]={x:snap(p.x),y:snap(p.y)}; poly.setAttribute('points', ptsToAttr(pts)); updateHandles(); updatePropsPanel(g);
+      }
+    }
+    else if(state.action==='measure' && state.drawing){
+      const g=state.drawing; const line=g.querySelector('line'); const lbl=g.querySelector('text'); const end=g.querySelector('circle');
+      line.setAttribute('x2',p.x); line.setAttribute('y2',p.y); end.setAttribute('cx',p.x); end.setAttribute('cy',p.y);
+      const d = worldToUnits(dist({x:+line.getAttribute('x1'),y:+line.getAttribute('y1')},{x:p.x,y:p.y}));
+      lbl.textContent = fmt(d,2)+' '+state.unitName; lbl.setAttribute('x',(p.x+ +line.getAttribute('x1'))/2); lbl.setAttribute('y',(p.y+ +line.getAttribute('y1'))/2 - 8);
+    }
+    else if(state.action==='move' && state.selected){
+      const g=state.selected; const dx=snap(p.x)-snap(s.x); const dy=snap(p.y)-snap(s.y);
+      moveShape(g,dx,dy); state.start=p; updateHandles(); updatePropsPanel(g);
+    }
+    else if(state.action==='resize' && state.selected){ resizeByHandle(state.selected, state.corner, p, s); state.start=p; updateHandles(); updatePropsPanel(state.selected); }
+    else if(state.action==='rotate' && state.selected){ rotateTowards(state.selected,p); updateHandles(); updatePropsPanel(state.selected); }
+    else if(state.action==='pan'){ state.pan.x += (e.movementX); state.pan.y += (e.movementY); applyZoomPan(); }
+  });
+
+  svg.addEventListener('dblclick', e=>{
+    if(state.tool==='poly' && state.drawing && state.drawing.dataset.type==='poly'){
+      finalizePoly(state.drawing); pushHistory(); state.drawing=null; state.action='idle';
+    }
+  });
+
+  window.addEventListener('pointerup', e=>{
+    if(!state.dragging) return; state.dragging=false;
+    if(state.action==='draw' && state.drawing){ if(state.drawing.dataset.type!=='poly'){ pushHistory(); state.drawing=null; } }
+    else if(state.action && state.action!=='pan'){ pushHistory(); }
+    state.action=null; delete state.corner;
+  });
+
+  // ===== Move/Resize/Rotate implementations =====
+  function moveShape(g,dx,dy){
+    const type=g.dataset.type;
+    if(type==='rect'){ const r=g.querySelector('rect'); r.setAttribute('x', +r.getAttribute('x')+dx); r.setAttribute('y', +r.getAttribute('y')+dy); }
+    else if(type==='circle'){ const c=g.querySelector('circle'); c.setAttribute('cx', +c.getAttribute('cx')+dx); c.setAttribute('cy', +c.getAttribute('cy')+dy); }
+    else if(type==='poly'){ const p=g.querySelector('polygon'); const pts=attrToPts(p.getAttribute('points')).map(pt=>({x:pt.x+dx,y:pt.y+dy})); p.setAttribute('points', ptsToAttr(pts)); }
+    else if(type==='text'){ const t=g.querySelector('text'); t.setAttribute('x', +t.getAttribute('x')+dx); t.setAttribute('y', +t.getAttribute('y')+dy); }
+  }
+  function resizeByHandle(g,corner,p,s){
+    const type=g.dataset.type;
+    if(type==='rect'){
+      const r=g.querySelector('rect');
+      let x=+r.getAttribute('x'), y=+r.getAttribute('y'), w=+r.getAttribute('width'), h=+r.getAttribute('height');
+      const x2=x+w, y2=y+h;
+      const nx = snap(p.x), ny = snap(p.y);
+      if(corner.includes('n')){ y = ny; h = y2 - y; }
+      if(corner.includes('s')){ h = ny - y; }
+      if(corner.includes('w')){ x = nx; w = x2 - x; }
+      if(corner.includes('e')){ w = nx - x; }
+      if(w<1) w=1; if(h<1) h=1; r.setAttribute('x',x); r.setAttribute('y',y); r.setAttribute('width',w); r.setAttribute('height',h);
+    } else if(type==='circle'){
+      const c=g.querySelector('circle'); c.setAttribute('r', Math.max(1, dist({x:+c.getAttribute('cx'),y:+c.getAttribute('cy')},{x:snap(p.x),y:snap(p.y)})) );
+    } else if(type==='poly'){
+      const poly=g.querySelector('polygon'); const pts=attrToPts(poly.getAttribute('points'));
+      const box=g.getBBox();
+      const anchor={ x: corner.includes('w')? box.x+box.width : box.x, y: corner.includes('n')? box.y+box.height : box.y };
+      const sx = (snap(p.x)-anchor.x) / ((corner.includes('w')? box.x - anchor.x : box.x+box.width - anchor.x) || 1);
+      const sy = (snap(p.y)-anchor.y) / ((corner.includes('n')? box.y - anchor.y : box.y+box.height - anchor.y) || 1);
+      const sxf = isFinite(sx)? sx : 1; const syf = isFinite(sy)? sy : 1;
+      const scaled = pts.map(pt=>({x: anchor.x + (pt.x - anchor.x)*sxf, y: anchor.y + (pt.y - anchor.y)*syf }));
+      poly.setAttribute('points', ptsToAttr(scaled));
+    }
+  }
+  function rotateTowards(g,p){
+    const box=g.getBBox(); const cx=box.x+box.width/2, cy=box.y+box.height/2;
+    const a = Math.atan2(p.y-cy,p.x-cx)*180/Math.PI; g.setAttribute('transform',`rotate(${a} ${cx} ${cy})`); propRot.value = fmt(a,1);
+  }
+  function rotateBy(g,deltaDeg){
+    const box=g.getBBox(); const cx=box.x+box.width/2, cy=box.y+box.height/2;
+    const cur = parseFloat((g.getAttribute('transform')||'').match(/rotate\(([-\d.]+)/)?.[1]||'0');
+    const a = cur + deltaDeg; g.setAttribute('transform',`rotate(${a} ${cx} ${cy})`); updateHandles(); updatePropsPanel(g); pushHistory();
+  }
+  function finalizePoly(g){
+    const poly=g.querySelector('polygon'); let pts=attrToPts(poly.getAttribute('points'));
+    if(pts.length>2 && dist(pts[pts.length-1], pts[pts.length-2])<0.5) pts.pop();
+    poly.setAttribute('points', ptsToAttr(pts));
+  }
+
+  // ===== Properties panel =====
+  function updatePropsPanel(g){
+    noneSel.style.display='none'; props.style.display='block';
+    propId.value = g.id||''; propType.textContent=g.dataset.type;
+    const child = g.firstElementChild;
+    if(child){ propFill.value = toHex(child.getAttribute('fill')||'#2a9d8f'); propStroke.value = toHex(child.getAttribute('stroke')||'#e5e7eb'); propStrokeW.value = +child.getAttribute('stroke-width')||2; }
+    const rot = (g.getAttribute('transform')||'').match(/rotate\(([-\d.]+)/); propRot.value = rot? fmt(+rot[1],1) : '0';
+    const label = g.querySelector('text.dim-label'); propShowDim.checked = !!label; propLabel.value = (g.querySelector('title')?.textContent)||'';
+
+    dimRect.style.display='none'; dimCircle.style.display='none'; dimPoly.style.display='none';
+    if(g.dataset.type==='rect'){
+      dimRect.style.display='block'; const r=g.querySelector('rect'); propW.value=+r.getAttribute('width'); propH.value=+r.getAttribute('height');
+      readoutSize.textContent = `Size: ${fmt(worldToUnits(propW.value))}×${fmt(worldToUnits(propH.value))} ${state.unitName}`;
+      readoutArea.textContent = `Area: ${fmt(worldToUnits(propW.value)*worldToUnits(propH.value))} ${state.unitName}²`;
+    } else if(g.dataset.type==='circle'){
+      dimCircle.style.display='block'; const c=g.querySelector('circle'); propR.value=+c.getAttribute('r');
+      readoutSize.textContent = `Diameter: ${fmt(worldToUnits(propR.value*2))} ${state.unitName}`;
+      readoutArea.textContent = `Area: ${fmt(Math.PI*Math.pow(worldToUnits(propR.value),2))} ${state.unitName}²`;
+    } else if(g.dataset.type==='poly'){
+      dimPoly.style.display='block'; const p=g.querySelector('polygon'); const pts=attrToPts(p.getAttribute('points'));
+      const a = polygonArea(pts); readoutSize.textContent='Vertices: '+pts.length; readoutArea.textContent=`Area: ${fmt(worldToUnits2(a))} ${state.unitName}²`;
+    } else if(g.dataset.type==='text'){
+      readoutSize.textContent='Text'; readoutArea.textContent='—';
+    }
+  }
+  function hidePropsPanel(){ noneSel.style.display='block'; props.style.display='none'; readoutSize.textContent='—'; readoutArea.textContent='—'; }
+  function toHex(c){
+    if(!c || c.startsWith('#')) return c||'#2a9d8f';
+    const m=c.match(/rgb[a]?\((\d+),\s*(\d+),\s*(\d+)/); if(!m) return '#2a9d8f';
+    const r=(+m[1]).toString(16).padStart(2,'0'), g=(+m[2]).toString(16).padStart(2,'0'), b=(+m[3]).toString(16).padStart(2,'0'); return `#${r}${g}${b}`;
+  }
+
+  // ===== Units & measurement =====
+  function worldToUnits(px){ return (px / state.gridPx) * state.unitsPerGrid; }
+  function unitsToWorld(u){ return (u / state.unitsPerGrid) * state.gridPx; }
+  function worldToUnits2(areaPx){ return (areaPx / (state.gridPx*state.gridPx)) * (state.unitsPerGrid*state.unitsPerGrid); }
+  function polygonArea(pts){
+    let a=0; for(let i=0,j=pts.length-1;i<pts.length;j=i++) a += (pts[j].x+pts[i].x)*(pts[j].y-pts[i].y);
+    return Math.abs(a/2);
+  }
+
+  // ===== Stamps =====
+  $$('.stamp .btn').forEach(b=>{
+    b.addEventListener('click',()=>{
+      const center={x:1200, y:800};
+      if(b.dataset.stamp==='tree'){
+        const r = unitsToWorld(1.5); const gEl = createCircle(center.x, center.y, r); const c=gEl.querySelector('circle'); c.setAttribute('fill','#2b8c56'); c.setAttribute('stroke','#163a23'); sel(gEl); pushHistory();
+      } else if(b.dataset.stamp==='shrub'){
+        const r = unitsToWorld(1); const gEl = createCircle(center.x, center.y, r); const c=gEl.querySelector('circle'); c.setAttribute('fill','#3a9b6a'); c.setAttribute('stroke','#1e4c33'); sel(gEl); pushHistory();
+      } else if(b.dataset.stamp==='bed'){
+        const w=unitsToWorld(8), h=unitsToWorld(4); const gEl=createRect(center.x-w/2, center.y-h/2, w, h); const r=gEl.querySelector('rect'); r.setAttribute('fill','url(#hatch)'); r.setAttribute('stroke','#deb887'); sel(gEl); pushHistory();
+      } else if(b.dataset.stamp==='patio'){
+        const w=unitsToWorld(12), h=unitsToWorld(10); const gEl=createRect(center.x-w/2, center.y-h/2, w, h); const r=gEl.querySelector('rect'); r.setAttribute('fill','#a48e72'); r.setAttribute('stroke','#5c4c3c'); sel(gEl); pushHistory();
+      } else if(b.dataset.stamp==='water'){
+        const w=unitsToWorld(6), h=unitsToWorld(6); const gEl=createRect(center.x-w/2, center.y-h/2, w, h); const r=gEl.querySelector('rect'); r.setAttribute('fill','#3da3d5'); r.setAttribute('stroke','#104a62'); sel(gEl); pushHistory();
+      } else if(b.dataset.stamp==='path'){
+        const pts=[{x:center.x- unitsToWorld(3), y:center.y- unitsToWorld(0.5)}, {x:center.x+ unitsToWorld(3), y:center.y+ unitsToWorld(0.5)}, {x:center.x+ unitsToWorld(3), y:center.y+ unitsToWorld(1.5)}, {x:center.x- unitsToWorld(3), y:center.y+ unitsToWorld(0.5)}];
+        const gEl=createPoly(pts); const p=gEl.querySelector('polygon'); p.setAttribute('fill','#8b8b8b'); p.setAttribute('opacity','0.85'); p.setAttribute('stroke','#5d5d5d'); sel(gEl); pushHistory();
+      }
+    });
+  });
+
+  // ===== Tool switching =====
+  tools.forEach(b=> b.addEventListener('click', ()=> setTool(b.dataset.tool)) );
+  window.addEventListener('keydown', e=>{
+    if(e.target.tagName==='INPUT' || e.target.tagName==='TEXTAREA') return;
+    if(e.key==='v' || e.key==='V') setTool('select');
+    else if(e.key==='r' || e.key==='R') setTool('rect');
+    else if(e.key==='c' || e.key==='C') setTool('circle');
+    else if(e.key==='p' || e.key==='P') setTool('poly');
+    else if(e.key==='m' || e.key==='M') setTool('measure');
+    else if(e.key==='t' || e.key==='T') setTool('text');
+    else if(e.key==='Delete'){ if(state.selected){ state.selected.remove(); clearSelection(); pushHistory(); } }
+    else if(e.key==='q' || e.key==='Q'){ if(state.selected) rotateBy(state.selected, -state.rotStep); }
+    else if(e.key==='e' || e.key==='E'){ if(state.selected) rotateBy(state.selected, +state.rotStep); }
+    else if((e.ctrlKey||e.metaKey) && e.key==='z'){ e.preventDefault(); if(e.shiftKey) redo(); else undo(); }
+  });
+
+  // ===== Props bindings =====
+  propId.addEventListener('change', ()=>{ if(state.selected){ state.selected.id = propId.value; pushHistory(); }});
+  propFill.addEventListener('input', ()=>{ if(state.selected){ state.selected.firstElementChild.setAttribute('fill', propFill.value); pushHistory(); }});
+  propStroke.addEventListener('input', ()=>{ if(state.selected){ state.selected.firstElementChild.setAttribute('stroke', propStroke.value); pushHistory(); }});
+  propStrokeW.addEventListener('input', ()=>{ if(state.selected){ state.selected.firstElementChild.setAttribute('stroke-width', propStrokeW.value); pushHistory(); }});
+  propW.addEventListener('change', ()=>{ if(state.selected && state.selected.dataset.type==='rect'){ const r=state.selected.querySelector('rect'); r.setAttribute('width', +propW.value); updateHandles(); updatePropsPanel(state.selected); pushHistory(); }});
+  propH.addEventListener('change', ()=>{ if(state.selected && state.selected.dataset.type==='rect'){ const r=state.selected.querySelector('rect'); r.setAttribute('height', +propH.value); updateHandles(); updatePropsPanel(state.selected); pushHistory(); }});
+  propR.addEventListener('change', ()=>{ if(state.selected && state.selected.dataset.type==='circle'){ const c=state.selected.querySelector('circle'); c.setAttribute('r', +propR.value); updateHandles(); updatePropsPanel(state.selected); pushHistory(); }});
+  propRot.addEventListener('change', ()=>{ if(state.selected){ const box=state.selected.getBBox(); const cx=box.x+box.width/2, cy=box.y+box.height/2; state.selected.setAttribute('transform',`rotate(${+propRot.value} ${cx} ${cy})`); updateHandles(); pushHistory(); }});
+  propLabel.addEventListener('change', ()=>{
+    if(!state.selected) return; let t=state.selected.querySelector('title'); if(!t){ t=document.createElementNS('http://www.w3.org/2000/svg','title'); state.selected.prepend(t); }
+    t.textContent=propLabel.value; pushHistory();
+  });
+  propShowDim.addEventListener('change', ()=>{
+    if(!state.selected) return; const old=state.selected.querySelector('text.dim-label'); if(old) old.remove();
+    if(propShowDim.checked){ const box=state.selected.getBBox(); const lbl=el('text',{x:box.x+box.width/2, y:box.y-6, class:'dim-label','text-anchor':'middle'}); lbl.textContent=shapeDimsText(state.selected); state.selected.appendChild(lbl); }
+    pushHistory();
+  });
+  bringF.addEventListener('click',()=>{ if(state.selected){ shapes.appendChild(state.selected); pushHistory(); }});
+  sendB.addEventListener('click',()=>{ if(state.selected){ shapes.insertBefore(state.selected, shapes.firstChild); pushHistory(); }});
+  delBtn.addEventListener('click',()=>{ if(state.selected){ state.selected.remove(); clearSelection(); pushHistory(); }});
+  dupBtn.addEventListener('click',()=>{ if(state.selected){ const clone=state.selected.cloneNode(true); clone.id=uid(state.selected.dataset.type); moveShape(clone, state.gridPx/2, state.gridPx/2); shapes.appendChild(clone); sel(clone); pushHistory(); }});
+  simplifyPolyBtn.addEventListener('click',()=>{ if(state.selected && state.selected.dataset.type==='poly'){ const poly=state.selected.querySelector('polygon'); const pts=attrToPts(poly.getAttribute('points')); const simp=simplify(pts, unitsToWorld(0.2)); poly.setAttribute('points', ptsToAttr(simp)); updateHandles(); updatePropsPanel(state.selected); pushHistory(); }});
+
+  function shapeDimsText(g){
+    if(g.dataset.type==='rect'){ const r=g.querySelector('rect'); return `${fmt(worldToUnits(+r.getAttribute('width')))}×${fmt(worldToUnits(+r.getAttribute('height')))} ${state.unitName}`; }
+    if(g.dataset.type==='circle'){ const c=g.querySelector('circle'); return `${fmt(worldToUnits(+c.getAttribute('r')*2))} ${state.unitName} dia`; }
+    if(g.dataset.type==='poly'){ const p=g.querySelector('polygon'); const a=polygonArea(attrToPts(p.getAttribute('points'))); return `${fmt(worldToUnits2(a))} ${state.unitName}²`; }
+    if(g.dataset.type==='text'){ return 'text'; }
+  }
+
+  // ===== Grid & units bindings =====
+  gridPx.addEventListener('change', ()=>{ state.gridPx=+gridPx.value; refreshGrid(); updateLegend(); pushHistory(); });
+  unitsPerGrid.addEventListener('change', ()=>{ state.unitsPerGrid=+unitsPerGrid.value; updateLegend(); pushHistory(); });
+  unitName.addEventListener('change', ()=>{ state.unitName=unitName.value; updateLegend(); pushHistory(); });
+  snapCk.addEventListener('change', ()=>{ state.snap=snapCk.checked; updateLegend(); });
+
+  // ===== Zoom & pan =====
+  zoomIn.addEventListener('click',()=>{ state.zoom=Math.min(6, state.zoom*1.15); applyZoomPan(); });
+  zoomOut.addEventListener('click',()=>{ state.zoom=Math.max(0.2, state.zoom/1.15); applyZoomPan(); });
+  fitBtn.addEventListener('click',()=>{
+    const wrap = $('#canvasWrap').getBoundingClientRect(); const content={w:2400,h:1600};
+    const s = Math.min(wrap.width/content.w, wrap.height/content.h); state.zoom=s*0.98; state.pan={x:(wrap.width-content.w*state.zoom)/2, y:(wrap.height-content.h*state.zoom)/2}; applyZoomPan();
+  });
+  centerBtn.addEventListener('click',()=>{ const wrap = $('#canvasWrap').getBoundingClientRect(); const content={w:2400,h:1600}; state.pan={x:(wrap.width-content.w*state.zoom)/2, y:(wrap.height-content.h*state.zoom)/2}; applyZoomPan(); });
+
+  // ===== Background =====
+  bgBtn.addEventListener('click',()=> bgFile.click());
+  bgFile.addEventListener('change', e=>{
+    const f=e.target.files[0]; if(!f) return; const url=URL.createObjectURL(f); bg.setAttribute('href', url); pushHistory();
+  });
+  bgOpacity.addEventListener('input',()=>{ bg.setAttribute('opacity', bgOpacity.value); });
+
+  // ===== Theme =====
+  darkBtn.addEventListener('click',()=>{ document.body.classList.toggle('light'); });
+
+  // ===== File I/O =====
+  newBtn.addEventListener('click',()=>{ if(confirm('Clear the canvas?')){ shapes.innerHTML=''; rulers.innerHTML=''; clearSelection(); pushHistory(); }});
+  undoBtn.addEventListener('click', undo); redoBtn.addEventListener('click', redo);
+  function undo(){ if(state.historyIndex>0){ state.historyIndex--; restoreHistory(state.historyIndex); } }
+  function redo(){ if(state.historyIndex<state.history.length-1){ state.historyIndex++; restoreHistory(state.historyIndex); } }
+
+  saveBtn.addEventListener('click',()=>{
+    const data = state.history[state.historyIndex];
+    download('outdoor_space_design.json', data, 'application/json');
+  });
+  loadBtn.addEventListener('click',()=>{
+    pickFile('.json').then(text=>{ try{
+      const snap=JSON.parse(text); state.history=[JSON.stringify(snap)]; state.historyIndex=0; restoreHistory(0);
+    }catch(err){ alert('Invalid JSON'); }
+    });
+  });
+  exportSVGBtn.addEventListener('click',()=>{
+    const clone = svg.cloneNode(true);
+    clone.querySelector('#handles')?.remove();
+    const s = new XMLSerializer().serializeToString(clone);
+    download('outdoor_space_design.svg', s, 'image/svg+xml');
+  });
+  exportPNGBtn.addEventListener('click',()=>{
+    const serializer = new XMLSerializer(); const svgStr = serializer.serializeToString(svg);
+    const img = new Image(); const blob = new Blob([svgStr], {type:'image/svg+xml'}); const url = URL.createObjectURL(blob);
+    img.onload = ()=>{
+      const canvas=document.createElement('canvas'); canvas.width=svg.viewBox.baseVal.width; canvas.height=svg.viewBox.baseVal.height; const ctx=canvas.getContext('2d');
+      ctx.drawImage(img,0,0); canvas.toBlob(b=>{ const url2=URL.createObjectURL(b); const a=document.createElement('a'); a.href=url2; a.download='outdoor_space_design.png'; a.click(); URL.revokeObjectURL(url2); },'image/png'); URL.revokeObjectURL(url);
+    };
+    img.onerror=()=> alert('PNG export failed');
+    img.src=url;
+  });
+
+  loadAuto.addEventListener('click', loadAutosave);
+  clearAuto.addEventListener('click', clearAutosave);
+  clearMeasureBtn.addEventListener('click', ()=>{ rulers.innerHTML=''; pushHistory(); });
+
+  // ===== Utilities =====
+  function download(name, content, mime){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([content],{type:mime})); a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href), 1000); }
+  function pickFile(accept){ return new Promise(res=>{ const inp=document.createElement('input'); inp.type='file'; inp.accept=accept; inp.onchange=()=>{ const f=inp.files[0]; const r=new FileReader(); r.onload=()=>res(r.result); r.readAsText(f); }; inp.click(); }); }
+
+  // Ramer–Douglas–Peucker simplification
+  function simplify(points, tolerance){
+    if(points.length<=2) return points;
+    const sqTol=tolerance*tolerance;
+    function getSqSegDist(p,a,b){ let x=a.x, y=a.y, dx=b.x-x, dy=b.y-y; if(dx||dy){ const t=((p.x-x)*dx+(p.y-y)*dy)/(dx*dx+dy*dy); if(t>1){ x=b.x; y=b.y; } else if(t>0){ x+=dx*t; y+=dy*t; } } dx=p.x-x; dy=p.y-y; return dx*dx+dy*dy; }
+    function simplifyDP(points){ const last=points.length-1; const stack=[[0,last]]; const keep=new Array(points.length).fill(false); keep[0]=keep[last]=true; while(stack.length){ const [a,b]=stack.pop(); let maxDist=0, index=0; for(let i=a+1;i<b;i++){ const d=getSqSegDist(points[i], points[a], points[b]); if(d>maxDist){ index=i; maxDist=d; } } if(maxDist>sqTol){ keep[index]=true; stack.push([a,index],[index,b]); } } return points.filter((p,i)=>keep[i]); }
+    return simplifyDP(points);
+  }
+
+  // Initial fit
+  setTimeout(()=>fitBtn.click(), 50);
+
+  // Local helpers used earlier
+  function shapeDimsText(g){
+    if(g.dataset.type==='rect'){ const r=g.querySelector('rect'); return `${fmt(worldToUnits(+r.getAttribute('width')))}×${fmt(worldToUnits(+r.getAttribute('height')))} ${state.unitName}`; }
+    if(g.dataset.type==='circle'){ const c=g.querySelector('circle'); return `${fmt(worldToUnits(+c.getAttribute('r')*2))} ${state.unitName} dia`; }
+    if(g.dataset.type==='poly'){ const p=g.querySelector('polygon'); const a=polygonArea(attrToPts(p.getAttribute('points'))); return `${fmt(worldToUnits2(a))} ${state.unitName}²`; }
+    return '';
+  }
+})();
+</script>
+</body>
+</html>
