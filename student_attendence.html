@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Student Attendance – Single Page App</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#111827; --panel-2:#0b1224; --text:#e5e7eb; --muted:#94a3b8;
+    --accent:#60a5fa; --ok:#34d399; --warn:#fbbf24; --danger:#f87171; --border:#1f2937;
+    --chip:#0b1224; --input:#0f1b34;
+  }
+  html,body{height:100%}
+  body{
+    margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial;
+    background: radial-gradient(1200px 600px at 20% -10%,#0b1022 0%,transparent 40%),
+                radial-gradient(1000px 800px at 120% -20%,#0a1430 0%,transparent 50%),
+                linear-gradient(160deg,#0b1022, #0f172a 45%, #0b1224 100%);
+    color: var(--text);
+  }
+  .wrap{max-width:1100px;margin:24px auto;padding:0 16px}
+  .row{display:flex;gap:12px;flex-wrap:wrap}
+  .card{
+    background: linear-gradient(180deg,var(--panel),var(--panel-2));
+    border:1px solid var(--border); border-radius:14px; padding:14px;
+    box-shadow: 0 10px 18px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.03);
+  }
+  .header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .title{font-weight:700;letter-spacing:.2px}
+  .muted{color:var(--muted)}
+  .controls{display:flex;gap:8px;flex-wrap:wrap}
+  .btn{
+    appearance:none; border:1px solid var(--border); background:var(--chip); color:var(--text);
+    padding:8px 12px; border-radius:10px; cursor:pointer; font-weight:600; letter-spacing:.2px;
+  }
+  .btn:hover{border-color:#2a3a5f}
+  .btn.accent{background: #0d1d3f; border-color:#2c4271}
+  .btn.ok{background:#0d2a23; border-color:#1c5444}
+  .btn.warn{background:#2a230d; border-color:#5a4a1b}
+  .btn.danger{background:#2a0f12; border-color:#5a2127}
+  .btn.secondary{background:transparent}
+  .icon{width:16px;height:16px;vertical-align:-2px}
+  input[type="text"], input[type="date"], select{
+    background: var(--input); border:1px solid var(--border); color:var(--text);
+    padding:8px 10px; border-radius:10px; outline:none; min-width:0;
+  }
+  input[type="file"]{color:var(--muted)}
+  .toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .spacer{flex:1}
+  .list{margin-top:12px}
+  .item{
+    display:grid; grid-template-columns: 1fr 170px 120px 110px; gap:10px; align-items:center;
+    padding:10px; border:1px solid var(--border); border-radius:12px;
+    background: rgba(255,255,255,0.02);
+  }
+  .item + .item{margin-top:8px}
+  .name{display:flex;align-items:center;gap:8px;font-weight:600}
+  .badge{font-size:12px;padding:2px 8px;border-radius:999px;border:1px solid var(--border); background:var(--chip); color:var(--muted)}
+  .status{
+    border:1px solid var(--border); border-radius:10px; background:var(--input); color:var(--text); padding:6px 8px;
+  }
+  .present{color:var(--ok)}
+  .absent{color:var(--danger)}
+  .tardy{color:var(--warn)}
+  .actions{display:flex;gap:6px;justify-content:flex-end}
+  .small{font-size:12px}
+  .grid{display:grid;grid-template-columns:1fr;gap:12px}
+  @media (min-width: 900px){
+    .grid{grid-template-columns: 1fr 1fr}
+  }
+  .footer{margin-top:14px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .hint{font-size:12px;color:var(--muted)}
+  .toggle{
+    display:inline-flex; align-items:center; gap:8px; cursor:pointer; user-select:none;
+  }
+  .toggle input{display:none}
+  .toggle .knob{
+    width:42px; height:24px; border-radius:999px; border:1px solid var(--border); background:var(--chip); position:relative;
+  }
+  .toggle .dot{
+    position:absolute; top:2px; left:2px; width:18px; height:18px; border-radius:50%; background:#d1d5db; transition:transform .18s ease;
+  }
+  .toggle input:checked + .knob .dot{ transform: translateX(18px); background:#86efac }
+  .strike{ text-decoration: line-through; color: var(--muted) }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <div>
+      <div class="title">Student Attendance</div>
+      <div class="muted small">Single-file app. Data stored locally in your browser.</div>
+    </div>
+    <label class="toggle" title="Toggle dark mode">
+      <input id="darkToggle" type="checkbox" checked />
+      <span class="knob"><span class="dot"></span></span>
+      <span class="small muted">Dark</span>
+    </label>
+  </div>
+
+  <!-- Date & Top Controls -->
+  <div class="card" style="margin-top:12px">
+    <div class="toolbar">
+      <strong>Date:</strong>
+      <input id="datePicker" type="date" />
+      <button class="btn secondary" id="prevDay">◀ Prev</button>
+      <button class="btn secondary" id="todayBtn">Today</button>
+      <button class="btn secondary" id="nextDay">Next ▶</button>
+
+      <span class="spacer"></span>
+
+      <input id="search" type="text" placeholder="Search students…" />
+      <input id="newName" type="text" placeholder="Add student name…" />
+      <button class="btn accent" id="addBtn">Add</button>
+    </div>
+
+    <div class="toolbar" style="margin-top:10px">
+      <button class="btn ok" id="markAllPresent">Mark All Present</button>
+      <button class="btn warn" id="markAllTardy">Mark All Tardy</button>
+      <button class="btn danger" id="markAllAbsent">Mark All Absent</button>
+      <button class="btn" id="clearMarks">Clear Marks</button>
+
+      <span class="spacer"></span>
+
+      <button class="btn" id="exportJson">Export JSON</button>
+      <label class="btn" for="importFile" title="Import JSON (merges roster & adds attendance)">
+        Import JSON
+      </label>
+      <input id="importFile" type="file" accept="application/json" style="display:none" />
+      <button class="btn secondary" id="exportCsv" title="CSV for the selected date">Export CSV (Day)</button>
+    </div>
+  </div>
+
+  <!-- Roster / Attendance -->
+  <div class="grid">
+    <div class="card">
+      <div class="toolbar"><strong>Roster</strong><span class="spacer"></span><span class="hint">Sorted A→Z · Click ✎ to edit · 🗑 to remove (keeps history)</span></div>
+      <div id="list" class="list"></div>
+      <div class="footer">
+        <span class="hint" id="countHint">0 students</span>
+        <button class="btn danger small" id="purgeBtn" title="Remove ALL data from this app">Purge All Data</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="toolbar"><strong>Summary (Selected Date)</strong></div>
+      <div id="summary" class="list"></div>
+      <div class="footer">
+        <span class="hint">Tip: Use the search box to quickly find a student.</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===================== Data Model ===================== */
+const STORAGE_KEY = "attendanceApp_v1";
+const defaultData = { 
+  roster: [],                 // [{id, name, active:true}]
+  records: {}                 // { 'YYYY-MM-DD': { [studentId]: 'P'|'A'|'T' } }
+};
+
+function loadData(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return structuredClone(defaultData);
+    const data = JSON.parse(raw);
+    // basic shape guard
+    data.roster ||= [];
+    data.records ||= {};
+    return data;
+  }catch(e){
+    console.warn("Corrupt storage, resetting.", e);
+    return structuredClone(defaultData);
+  }
+}
+function saveData(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(DB)); }
+
+let DB = loadData();
+
+/* ===================== Helpers ===================== */
+const $ = sel => document.querySelector(sel);
+const byId = id => document.getElementById(id);
+function uid(){ return Math.random().toString(36).slice(2,10); }
+function todayISO(){
+  const d = new Date();
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0,10);
+}
+function clampISO(iso){
+  // Accepts YYYY-MM-DD; if empty, use today
+  if(!iso) return todayISO();
+  return iso;
+}
+function getDayMap(iso){
+  DB.records[iso] ||= {};
+  return DB.records[iso];
+}
+function statusClass(s){
+  if(s==='P') return 'present';
+  if(s==='T') return 'tardy';
+  if(s==='A') return 'absent';
+  return '';
+}
+function statusLabel(s){
+  return s==='P' ? 'Present' : s==='T' ? 'Tardy' : s==='A' ? 'Absent' : '—';
+}
+
+/* ===================== UI State ===================== */
+const state = {
+  date: clampISO(todayISO()),
+  search: ''
+};
+
+const datePicker = byId('datePicker');
+const prevDay = byId('prevDay');
+const nextDay = byId('nextDay');
+const todayBtn = byId('todayBtn');
+const searchBox = byId('search');
+const newName = byId('newName');
+const addBtn = byId('addBtn');
+
+const listEl = byId('list');
+const summaryEl = byId('summary');
+const countHint = byId('countHint');
+
+const markAllPresent = byId('markAllPresent');
+const markAllAbsent = byId('markAllAbsent');
+const markAllTardy = byId('markAllTardy');
+const clearMarks = byId('clearMarks');
+
+const exportJson = byId('exportJson');
+const importFile = byId('importFile');
+const exportCsv = byId('exportCsv');
+
+const purgeBtn = byId('purgeBtn');
+const darkToggle = byId('darkToggle');
+
+/* ===================== Rendering ===================== */
+function render(){
+  // date
+  datePicker.value = state.date;
+
+  const roster = DB.roster
+    .filter(s => s.active !== false)
+    .filter(s => s.name.toLowerCase().includes(state.search.toLowerCase()))
+    .sort((a,b)=> a.name.localeCompare(b.name));
+
+  countHint.textContent = `${roster.length} student${roster.length===1?'':'s'}`;
+
+  // attendance map for the day
+  const dayMap = getDayMap(state.date);
+
+  // list render
+  listEl.innerHTML = '';
+  for(const s of roster){
+    const status = dayMap[s.id] || '';
+    const div = document.createElement('div');
+    div.className = 'item';
+    div.innerHTML = `
+      <div class="name">
+        <span class="badge">ID:${s.id.slice(0,4)}</span>
+        <span class="nm ${s.active? '' : 'strike'}">${escapeHtml(s.name)}</span>
+      </div>
+      <select class="status" data-id="${s.id}">
+        <option value="" ${status===''?'selected':''}>—</option>
+        <option value="P" ${status==='P'?'selected':''}>Present</option>
+        <option value="A" ${status==='A'?'selected':''}>Absent</option>
+        <option value="T" ${status==='T'?'selected':''}>Tardy</option>
+      </select>
+      <div class="small muted ${statusClass(status)}">${statusLabel(status)}</div>
+      <div class="actions">
+        <button class="btn small" data-act="edit" data-id="${s.id}">✎ Edit</button>
+        <button class="btn small danger" data-act="del" data-id="${s.id}">🗑 Delete</button>
+      </div>
+    `;
+    listEl.appendChild(div);
+  }
+
+  // summary render
+  const counts = {P:0,A:0,T:0, none:0};
+  for(const s of DB.roster.filter(x => x.active!==false)){
+    const st = dayMap[s.id] || '';
+    if(st==='P') counts.P++;
+    else if(st==='A') counts.A++;
+    else if(st==='T') counts.T++;
+    else counts.none++;
+  }
+  summaryEl.innerHTML = `
+    <div class="item"><div>Present</div><div class="present">${counts.P}</div><div class="muted">students</div><div></div></div>
+    <div class="item"><div>Absent</div><div class="absent">${counts.A}</div><div class="muted">students</div><div></div></div>
+    <div class="item"><div>Tardy</div><div class="tardy">${counts.T}</div><div class="muted">students</div><div></div></div>
+    <div class="item"><div>Unmarked</div><div>${counts.none}</div><div class="muted">students</div><div></div></div>
+  `;
+}
+
+function escapeHtml(s){
+  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* ===================== Actions ===================== */
+function addStudent(name){
+  const trimmed = name.trim();
+  if(!trimmed){ return; }
+  const exists = DB.roster.some(s => s.name.toLowerCase() === trimmed.toLowerCase() && s.active!==false);
+  if(exists){ alert('That name already exists in the roster.'); return; }
+  DB.roster.push({ id: uid(), name: trimmed, active: true });
+  saveData();
+  newName.value = '';
+  render();
+}
+function deleteStudent(id){
+  const s = DB.roster.find(x => x.id===id);
+  if(!s) return;
+  if(!confirm(`Remove "${s.name}" from roster? Past attendance remains saved.`)) return;
+  s.active = false;
+  saveData();
+  render();
+}
+function editStudent(id){
+  const s = DB.roster.find(x => x.id===id);
+  if(!s) return;
+  const name = prompt("Edit student name:", s.name);
+  if(!name) return;
+  s.name = name.trim();
+  saveData();
+  render();
+}
+
+function setStatus(id, val){
+  const dayMap = getDayMap(state.date);
+  if(!val){ delete dayMap[id]; }
+  else dayMap[id] = val;
+  saveData();
+  render();
+}
+function markAll(val){
+  const dayMap = getDayMap(state.date);
+  for(const s of DB.roster.filter(x => x.active!==false)){
+    dayMap[s.id] = val;
+  }
+  saveData();
+  render();
+}
+function clearAll(){
+  const dayMap = getDayMap(state.date);
+  for(const s of DB.roster.filter(x => x.active!==false)){
+    delete dayMap[s.id];
+  }
+  saveData();
+  render();
+}
+
+function changeDay(offset){
+  const d = new Date(state.date + "T00:00:00");
+  d.setDate(d.getDate()+offset);
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  state.date = d.toISOString().slice(0,10);
+  render();
+}
+
+/* ===================== Export / Import ===================== */
+function download(filename, text){
+  const blob = new Blob([text], {type: 'application/octet-stream'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function doExportJson(){
+  const stamp = new Date().toISOString().replace(/[:.]/g,'-');
+  download(`attendance-export-${stamp}.json`, JSON.stringify(DB, null, 2));
+}
+function doExportCsv(){
+  // CSV for current date
+  const iso = state.date;
+  const dayMap = getDayMap(iso);
+  const roster = DB.roster.filter(x => x.active!==false).sort((a,b)=>a.name.localeCompare(b.name));
+  const lines = [['Date','Student','Status']];
+  for(const s of roster){
+    const st = dayMap[s.id] || '';
+    lines.push([iso, s.name, statusLabel(st)]);
+  }
+  const csv = lines.map(row => row.map(cell => `"${String(cell).replace(/"/g,'""')}"`).join(',')).join('\n');
+  download(`attendance-${iso}.csv`, csv);
+}
+
+function doImportJson(file){
+  const reader = new FileReader();
+  reader.onload = () => {
+    try{
+      const data = JSON.parse(reader.result);
+      if(!data || !Array.isArray(data.roster) || typeof data.records!=='object'){
+        throw new Error('Invalid file');
+      }
+      // Merge roster by id or name (fallback)
+      const existingById = new Map(DB.roster.map(s => [s.id, s]));
+      const nameToId = new Map(DB.roster.map(s => [s.name.toLowerCase(), s.id]));
+      for(const s of data.roster){
+        if(existingById.has(s.id)){
+          existingById.get(s.id).name = s.name; // update name in case changed
+          existingById.get(s.id).active = (s.active!==false);
+        }else{
+          // If same name exists, reuse that id; else add new
+          const hitId = nameToId.get((s.name||'').toLowerCase());
+          if(hitId){
+            const t = DB.roster.find(x => x.id===hitId);
+            t.active = (s.active!==false);
+          }else{
+            DB.roster.push({ id: s.id || uid(), name: s.name || '(unnamed)', active: (s.active!==false) });
+          }
+        }
+      }
+      // Merge records (OR wins; imported overwrites conflicts)
+      for(const [day,map] of Object.entries(data.records||{})){
+        DB.records[day] ||= {};
+        Object.assign(DB.records[day], map);
+      }
+      saveData();
+      render();
+      alert('Import complete.');
+    }catch(e){
+      console.error(e);
+      alert('Import failed: ' + e.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+/* ===================== Events ===================== */
+datePicker.addEventListener('change', e => {
+  state.date = clampISO(e.target.value);
+  render();
+});
+prevDay.addEventListener('click', ()=> changeDay(-1));
+nextDay.addEventListener('click', ()=> changeDay(1));
+todayBtn.addEventListener('click', ()=> { state.date = todayISO(); render(); });
+
+searchBox.addEventListener('input', e => { state.search = e.target.value; render(); });
+newName.addEventListener('keydown', e => { if(e.key==='Enter') addStudent(newName.value); });
+addBtn.addEventListener('click', ()=> addStudent(newName.value));
+
+listEl.addEventListener('change', e => {
+  if(e.target.matches('.status')){
+    setStatus(e.target.dataset.id, e.target.value);
+  }
+});
+listEl.addEventListener('click', e => {
+  const btn = e.target.closest('button');
+  if(!btn) return;
+  const id = btn.dataset.id;
+  if(btn.dataset.act==='del') deleteStudent(id);
+  if(btn.dataset.act==='edit') editStudent(id);
+});
+
+markAllPresent.addEventListener('click', ()=> markAll('P'));
+markAllAbsent.addEventListener('click', ()=> markAll('A'));
+markAllTardy.addEventListener('click', ()=> markAll('T'));
+clearMarks.addEventListener('click', ()=> clearAll());
+
+exportJson.addEventListener('click', doExportJson);
+exportCsv.addEventListener('click', doExportCsv);
+importFile.addEventListener('change', e => {
+  const file = e.target.files?.[0];
+  if(file) doImportJson(file);
+  importFile.value = '';
+});
+
+purgeBtn.addEventListener('click', () => {
+  if(confirm('This will delete ALL roster and attendance data stored in your browser for this app. Continue?')){
+    DB = structuredClone(defaultData);
+    saveData();
+    render();
+  }
+});
+
+// Dark mode toggle (kept for user preference; default dark)
+darkToggle.addEventListener('change', () => {
+  // In this single-file theme, toggle is visual only; you can extend to light theme if desired.
+  // (Keeping variable set consistent with dark palette requested.)
+  // Placeholder for future: apply light palette by switching CSS variables.
+  alert('Dark mode is already active in this theme. (Light mode stub—feel free to wire a light palette.)');
+  darkToggle.checked = true;
+});
+
+/* ===================== Bootstrap ===================== */
+(function init(){
+  state.date = todayISO();
+  datePicker.value = state.date;
+  // Seed with sample names if first run
+  if(DB.roster.length===0){
+    ['Alice Johnson','Ben Carter','Chloe Kim','Diego Morales','Evelyn Park'].forEach(n=>DB.roster.push({id:uid(), name:n, active:true}));
+    saveData();
+  }
+  render();
+})();
+</script>
+</body>
+</html>
