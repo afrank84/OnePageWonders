@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Meal Planner — Single File</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#0b1224; --panel2:#0c162d; --text:#e5e7eb; --muted:#94a3b8;
+    --accent:#60a5fa; --ok:#34d399; --warn:#fbbf24; --danger:#f87171; --border:#1f2937;
+    --grid:#1a2642; --grid-bold:#223257;
+  }
+  html,body{height:100%}
+  body{margin:0;background:linear-gradient(160deg,#0b1022,#0f172a 50%,#0b1224 100%);color:var(--text);font-family:system-ui,Segoe UI,Roboto,Ubuntu,Helvetica,Arial}
+  header{position:sticky;top:0;z-index:5;background:#0b1022cc;backdrop-filter:saturate(1.2) blur(6px);border-bottom:1px solid var(--border)}
+  .wrap{max-width:1300px;margin:0 auto;padding:14px}
+  h1{font-size:20px;margin:0 0 10px 0;letter-spacing:0.3px}
+  .toolbar{display:flex;flex-wrap:wrap;gap:8px}
+  button,.btn{background:var(--panel2);color:var(--text);border:1px solid var(--border);padding:8px 12px;border-radius:10px;cursor:pointer}
+  button:hover{background:#102340}
+  .btn-accent{background:var(--accent);border-color:#3b82f6;color:#06142a}
+  .btn-danger{background:#2a0d12;border-color:#7f1d1d;color:#fecaca}
+  .btn-ok{background:#0b2a1f;border-color:#14532d;color:#bbf7d0}
+  .btn-ghost{background:transparent}
+  main{max-width:1300px;margin:14px auto 60px auto;padding:0 14px}
+  .grid{display:grid;grid-template-columns:repeat(7,minmax(240px,1fr));gap:14px}
+  @media (max-width:1400px){.grid{grid-template-columns:repeat(4,minmax(240px,1fr))}}
+  @media (max-width:980px){.grid{grid-template-columns:repeat(2,minmax(240px,1fr))}}
+  @media (max-width:600px){.grid{grid-template-columns:1fr}}
+  .day{background:linear-gradient(180deg, #0c162d, #0b1224);border:1px solid var(--border);border-radius:14px;box-shadow:0 4px 14px rgba(0,0,0,.25);display:flex;flex-direction:column;min-height:420px}
+  .day-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 12px 6px 12px}
+  .day-title{font-weight:700;letter-spacing:.3px}
+  .water{padding:0 12px 8px 12px}
+  .water-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+  .drop{font-size:18px;line-height:1;border-radius:8px;padding:4px 6px;border:1px solid var(--border);background:#0a152d;cursor:pointer;user-select:none}
+  .drop.active{background:#0d284f;box-shadow:inset 0 0 0 2px #1e40af}
+  .water-ctr{margin-left:auto;display:flex;gap:6px}
+  .water-ctr button{padding:4px 8px;border-radius:8px}
+  .goal{display:flex;align-items:center;gap:6px;font-size:12px;color:#cbd5e1}
+  .goal input{width:48px;padding:3px 6px;border-radius:8px;border:1px solid var(--border);background:#0a1326;color:var(--text)}
+  .content{padding:8px 10px 12px 10px;display:grid;gap:10px}
+  .meal{border:1px dashed #223257;background:#0b1429;border-radius:12px;padding:8px}
+  .meal.dragover{outline:2px solid #4f46e5}
+  .meal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+  .meal-title{font-weight:600;color:#cbd5e1;font-size:14px}
+  .add{display:flex;gap:6px}
+  .add input{flex:1;min-width:0;padding:6px 8px;border-radius:8px;border:1px solid var(--border);background:#0a1326;color:var(--text)}
+  .add button{padding:6px 10px;border-radius:8px}
+  .list{display:flex;flex-wrap:wrap;gap:6px;min-height:38px}
+  .item{display:inline-flex;align-items:center;gap:6px;padding:6px 8px;border-radius:10px;border:1px solid var(--border);background:#0d1934;cursor:grab}
+  .item[draggable=\"true\"]:active{cursor:grabbing}
+  .item .del{border:1px solid var(--border);background:#1a2446;border-radius:7px;padding:2px 6px;font-size:12px;cursor:pointer}
+  .item .del:hover{background:#2a3669}
+  .item .edit{border:1px solid var(--border);background:#103255;border-radius:7px;padding:2px 6px;font-size:12px;cursor:pointer}
+  .item .edit:hover{background:#154066}
+  .muted{color:var(--muted);font-size:12px}
+  .spacer{flex:1}
+  .notice{font-size:12px;color:#a3bffa}
+  .row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .right{margin-left:auto}
+  dialog{border:1px solid var(--border);border-radius:12px;background:#0d1429;color:var(--text);max-width:900px;width:min(90vw,900px);padding:0}
+  dialog::backdrop{background:rgba(0,0,0,.6)}
+  .dlg-head{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--border)}
+  .dlg-body{padding:12px 14px}
+  .dlg-body textarea{width:100%;min-height:300px;background:#0a1326;color:var(--text);border:1px solid var(--border);border-radius:10px;padding:10px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}
+  .dlg-foot{display:flex;gap:8px;justify-content:flex-end;padding:12px 14px;border-top:1px solid var(--border)}
+  .hidden{display:none}
+  .sr{position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>Meal Planner</h1>
+    <div class="toolbar">
+      <button id="btnExport" class="btn-accent" title="Download JSON">Export JSON</button>
+      <button id="btnCopy" class="btn" title="Copy JSON to clipboard">Copy JSON</button>
+      <button id="btnPaste" class="btn" title="Paste JSON">Paste JSON</button>
+      <input id="fileImport" type="file" accept="application/json" class="hidden" />
+      <button id="btnImportFile" class="btn" title="Import JSON file">Import File</button>
+      <button id="btnClear" class="btn-danger" title="Clear all meals and water">Clear Week</button>
+      <div class="spacer"></div>
+      <span class="notice">Drag meals between any day and meal time</span>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div id="grid" class="grid" aria-label="Weekly meal planner"></div>
+</main>
+
+<!-- Paste JSON dialog -->
+<dialog id="pasteDlg">
+  <form method="dialog">
+    <div class="dlg-head">
+      <strong>Paste JSON</strong>
+      <button value="cancel" class="btn btn-ghost">Close</button>
+    </div>
+    <div class="dlg-body">
+      <p class="muted">Paste an export from this planner. Loading will replace the current week.</p>
+      <textarea id="pasteArea" spellcheck="false" aria-label="JSON"></textarea>
+    </div>
+    <div class="dlg-foot">
+      <button id="btnLoadPasted" class="btn-ok" value="default">Load</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+/* Data schema v1
+{
+  "version": 1,
+  "days": [
+    {"name":"Mon","water":{"goal":8,"count":0},
+     "meals":{"breakfast":["Eggs"],"lunch":[],"dinner":[],"snacks":[]}},
+    ... 7 days ...
+  ]
+}
+*/
+(function(){
+  'use strict';
+
+  const KEY = 'mealPlanner.v1';
+  const MEALS = ['breakfast','lunch','dinner','snacks'];
+  const DAYNAMES = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  let data = load() || makeDefault();
+  const grid = document.getElementById('grid');
+
+  // Initial render
+  render();
+
+  // Toolbar events
+  document.getElementById('btnExport').addEventListener('click', exportJSON);
+  document.getElementById('btnCopy').addEventListener('click', copyJSON);
+  document.getElementById('btnPaste').addEventListener('click', openPasteDialog);
+  document.getElementById('btnImportFile').addEventListener('click', () => document.getElementById('fileImport').click());
+  document.getElementById('fileImport').addEventListener('change', importFile);
+  document.getElementById('btnClear').addEventListener('click', clearWeek);
+
+  // Delegated interactions for the planner grid
+  grid.addEventListener('click', onGridClick);
+  grid.addEventListener('keydown', onGridKeydown);
+  setupDndZones();
+
+  // Dialog paste
+  const pasteDlg = document.getElementById('pasteDlg');
+  const pasteArea = document.getElementById('pasteArea');
+  document.getElementById('btnLoadPasted').addEventListener('click', (e)=>{
+    e.preventDefault();
+    try {
+      const obj = JSON.parse(pasteArea.value.trim());
+      if(!validate(obj)) throw new Error('Invalid schema');
+      data = obj;
+      save(); render();
+      pasteDlg.close();
+    } catch(err){
+      alert('Could not parse JSON: ' + err.message);
+    }
+  });
+
+  // Helpers
+  function makeDefault(){
+    return {
+      version: 1,
+      days: DAYNAMES.map(n => ({
+        name: n,
+        water: {goal: 8, count: 0},
+        meals: {breakfast:[], lunch:[], dinner:[], snacks:[]}
+      }))
+    };
+  }
+
+  function load(){
+    try {
+      const raw = localStorage.getItem(KEY);
+      if(!raw) return null;
+      const obj = JSON.parse(raw);
+      if(validate(obj)) return obj;
+    } catch(_) {}
+    return null;
+  }
+
+  function save(){
+    localStorage.setItem(KEY, JSON.stringify(data));
+  }
+
+  function validate(obj){
+    if(!obj || typeof obj !== 'object') return false;
+    if(obj.version !== 1) return false;
+    if(!Array.isArray(obj.days) || obj.days.length !== 7) return false;
+    for(const d of obj.days){
+      if(!d || typeof d.name !== 'string') return false;
+      if(!d.water || typeof d.water.goal !== 'number' || typeof d.water.count !== 'number') return false;
+      if(!d.meals) return false;
+      for(const k of MEALS){
+        if(!Array.isArray(d.meals[k])) return false;
+        if(!d.meals[k].every(x => typeof x === 'string')) return false;
+      }
+    }
+    return true;
+  }
+
+  function render(){
+    grid.innerHTML = '';
+    data.days.forEach((day, di)=>{
+      const card = document.createElement('section');
+      card.className = 'day';
+      card.setAttribute('aria-label', day.name);
+      card.innerHTML = `
+        <div class="day-head">
+          <div class="row" style="gap:8px;">
+            <div class="day-title">${day.name}</div>
+            <div class="goal">
+              <label for="goal-${di}" class="muted">Goal</label>
+              <input id="goal-${di}" type="number" min="1" max="24" step="1" value="${day.water.goal}" data-di="${di}" data-action="setGoal" />
+            </div>
+          </div>
+          <div class="right muted">${day.water.count}/${day.water.goal} cups</div>
+        </div>
+        <div class="water">
+          <div class="water-row" role="group" aria-label="Water">
+            ${dropsHTML(day.water.goal, day.water.count, di)}
+            <div class="water-ctr">
+              <button class="btn" data-action="waterMinus" data-di="${di}" title="Decrease water">-</button>
+              <button class="btn" data-action="waterPlus" data-di="${di}" title="Increase water">+</button>
+              <button class="btn" data-action="waterReset" data-di="${di}" title="Reset water">Reset</button>
+            </div>
+          </div>
+        </div>
+        <div class="content">
+          ${MEALS.map(m => mealSectionHTML(di, m, day.meals[m])).join('')}
+        </div>
+      `;
+      grid.appendChild(card);
+    });
+    // After rendering, rewire DnD listeners on lists and items
+    setupDndZones();
+  }
+
+  function dropsHTML(goal, count, di){
+    let out = '';
+    for(let i=0;i<goal;i++){
+      const active = i < count ? 'active' : '';
+      out += `<div class="drop ${active}" role="button" aria-label="Water cup ${i+1}" data-action="toggleDrop" data-di="${di}" data-index="${i}">💧</div>`;
+    }
+    return out;
+  }
+
+  function mealSectionHTML(di, mealKey, items){
+    const title = mealKey[0].toUpperCase() + mealKey.slice(1);
+    return `
+      <section class="meal" data-dropzone="true" data-di="${di}" data-meal="${mealKey}" aria-label="${title}">
+        <div class="meal-head">
+          <div class="meal-title">${title}</div>
+          <div class="add" role="group" aria-label="Add ${title}">
+            <input type="text" placeholder="Add ${title} item..." data-di="${di}" data-meal="${mealKey}" data-role="input">
+            <button class="btn" data-action="addItem" data-di="${di}" data-meal="${mealKey}">Add</button>
+          </div>
+        </div>
+        <div class="list" data-di="${di}" data-meal="${mealKey}">
+          ${items.map((txt, idx)=> itemHTML(di, mealKey, idx, txt)).join('')}
+        </div>
+      </section>
+    `;
+  }
+
+  function itemHTML(di, mealKey, idx, txt){
+    const esc = escapeHtml(txt);
+    return `
+      <span class="item" draggable="true" data-di="${di}" data-meal="${mealKey}" data-idx="${idx}" aria-grabbed="false">
+        <span class="text">${esc}</span>
+        <button class="edit" title="Edit" data-action="editItem" data-di="${di}" data-meal="${mealKey}" data-idx="${idx}">Edit</button>
+        <button class="del" title="Remove" data-action="delItem" data-di="${di}" data-meal="${mealKey}" data-idx="${idx}">✕</button>
+      </span>
+    `;
+  }
+
+  function onGridClick(e){
+    const btn = e.target.closest('button');
+    if(!btn) {
+      // Maybe clicked a drop
+      const drop = e.target.closest('.drop');
+      if(drop){
+        const di = +drop.dataset.di;
+        const ix = +drop.dataset.index;
+        const c = data.days[di].water;
+        c.count = (ix < c.count) ? ix : ix+1; // toggle to that level
+        clampWater(di);
+        save(); render();
+      }
+      return;
+    }
+    const action = btn.dataset.action;
+    if(!action) return;
+
+    const di = +btn.dataset.di;
+    if(action === 'addItem'){
+      const meal = btn.dataset.meal;
+      const input = grid.querySelector(`input[data-role="input"][data-di="${di}"][data-meal="${meal}"]`);
+      const val = (input.value || '').trim();
+      if(!val) return;
+      data.days[di].meals[meal].push(val);
+      input.value = '';
+      save(); render();
+      // focus back for fast entry
+      setTimeout(()=> input.focus(),0);
+    } else if(action === 'delItem'){
+      const meal = btn.dataset.meal, idx = +btn.dataset.idx;
+      data.days[di].meals[meal].splice(idx,1);
+      save(); render();
+    } else if(action === 'editItem'){
+      const meal = btn.dataset.meal, idx = +btn.dataset.idx;
+      const cur = data.days[di].meals[meal][idx] ?? '';
+      const next = prompt('Edit item', cur);
+      if(next !== null){
+        const s = next.trim();
+        if(s.length === 0){
+          // treat empty as delete
+          data.days[di].meals[meal].splice(idx,1);
+        } else {
+          data.days[di].meals[meal][idx] = s;
+        }
+        save(); render();
+      }
+    } else if(action === 'waterPlus'){
+      data.days[di].water.count++;
+      clampWater(di);
+      save(); render();
+    } else if(action === 'waterMinus'){
+      data.days[di].water.count--;
+      clampWater(di);
+      save(); render();
+    } else if(action === 'waterReset'){
+      data.days[di].water.count = 0;
+      clampWater(di);
+      save(); render();
+    }
+  }
+
+  function onGridKeydown(e){
+    // Add item on Enter in inputs
+    const inp = e.target.closest('input[data-role="input"]');
+    if(inp && e.key === 'Enter'){
+      const di = +inp.dataset.di;
+      const meal = inp.dataset.meal;
+      const val = (inp.value || '').trim();
+      if(!val) return;
+      data.days[di].meals[meal].push(val);
+      inp.value = '';
+      save(); render();
+      setTimeout(()=> {
+        // re-focus the same input
+        const ref = grid.querySelector(`input[data-role="input"][data-di="${di}"][data-meal="${meal}"]`);
+        if(ref) ref.focus();
+      },0);
+    }
+    // Update goal with typing
+    const goalField = e.target.id && e.target.id.startsWith('goal-') ? e.target : null;
+    if(goalField && (e.key === 'Enter' || e.key === 'Tab')){
+      const di = +goalField.dataset.di;
+      const v = parseInt(goalField.value,10);
+      if(Number.isFinite(v) && v >= 1 && v <= 24){
+        data.days[di].water.goal = v;
+        clampWater(di);
+        save(); render();
+      }
+    }
+  }
+
+  // Goal changes on blur too
+  document.addEventListener('change', (e)=>{
+    const el = e.target;
+    if(el && el.dataset && el.dataset.action === 'setGoal'){
+      const di = +el.dataset.di;
+      const v = parseInt(el.value,10);
+      if(Number.isFinite(v) && v >= 1 && v <= 24){
+        data.days[di].water.goal = v;
+        clampWater(di);
+        save(); render();
+      } else {
+        el.value = data.days[di].water.goal;
+      }
+    }
+  });
+
+  function clampWater(di){
+    const w = data.days[di].water;
+    if(w.count < 0) w.count = 0;
+    if(w.count > w.goal) w.count = w.goal;
+  }
+
+  // Drag and drop
+  function setupDndZones(){
+    // Items
+    grid.querySelectorAll('.item[draggable="true"]').forEach(el=>{
+      el.addEventListener('dragstart', onDragStart);
+      el.addEventListener('dragend', onDragEnd);
+    });
+    // Drop zones
+    grid.querySelectorAll('.meal[data-dropzone="true"]').forEach(zone=>{
+      zone.addEventListener('dragover', onDragOver);
+      zone.addEventListener('dragleave', onDragLeave);
+      zone.addEventListener('drop', onDrop);
+    });
+  }
+
+  function onDragStart(e){
+    const item = e.currentTarget;
+    const di = +item.dataset.di;
+    const meal = item.dataset.meal;
+    const idx = +item.dataset.idx;
+    const payload = {from:{di, meal, idx}, text: data.days[di].meals[meal][idx]};
+    e.dataTransfer.setData('application/json', JSON.stringify(payload));
+    e.dataTransfer.effectAllowed = 'move';
+    item.setAttribute('aria-grabbed','true');
+  }
+
+  function onDragEnd(e){
+    e.currentTarget.setAttribute('aria-grabbed','false');
+  }
+
+  function onDragOver(e){
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    e.currentTarget.classList.add('dragover');
+  }
+  function onDragLeave(e){
+    e.currentTarget.classList.remove('dragover');
+  }
+
+  function onDrop(e){
+    e.preventDefault();
+    const zone = e.currentTarget;
+    zone.classList.remove('dragover');
+    let payload;
+    try{
+      payload = JSON.parse(e.dataTransfer.getData('application/json') || '{}');
+    }catch(_){ return; }
+    if(!payload || !payload.from) return;
+    const toDi = +zone.dataset.di;
+    const toMeal = zone.dataset.meal;
+    const {di:fromDi, meal:fromMeal, idx} = payload.from;
+    const txt = payload.text;
+
+    // Guard
+    if(typeof txt !== 'string') return;
+    // Remove from source if still present at idx with same text
+    const src = data.days[fromDi].meals[fromMeal];
+    if(src[idx] === txt){
+      src.splice(idx,1);
+    } else {
+      // If it moved by previous ops, remove the first matching instance
+      const p = src.indexOf(txt);
+      if(p > -1) src.splice(p,1);
+    }
+    // Add to target at end
+    data.days[toDi].meals[toMeal].push(txt);
+    save(); render();
+  }
+
+  // Export / Import
+  function exportJSON(){
+    const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth()+1).padStart(2,'0');
+    const dd = String(d.getDate()).padStart(2,'0');
+    a.download = `meal-plan-${yyyy}-${mm}-${dd}.json`;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=> {
+      URL.revokeObjectURL(a.href);
+      a.remove();
+    }, 0);
+  }
+
+  async function copyJSON(){
+    const txt = JSON.stringify(data, null, 2);
+    try{
+      await navigator.clipboard.writeText(txt);
+      toast('JSON copied');
+    }catch(_){
+      // Fallback
+      const ta = document.createElement('textarea');
+      ta.value = txt;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+      toast('JSON copied');
+    }
+  }
+
+  function openPasteDialog(){
+    const pasteDlg = document.getElementById('pasteDlg');
+    const pasteArea = document.getElementById('pasteArea');
+    pasteArea.value = JSON.stringify(data, null, 2);
+    pasteDlg.showModal();
+  }
+
+  function importFile(e){
+    const file = e.target.files[0];
+    e.target.value = '';
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try{
+        const obj = JSON.parse(reader.result);
+        if(!validate(obj)) throw new Error('Invalid schema');
+        data = obj; save(); render();
+      }catch(err){
+        alert('Could not import file: ' + err.message);
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  function clearWeek(){
+    if(confirm('Clear all meals and water for the week?')){
+      data = makeDefault();
+      save(); render();
+    }
+  }
+
+  // Small toast with native alert-like feel without blocking
+  let toastTimer = null;
+  function toast(msg){
+    let el = document.getElementById('toast');
+    if(!el){
+      el = document.createElement('div');
+      el.id = 'toast';
+      el.style.position='fixed';
+      el.style.bottom='16px';
+      el.style.left='50%';
+      el.style.transform='translateX(-50%)';
+      el.style.background='#0c162d';
+      el.style.border='1px solid var(--border)';
+      el.style.color='var(--text)';
+      el.style.padding='8px 12px';
+      el.style.borderRadius='10px';
+      el.style.boxShadow='0 6px 20px rgba(0,0,0,.35)';
+      el.style.zIndex='9999';
+      document.body.appendChild(el);
+    }
+    el.textContent = msg;
+    el.style.opacity='1';
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=> el.style.opacity='0', 1300);
+  }
+
+  function escapeHtml(s){
+    return s.replace(/[&<>\"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  }
+})();
+</script>
+</body>
+</html>
