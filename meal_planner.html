@@ -254,11 +254,13 @@
           <div class="right muted">${day.water.count}/${day.water.goal} cups</div>
         </div>
         <div class="water">
-          <div class="water-row" role="group" aria-label="Water">
-            ${dropsHTML(day.water.goal, day.water.count, di)}
+          <div class="waterbar" role="group" aria-label="Water counter">
+            <div class="label">💧 <span>Water</span></div>
+            <div class="meter"><span class="count">${day.water.count}</span>/<span class="goal">${day.water.goal}</span> cups</div>
+            <div class="spacer"></div>
             <div class="water-ctr">
               <button class="btn" data-action="waterMinus" data-di="${di}" title="Decrease water">-</button>
-              <button class="btn" data-action="waterPlus" data-di="${di}" title="Increase water">+</button>
+              <button class="btn" data-action="waterPlus"  data-di="${di}" title="Increase water">+</button>
               <button class="btn" data-action="waterReset" data-di="${di}" title="Reset water">Reset</button>
             </div>
           </div>
