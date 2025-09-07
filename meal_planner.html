@@ -23,10 +23,23 @@
   .btn-ok{background:#0b2a1f;border-color:#14532d;color:#bbf7d0}
   .btn-ghost{background:transparent}
   main{max-width:1300px;margin:14px auto 60px auto;padding:0 14px}
-  .grid{display:grid;grid-template-columns:repeat(7,minmax(240px,1fr));gap:14px}
-  @media (max-width:1400px){.grid{grid-template-columns:repeat(4,minmax(240px,1fr))}}
-  @media (max-width:980px){.grid{grid-template-columns:repeat(2,minmax(240px,1fr))}}
-  @media (max-width:600px){.grid{grid-template-columns:1fr}}
+  .grid{
+    display:grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr)); /* 7 equal columns that always fit */
+    gap:12px;
+    justify-content:start; /* avoid any centering that can create a left gutter */
+  }
+  
+  /* responsive breakpoints (no minimums, so they always fill neatly) */
+  @media (max-width:1400px){ .grid{grid-template-columns:repeat(4, minmax(0,1fr))} }
+  @media (max-width:980px){  .grid{grid-template-columns:repeat(2, minmax(0,1fr))} }
+  @media (max-width:600px){  .grid{grid-template-columns:1fr} }
+  
+  /* let cards shrink without forcing extra width */
+  .day{ min-width:0; }
+  
+  /* optional: trim side padding a touch */
+  main{ padding:0 8px; }
   .day{background:linear-gradient(180deg, #0c162d, #0b1224);border:1px solid var(--border);border-radius:14px;box-shadow:0 4px 14px rgba(0,0,0,.25);display:flex;flex-direction:column;min-height:420px}
   .day-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 12px 6px 12px}
   .day-title{font-weight:700;letter-spacing:.3px}
