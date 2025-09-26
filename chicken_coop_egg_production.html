@@ -1,0 +1,457 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Chicken Egg Tracker</title>
+
+  <!-- Bootstrap 5.3.3 (as you prefer) -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+
+  <style>
+    :root{
+      --bg:#0f172a; --panel:#0b1224; --panel2:#0c162d; --text:#e5e7eb; --muted:#9aa4b2; --accent:#60a5fa; --border:#1f2937;
+    }
+    body{background:linear-gradient(160deg,#0b1022,#0f172a 50%,#0b1224 100%); color:var(--text)}
+    .card{background-color:rgba(12,22,45,.8); border:1px solid var(--border)}
+    .form-control, .form-select{background:#0f1a32; color:var(--text); border-color:#1b2948}
+    .form-control::placeholder{color:#93a0b4}
+    table{color:var(--text)}
+    thead th{border-bottom:2px solid #1e2a48; cursor:pointer}
+    tbody td{border-top:1px solid #18233f}
+    .btn-outline-light{border-color:#2a3b63;color:#d9e2f2}
+    .btn-outline-light:hover{background:#1a2b53}
+    .badge-soft{background:#112042; border:1px solid #2c4372; color:#cfe1ff}
+    .small-muted{color:var(--muted); font-size:.9rem}
+    .link-plain{color:#9ec1ff; text-decoration:underline dotted}
+    .table-responsive{max-height:55vh; overflow:auto}
+    .sticky-th{position:sticky; top:0; background:#0c162d}
+    .pointer{cursor:pointer}
+    .wrap{max-width:1100px; margin:auto; padding:24px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="mb-4">
+      <h1 class="h3 mb-1">🐔 Chicken Egg Tracker</h1>
+      <p class="small-muted mb-0">Log daily eggs, see stats, and import/export your data as JSON. Data also auto-saves to your browser.</p>
+    </header>
+
+    <!-- Quick Stats -->
+    <section class="row g-3 mb-3">
+      <div class="col-12 col-md-3">
+        <div class="card p-3">
+          <div class="small-muted">Total Eggs</div>
+          <div id="statTotal" class="h4 mb-0">0</div>
+        </div>
+      </div>
+      <div class="col-12 col-md-3">
+        <div class="card p-3">
+          <div class="small-muted">Past 7 Days</div>
+          <div id="stat7" class="h4 mb-0">0</div>
+        </div>
+      </div>
+      <div class="col-12 col-md-3">
+        <div class="card p-3">
+          <div class="small-muted">Past 30 Days</div>
+          <div id="stat30" class="h4 mb-0">0</div>
+        </div>
+      </div>
+      <div class="col-12 col-md-3">
+        <div class="card p-3">
+          <div class="small-muted">Avg / Day (last 30)</div>
+          <div id="statAvg" class="h4 mb-0">0</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Add / Edit Form -->
+    <section class="card p-3 mb-3">
+      <form id="eggForm" class="row g-3 align-items-end">
+        <input type="hidden" id="editId" value="">
+        <div class="col-6 col-md-3">
+          <label class="form-label" for="date">Date</label>
+          <input class="form-control" id="date" type="date" required>
+        </div>
+        <div class="col-6 col-md-3">
+          <label class="form-label" for="count">Eggs Collected</label>
+          <input class="form-control" id="count" type="number" min="0" step="1" placeholder="0" required>
+        </div>
+        <div class="col-6 col-md-3">
+          <label class="form-label" for="broken">Broken</label>
+          <input class="form-control" id="broken" type="number" min="0" step="1" placeholder="0">
+        </div>
+        <div class="col-6 col-md-3">
+          <label class="form-label" for="size">Size</label>
+          <select id="size" class="form-select">
+            <option value="">Mixed / N/A</option>
+            <option>Small</option><option>Medium</option><option>Large</option><option>XL</option>
+          </select>
+        </div>
+        <div class="col-6 col-md-3">
+          <label class="form-label" for="color">Shell Color</label>
+          <input class="form-control" id="color" type="text" placeholder="brown, blue, mixed">
+        </div>
+        <div class="col-6 col-md-3">
+          <label class="form-label" for="source">Source / Coop</label>
+          <input class="form-control" id="source" type="text" placeholder="Main coop">
+        </div>
+        <div class="col-12 col-md-6">
+          <label class="form-label" for="notes">Notes</label>
+          <input class="form-control" id="notes" type="text" placeholder="rainy day, new layer, etc.">
+        </div>
+        <div class="col-12 d-flex gap-2">
+          <button class="btn btn-primary" type="submit" id="saveBtn">Add Entry</button>
+          <button class="btn btn-outline-light d-none" type="button" id="cancelEdit">Cancel Edit</button>
+          <span class="ms-auto small-muted">Tip: click a row to edit.</span>
+        </div>
+      </form>
+    </section>
+
+    <!-- Filters & Actions -->
+    <section class="d-flex flex-wrap gap-2 align-items-center mb-2">
+      <div class="input-group" style="max-width:360px">
+        <span class="input-group-text">Search</span>
+        <input id="search" class="form-control" placeholder="date, color, size, source, notes">
+      </div>
+      <select id="filterSize" class="form-select" style="max-width:180px">
+        <option value="">All sizes</option>
+        <option>Small</option><option>Medium</option><option>Large</option><option>XL</option>
+      </select>
+      <select id="filterColor" class="form-select" style="max-width:180px">
+        <option value="">All colors</option>
+      </select>
+      <div class="ms-auto d-flex flex-wrap gap-2">
+        <button id="exportBtn" class="btn btn-success">Export JSON</button>
+        <label class="btn btn-outline-light mb-0">
+          Import JSON <input id="importFile" type="file" accept=".json,application/json" hidden>
+        </label>
+        <button id="downloadBackup" class="btn btn-outline-light">Download Backup</button>
+        <button id="clearData" class="btn btn-danger">Clear All</button>
+      </div>
+    </section>
+
+    <!-- Table -->
+    <section class="card p-2">
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead>
+            <tr>
+              <th class="sticky-th" data-sort="date">Date ▾</th>
+              <th class="sticky-th" data-sort="count">Eggs</th>
+              <th class="sticky-th" data-sort="broken">Broken</th>
+              <th class="sticky-th" data-sort="size">Size</th>
+              <th class="sticky-th" data-sort="color">Color</th>
+              <th class="sticky-th" data-sort="source">Source</th>
+              <th class="sticky-th" data-sort="notes">Notes</th>
+              <th class="sticky-th text-end">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+      <div class="d-flex justify-content-between align-items-center px-2 py-2">
+        <div id="rowCount" class="small-muted">0 rows</div>
+        <div class="small-muted">Sorted by <span id="sortLabel">date desc</span></div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="mt-4 small-muted">
+      Data lives in your browser (localStorage). Export JSON regularly for backups.
+    </footer>
+  </div>
+
+  <script>
+    /************** State **************/
+    const LS_KEY = 'eggTracker.v1';
+    let entries = [];     // {id, date(YYYY-MM-DD), count, broken, size, color, source, notes}
+    let sortState = { key:'date', dir:'desc' };
+
+    /************** Utils **************/
+    const $ = sel => document.querySelector(sel);
+    const $$ = sel => Array.from(document.querySelectorAll(sel));
+    const today = () => new Date().toISOString().slice(0,10);
+    const toInt = v => isNaN(parseInt(v,10)) ? 0 : parseInt(v,10);
+    const save = () => localStorage.setItem(LS_KEY, JSON.stringify({entries, sortState}));
+    const load = () => {
+      const raw = localStorage.getItem(LS_KEY);
+      if(!raw) return;
+      try{
+        const data = JSON.parse(raw);
+        if(Array.isArray(data.entries)) entries = data.entries;
+        if(data.sortState) sortState = data.sortState;
+      }catch(e){ console.warn('Failed to parse saved data'); }
+    };
+    const uid = () => Math.random().toString(36).slice(2,10);
+
+    function humanNumber(n){
+      return n.toLocaleString(undefined, {maximumFractionDigits:2});
+    }
+
+    /************** Rendering **************/
+    function refreshFilters(){
+      const colors = [...new Set(entries.map(e => (e.color||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+      const colorSel = $('#filterColor');
+      const keep = colorSel.value;
+      colorSel.innerHTML = '<option value="">All colors</option>' + colors.map(c=>`<option>${escapeHtml(c)}</option>`).join('');
+      if(colors.includes(keep)) colorSel.value = keep;
+    }
+
+    function computeStats(){
+      const total = entries.reduce((s,e)=> s + toInt(e.count), 0);
+      const now = new Date();
+      const d7 = new Date(now); d7.setDate(d7.getDate()-6);
+      const d30 = new Date(now); d30.setDate(d30.getDate()-29);
+
+      const inRange = (e, since) => new Date(e.date) >= new Date(since.toISOString().slice(0,10));
+      const sum7 = entries.filter(e=>inRange(e, d7)).reduce((s,e)=>s+toInt(e.count),0);
+      const sum30 = entries.filter(e=>inRange(e, d30)).reduce((s,e)=>s+toInt(e.count),0);
+      const daysIn30 = Math.min(30, Math.max(1, (now - d30)/(1000*60*60*24) + 1));
+      const avg = sum30 / daysIn30;
+
+      $('#statTotal').textContent = humanNumber(total);
+      $('#stat7').textContent = humanNumber(sum7);
+      $('#stat30').textContent = humanNumber(sum30);
+      $('#statAvg').textContent = humanNumber(avg);
+    }
+
+    function applySort(arr){
+      const dir = sortState.dir === 'asc' ? 1 : -1;
+      const key = sortState.key;
+      const cmp = (a,b) => {
+        let x = a[key] ?? '', y = b[key] ?? '';
+        if(key === 'count' || key === 'broken'){ x = toInt(x); y = toInt(y); }
+        if(key === 'date'){ x = x || ''; y = y || ''; }
+        if(x < y) return -1*dir;
+        if(x > y) return  1*dir;
+        return 0;
+      };
+      return arr.slice().sort(cmp);
+    }
+
+    function filtered(){
+      const q = ($('#search').value || '').toLowerCase();
+      const size = $('#filterSize').value;
+      const color = $('#filterColor').value;
+
+      return entries.filter(e=>{
+        if(size && (e.size||'') !== size) return false;
+        if(color && (e.color||'') !== color) return false;
+        if(!q) return true;
+        const hay = [e.date, e.count, e.broken, e.size, e.color, e.source, e.notes].map(v=>String(v||'').toLowerCase()).join(' ');
+        return hay.includes(q);
+      });
+    }
+
+    function escapeHtml(s){
+      return String(s||'').replace(/[&<>"']/g, m => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+      }[m]));
+    }
+
+    function renderTable(){
+      const rows = applySort(filtered());
+      $('#tbody').innerHTML = rows.map(e=>`
+        <tr class="pointer" data-id="${e.id}">
+          <td>${escapeHtml(e.date||'')}</td>
+          <td><span class="badge badge-soft">${toInt(e.count)}</span></td>
+          <td>${toInt(e.broken)}</td>
+          <td>${escapeHtml(e.size||'')}</td>
+          <td>${escapeHtml(e.color||'')}</td>
+          <td>${escapeHtml(e.source||'')}</td>
+          <td>${escapeHtml(e.notes||'')}</td>
+          <td class="text-end">
+            <button class="btn btn-sm btn-outline-light me-1" data-action="edit">Edit</button>
+            <button class="btn btn-sm btn-danger" data-action="delete">Delete</button>
+          </td>
+        </tr>
+      `).join('');
+      $('#rowCount').textContent = `${rows.length} row${rows.length===1?'':'s'}`;
+      $('#sortLabel').textContent = `${sortState.key} ${sortState.dir}`;
+      computeStats();
+      refreshFilters();
+    }
+
+    /************** CRUD **************/
+    function resetForm(){
+      $('#editId').value = '';
+      $('#eggForm').reset();
+      $('#date').value = today();
+      $('#broken').value = 0;
+      $('#saveBtn').textContent = 'Add Entry';
+      $('#cancelEdit').classList.add('d-none');
+    }
+
+    function getForm(){
+      return {
+        id: $('#editId').value || uid(),
+        date: $('#date').value,
+        count: toInt($('#count').value),
+        broken: toInt($('#broken').value),
+        size: $('#size').value,
+        color: $('#color').value.trim(),
+        source: $('#source').value.trim(),
+        notes: $('#notes').value.trim(),
+      };
+    }
+
+    function setForm(e){
+      $('#editId').value = e.id;
+      $('#date').value = e.date || today();
+      $('#count').value = toInt(e.count);
+      $('#broken').value = toInt(e.broken);
+      $('#size').value = e.size || '';
+      $('#color').value = e.color || '';
+      $('#source').value = e.source || '';
+      $('#notes').value = e.notes || '';
+      $('#saveBtn').textContent = 'Save Changes';
+      $('#cancelEdit').classList.remove('d-none');
+    }
+
+    /************** Import / Export **************/
+    function exportJSON(){
+      const data = { exportedAt:new Date().toISOString(), entries, sortState };
+      const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `egg-tracker-${new Date().toISOString().slice(0,10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }
+
+    function downloadBackup(){
+      // Backup just the entries array for lightweight saves
+      const data = entries;
+      const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `egg-entries-${new Date().toISOString().slice(0,10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }
+
+    function importFromFile(file){
+      const reader = new FileReader();
+      reader.onload = () => {
+        try{
+          const obj = JSON.parse(reader.result);
+          if(Array.isArray(obj)){ // plain array
+            entries = normalizeArray(obj);
+          } else if(obj && Array.isArray(obj.entries)){ // wrapped
+            entries = normalizeArray(obj.entries);
+            if(obj.sortState) sortState = obj.sortState;
+          } else {
+            alert('JSON not recognized. Expecting an array of entries or an object with {entries: [...]}');
+            return;
+          }
+          save();
+          renderTable();
+        }catch(e){
+          alert('Failed to parse JSON file.');
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function normalizeArray(arr){
+      // Ensure required fields & types
+      return arr.map(r=>({
+        id: r.id || uid(),
+        date: (r.date || '').slice(0,10),
+        count: toInt(r.count),
+        broken: toInt(r.broken),
+        size: r.size || '',
+        color: r.color || '',
+        source: r.source || '',
+        notes: r.notes || '',
+      }));
+    }
+
+    /************** Events **************/
+    $('#eggForm').addEventListener('submit', (e)=>{
+      e.preventDefault();
+      const rec = getForm();
+      if(!rec.date){ alert('Please choose a date.'); return; }
+      if(rec.count < 0 || rec.broken < 0){ alert('Counts cannot be negative.'); return; }
+      if(rec.broken > rec.count){ if(!confirm('Broken exceeds total eggs. Keep anyway?')) return; }
+
+      const editing = $('#editId').value;
+      if(editing){
+        const i = entries.findIndex(x=>x.id===editing);
+        if(i>=0) entries[i] = rec;
+      }else{
+        entries.push(rec);
+      }
+      save();
+      renderTable();
+      resetForm();
+    });
+
+    $('#cancelEdit').addEventListener('click', resetForm);
+
+    $('#tbody').addEventListener('click', (e)=>{
+      const tr = e.target.closest('tr'); if(!tr) return;
+      const id = tr.dataset.id;
+      if(e.target.matches('[data-action="edit"]')){
+        const rec = entries.find(x=>x.id===id);
+        if(rec) setForm(rec);
+      }else if(e.target.matches('[data-action="delete"]')){
+        if(confirm('Delete this entry?')){
+          entries = entries.filter(x=>x.id!==id);
+          save(); renderTable();
+        }
+      }else{
+        // Click row = edit
+        const rec = entries.find(x=>x.id===id);
+        if(rec) setForm(rec);
+      }
+    });
+
+    // Sorting
+    $$('th[data-sort]').forEach(th=>{
+      th.addEventListener('click', ()=>{
+        const key = th.getAttribute('data-sort');
+        if(sortState.key === key){
+          sortState.dir = (sortState.dir === 'asc') ? 'desc' : 'asc';
+        }else{
+          sortState.key = key;
+          sortState.dir = (key==='date' || key==='count' || key==='broken') ? 'desc' : 'asc';
+        }
+        save(); renderTable();
+      });
+    });
+
+    $('#search').addEventListener('input', renderTable);
+    $('#filterSize').addEventListener('change', renderTable);
+    $('#filterColor').addEventListener('change', renderTable);
+
+    $('#exportBtn').addEventListener('click', exportJSON);
+    $('#downloadBackup').addEventListener('click', downloadBackup);
+
+    $('#importFile').addEventListener('change', (e)=>{
+      const file = e.target.files[0];
+      if(file) importFromFile(file);
+      e.target.value = '';
+    });
+
+    $('#clearData').addEventListener('click', ()=>{
+      if(confirm('This will remove all entries from your browser. Continue?')){
+        entries = [];
+        save(); renderTable(); resetForm();
+      }
+    });
+
+    /************** Init **************/
+    function init(){
+      load();
+      $('#date').value = today();
+      $('#broken').value = 0;
+      renderTable();
+    }
+    init();
+  </script>
+</body>
+</html>
