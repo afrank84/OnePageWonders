@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mushroom Substrate Matrix — Single-Page Tool</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+<style>
+  :root{--ok:#198754;--best:#f59f00;--no:#c92a2a;--muted:#6c757d}
+  body{background:#0f172a;color:#e9ecef}
+  .card{background:#0b1224;border:1px solid #1f2937}
+  .table thead th{position:sticky;top:0;background:#0b1224;border-bottom:2px solid #223257;z-index:2}
+  .status-pill{font-weight:700}
+  .s-suitable{color:var(--ok)}
+  .s-best{color:var(--best)}
+  .s-not{color:var(--no)}
+  .s-unknown{color:var(--muted)}
+  .table-responsive{max-height:65vh;overflow:auto;border:1px solid #1f2937;border-radius:.5rem}
+  .form-check-label{user-select:none}
+  .btn-outline-light{--bs-btn-color:#e9ecef;--bs-btn-border-color:#3b4252}
+  .small-muted{color:#9aa4b2;font-size:.9rem}
+  @media print{
+    .no-print{display:none!important}
+    body{background:#fff;color:#000}
+    .card{border:none;background:#fff}
+    .table thead th{background:#fff;border-bottom:1px solid #000}
+  }
+</style>
+</head>
+<body>
+<div class="container py-4">
+  <header class="mb-3">
+    <h1 class="h3 mb-1">🍄 Mushroom Substrate Matrix</h1>
+    <div class="small-muted">Search, filter, edit ratings, and import/export CSV or JSON. Changes autosave locally.</div>
+  </header>
+
+  <div class="row g-3 no-print">
+    <div class="col-lg-3">
+      <div class="card p-3 h-100">
+        <h2 class="h6">Filters</h2>
+        <div class="mb-2">
+          <label class="form-label mb-1">Search tree</label>
+          <input id="searchTree" class="form-control form-control-sm" placeholder="e.g., Oak, Maple, Willow" />
+        </div>
+        <div class="mb-2">
+          <label class="form-label mb-1">Mushroom species</label>
+          <select id="filterMushroom" class="form-select form-select-sm"></select>
+        </div>
+        <div class="mb-2">
+          <label class="form-label mb-1">Show ratings</label>
+          <div class="d-flex flex-wrap gap-2">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="chkBest" checked>
+              <label class="form-check-label s-best" for="chkBest">★ Best</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="chkSuitable" checked>
+              <label class="form-check-label s-suitable" for="chkSuitable">✓ Suitable</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="chkNot" checked>
+              <label class="form-check-label s-not" for="chkNot">✗ Not recommended</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="chkUnknown" checked>
+              <label class="form-check-label s-unknown" for="chkUnknown">· Unknown</label>
+            </div>
+          </div>
+        </div>
+        <div class="mt-auto d-grid gap-2">
+          <button id="btnReset" class="btn btn-outline-light btn-sm">Reset filters</button>
+          <button id="btnPrint" class="btn btn-outline-light btn-sm">Print</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-9">
+      <div class="card p-3">
+        <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+          <div class="me-auto">
+            <strong>Legend:</strong>
+            <span class="status-pill s-best">★</span> Best
+            <span class="status-pill s-suitable ms-3">✓</span> Suitable
+            <span class="status-pill s-not ms-3">✗</span> Not recommended
+            <span class="status-pill s-unknown ms-3">·</span> Unknown
+          </div>
+          <div class="btn-group">
+            <button id="btnExportCSV" class="btn btn-outline-light btn-sm">Export CSV</button>
+            <button id="btnExportJSON" class="btn btn-outline-light btn-sm">Export JSON</button>
+            <label class="btn btn-outline-light btn-sm mb-0">
+              Import CSV
+              <input id="fileCSV" type="file" accept=".csv,text/csv" hidden>
+            </label>
+            <label class="btn btn-outline-light btn-sm mb-0">
+              Import JSON
+              <input id="fileJSON" type="file" accept=".json,application/json" hidden>
+            </label>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table id="matrix" class="table table-sm table-hover align-middle mb-0">
+            <thead id="thead"></thead>
+            <tbody id="tbody"></tbody>
+          </table>
+        </div>
+
+        <div class="d-flex flex-wrap gap-3 mt-2">
+          <div><span class="badge text-bg-secondary">Rows:</span> <span id="rowCount">0</span></div>
+          <div><span class="badge text-bg-secondary">Visible matches:</span> <span id="matchCount">0</span></div>
+          <div class="ms-auto small-muted">Click any cell to cycle rating. Autosaved.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="mt-3 small-muted">
+    Tip: You can fully replace the dataset by importing your own CSV (first column = Tree name; subsequent columns = mushrooms; cell values: ★, ✓, ✗, empty).
+  </footer>
+</div>
+
+<script>
+/* ---------- Data model ---------- */
+/* Ratings enum: 'unknown' | 'suitable' | 'best' | 'not' */
+const RATINGS = ['unknown','suitable','best','not'];
+const SYMBOL = {unknown:'', suitable:'✓', best:'★', not:'✗'};
+const CLASSN = {unknown:'s-unknown', suitable:'s-suitable', best:'s-best', not:'s-not'};
+
+/* Seed columns (mushrooms) */
+let mushrooms = [
+  "Shiitake","Blue/Green Oyster","Golden Oyster","Italian Oyster","Pink Oyster",
+  "Lion’s Mane","Chestnut","Nameko","Chicken of the Woods","Hen of the Woods",
+  "Reishi (G. lucidum)","Reishi (G. tsugae)"
+];
+
+/* Seed rows (trees) – parsed from your image as best as possible.
+   You can correct or replace via Import buttons. */
+let rows = {
+  "Ailanthus":              ["unknown","suitable","unknown","unknown","unknown","unknown","unknown","unknown","unknown","not","unknown","not"],
+  "Albizia":                ["suitable","suitable","suitable","suitable","suitable","unknown","unknown","unknown","unknown","not","unknown","not"],
+  "Alder":                  ["suitable","suitable","suitable","suitable","unknown","unknown","unknown","unknown","unknown","unknown","unknown","unknown"],
+  "Ash":                    ["not","not","suitable","suitable","suitable","unknown","unknown","unknown","unknown","not","unknown","not"],
+  "Aspen":                  ["suitable","suitable","suitable","suitable","suitable","suitable","suitable","unknown","unknown","unknown","unknown","unknown"],
+  "Basswood":               ["suitable","suitable","suitable","suitable","suitable","unknown","unknown","unknown","unknown","not","unknown","not"],
+  "Beech":                  ["suitable","suitable","suitable","suitable","suitable","suitable","suitable","suitable","unknown","not","unknown","not"],
+  "Birch":                  ["suitable","suitable","suitable","suitable","suitable","suitable","suitable","suitable","unknown","not","unknown","not"],
+  "Black Walnut":           ["not","not","not","not","not","unknown","unknown","unknown","unknown","not","unknown","not"],
+  "Box Elder":              ["suitable","suitable","suitable","suitable","suitable","unknown","unknown","unknown","unknown","unknown","unknown","unknown"],
+  "Buckeye":                ["suitable","suitable","suitable","suitable","suitable","unknown","unknown","unknown","unknown","not","unknown","not"],
+  "Cherry":                 ["suitable","suitable","suitable","suitable","suitable","unknown","unknown","unknown","unknown","unknown","unknown","unknown"],
+  "Chestnut":               ["suitable","suitable","suitable","suitable","suitable","suitable","suitable","unknown","unknown","unknown","unknown","unknown"],
+  "Chinese Tallow":         ["suitable","suitable","suitable","suitable","suitable","unknown","unknown","unknown","unknown","unknown","unknown","unknown"],
+  "Cottonwood":             ["suitable","suitable","suitable","suitable","suitable","unknown","unknown","unknown","unknown","unknown","unknown","unknown"],
+  "Elm":                    ["not","suitable","suitable","suitable","suitable","unknown","unknown","unknown","unknown","not","unknown","not"],
+  "Eucalyptus":             ["suitable","suitable","suitable","suitable","unknown","unknown","unknown","unknown","unknown","unknown","unknown","unknown"],
+  "Gunpowder Tree":         ["suitable","suitable","suitable","suitable","unknown","unknown","unknown","unknown","unknown","unknown","unknown","unknown"],
+  "Hackberry":              ["suitable","suitable","suitable","suitable","unknown","unknown","unknown","unknown","unknown","unknown","unknown","unknown"],
+  "Hemlock":                ["not","not","suitable","suitable","suitable","unknown","unknown","unknown","unknown","not","unknown","not"],
+  "Hickory":                ["suitable","suitable","suitable","suitable","unknown","unknown","unknown","unknown","unknown","unknown","unknown","unknown"],
+  "Hophornbeam":            ["suitable","suitable","suitable","suitable","unknown","unknown","unknown","unknown","unknown","unknown","unknown","unknown"],
+  "Hornbeam":               ["suitable","suitable","suitable","suitable","suitable","unknown","unknown","unknown","unknown","unknown","unknown","unknown"],
+  "Maple, Hard":            ["suitable","suitable","suitable","suitable","suitable","unknown","unknown","unknown","unknown","not","unknown","not"],
+  "Maple, Soft":            ["suitable","suitable","suitable","suitable","suitable","unknown","unknown","unknown","unknown","not","unknown","not"],
+  "Mimosa":                 ["suitable","suitable","suitable","suitable","unknown","unknown","unknown","unknown","unknown","unknown","unknown","unknown"],
+  "Mulberry":               ["suitable","suitable","suitable","suitable","suitable","unknown","unknown","unknown","unknown","unknown","unknown","unknown"],
+  "Oaks":                   ["suitable","suitable","suitable","suitable","suitable","suitable","suitable","unknown","unknown","not","unknown","not"],
+  "Palm":                   ["suitable","suitable","suitable","suitable","unknown","unknown","unknown","unknown","unknown","unknown","unknown","unknown"],
+  "Peach":                  ["not","suitable","suitable","suitable","unknown","unknown","unknown","unknown","unknown","unknown","unknown","unknown"],
+  "Pear":                   ["suitable","suitable","suitable","suitable","unknown","unknown","unknown","unknown","unknown","unknown","unknown","unknown"],
+  "Pecan":                  ["suitable","suitable","suitable","suitable","unknown","unknown","unknown","unknown","unknown","unknown","unknown","unknown"],
+  "Pines":                  ["not","not","suitable","suitable","unknown","unknown","unknown","unknown","unknown","not","unknown","not"],
+  "Poplar":                 ["suitable","suitable","suitable","suitable","suitable","unknown","unknown","unknown","unknown","unknown","unknown","unknown"],
+  "Privet":                 ["suitable","suitable","suitable","suitable","unknown","unknown","unknown","unknown","unknown","unknown","unknown","unknown"],
+  "Sassafras":              ["suitable","suitable","suitable","suitable","unknown","unknown","unknown","unknown","unknown","unknown","unknown","unknown"],
+  "Strangler Fig":          ["unknown","unknown","suitable","suitable","unknown","unknown","unknown","unknown","unknown","unknown","unknown","unknown"],
+  "Sweetgum":               ["suitable","suitable","suitable","suitable","suitable","unknown","unknown","unknown","unknown","unknown","unknown","unknown"],
+  "Sycamore":               ["suitable","suitable","suitable","suitable","unknown","unknown","unknown","unknown","unknown","unknown","unknown","unknown"],
+  "Tuliptree":              ["suitable","suitable","suitable","suitable","suitable","unknown","unknown","unknown","unknown","unknown","unknown","unknown"],
+  "Tupelo":                 ["suitable","suitable","suitable","suitable","unknown","unknown","unknown","unknown","unknown","unknown","unknown","unknown"],
+  "Umbrella (Octopus) Tree":["suitable","suitable","suitable","suitable","unknown","unknown","unknown","unknown","unknown","unknown","unknown","unknown"],
+  "Willow":                 ["suitable","suitable","suitable","suitable","suitable","unknown","unknown","unknown","unknown","unknown","unknown","unknown"]
+};
+
+/* ---------- Persistence ---------- */
+const KEY = 'mushroom_matrix_v1';
+const saved = localStorage.getItem(KEY);
+if (saved) {
+  try {
+    const parsed = JSON.parse(saved);
+    if (parsed.mushrooms && parsed.rows) { mushrooms = parsed.mushrooms; rows = parsed.rows; }
+  } catch {}
+}
+
+/* ---------- UI wiring ---------- */
+const thead = document.getElementById('thead');
+const tbody = document.getElementById('tbody');
+const filterMushroom = document.getElementById('filterMushroom');
+const searchTree = document.getElementById('searchTree');
+const rowCount = document.getElementById('rowCount');
+const matchCount = document.getElementById('matchCount');
+
+function save() {
+  localStorage.setItem(KEY, JSON.stringify({mushrooms, rows}));
+}
+
+function buildHeader() {
+  // Mushroom select
+  filterMushroom.innerHTML = '';
+  mushrooms.forEach((m, i) => {
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = m;
+    filterMushroom.appendChild(opt);
+  });
+  // Table header
+  thead.innerHTML = '';
+  const tr = document.createElement('tr');
+  const th0 = document.createElement('th'); th0.textContent = 'Tree'; tr.appendChild(th0);
+  mushrooms.forEach(m => {
+    const th = document.createElement('th'); th.textContent = m; tr.appendChild(th);
+  });
+  thead.appendChild(tr);
+}
+
+function ratingCell(tree, colIdx) {
+  const r = rows[tree][colIdx] ?? 'unknown';
+  const span = document.createElement('span');
+  span.className = `status-pill ${CLASSN[r]}`;
+  span.textContent = SYMBOL[r] || '·';
+  span.title = r.charAt(0).toUpperCase()+r.slice(1);
+  span.style.cursor = 'pointer';
+  span.addEventListener('click', () => {
+    const current = rows[tree][colIdx] ?? 'unknown';
+    const next = RATINGS[(RATINGS.indexOf(current)+1)%RATINGS.length];
+    rows[tree][colIdx] = next;
+    save();
+    render(); // re-filter counts/colors
+  });
+  return span;
+}
+
+function render() {
+  const q = searchTree.value.trim().toLowerCase();
+  const show = {
+    best: document.getElementById('chkBest').checked,
+    suitable: document.getElementById('chkSuitable').checked,
+    not: document.getElementById('chkNot').checked,
+    unknown: document.getElementById('chkUnknown').checked
+  };
+  const mIdx = parseInt(filterMushroom.value || '0', 10);
+  tbody.innerHTML = '';
+  const trees = Object.keys(rows).sort((a,b)=>a.localeCompare(b));
+  rowCount.textContent = trees.length;
+
+  let matches = 0;
+  trees.forEach(tree => {
+    if (q && !tree.toLowerCase().includes(q)) return;
+    const r = rows[tree][mIdx] ?? 'unknown';
+    if (!show[r]) return;
+
+    const tr = document.createElement('tr');
+    const tdTree = document.createElement('td'); tdTree.textContent = tree; tr.appendChild(tdTree);
+
+    mushrooms.forEach((_, j) => {
+      const td = document.createElement('td');
+      td.appendChild(ratingCell(tree, j));
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+    matches++;
+  });
+  matchCount.textContent = matches;
+}
+
+/* ---------- Export / Import ---------- */
+function download(filename, text) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], {type:'text/plain'}));
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function exportCSV() {
+  const cols = ['Tree', ...mushrooms];
+  const lines = [cols.join(',')];
+  for (const tree of Object.keys(rows)) {
+    const syms = rows[tree].map(r=>SYMBOL[r]||'');
+    lines.push([tree, ...syms].map(v=>{
+      if (v?.includes(',')) return `"${v.replace(/"/g,'""')}"`;
+      return v ?? '';
+    }).join(','));
+  }
+  download('mushroom_matrix.csv', lines.join('\n'));
+}
+
+function exportJSON() {
+  download('mushroom_matrix.json', JSON.stringify({mushrooms, rows}, null, 2));
+}
+
+function parseCSV(text) {
+  // Very simple CSV parser for this grid shape
+  const lines = text.split(/\r?\n/).filter(l=>l.trim().length);
+  const headers = lines[0].split(',').map(s=>s.trim());
+  const newMush = headers.slice(1);
+  const newRows = {};
+  for (let i=1;i<lines.length;i++){
+    const parts = lines[i].split(','); // assumes no embedded commas after export
+    const tree = parts[0]?.trim();
+    if (!tree) continue;
+    const vals = parts.slice(1).map(s=>{
+      const t = s.trim();
+      if (t === '★') return 'best';
+      if (t === '✓') return 'suitable';
+      if (t === '✗') return 'not';
+      return 'unknown';
+    });
+    newRows[tree] = vals;
+  }
+  mushrooms = newMush;
+  rows = newRows;
+  save();
+  buildHeader();
+  render();
+}
+
+document.getElementById('btnExportCSV').addEventListener('click', exportCSV);
+document.getElementById('btnExportJSON').addEventListener('click', exportJSON);
+
+document.getElementById('fileCSV').addEventListener('change', e=>{
+  const f = e.target.files[0]; if(!f) return;
+  f.text().then(parseCSV);
+  e.target.value='';
+});
+
+document.getElementById('fileJSON').addEventListener('change', e=>{
+  const f = e.target.files[0]; if(!f) return;
+  f.text().then(t=>{
+    const obj = JSON.parse(t);
+    if (obj.mushrooms && obj.rows) {
+      mushrooms = obj.mushrooms;
+      rows = obj.rows;
+      save();
+      buildHeader(); render();
+    } else alert('JSON must contain { mushrooms: [], rows: {} }');
+  });
+  e.target.value='';
+});
+
+/* ---------- Misc actions ---------- */
+document.getElementById('btnReset').addEventListener('click', ()=>{
+  searchTree.value='';
+  document.getElementById('chkBest').checked =
+  document.getElementById('chkSuitable').checked =
+  document.getElementById('chkNot').checked =
+  document.getElementById('chkUnknown').checked = true;
+  filterMushroom.selectedIndex = 0;
+  render();
+});
+document.getElementById('btnPrint').addEventListener('click', ()=>window.print());
+
+/* ---------- Init ---------- */
+buildHeader();
+render();
+
+/* Re-render on filter changes */
+[searchTree, filterMushroom, chkBest, chkSuitable, chkNot, chkUnknown].forEach(el=>{
+  el.addEventListener('input', render);
+});
+
+</script>
+</body>
+</html>
