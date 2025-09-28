@@ -9,6 +9,16 @@
     --bg:#0f172a; --panel:#0b1224; --panel2:#0c162d; --text:#e5e7eb; --muted:#94a3b8;
     --accent:#60a5fa; --ok:#34d399; --warn:#fbbf24; --danger:#f87171; --border:#1f2937;
     --grid:#1a2642; --grid-bold:#223257;
+
+    /* meal tints */
+    --breakfast-bg:#0e2244;  /* blue-ish */
+    --breakfast-bd:#2c4a86;
+    --lunch-bg:#0d2a1d;      /* green-ish */
+    --lunch-bd:#1f6a43;
+    --dinner-bg:#2a1630;     /* purple-ish */
+    --dinner-bd:#6a3b84;
+    --snacks-bg:#31240e;     /* amber/brown */
+    --snacks-bd:#8a6a2a;
   }
   *{box-sizing:border-box}
   html,body{height:100%}
@@ -40,7 +50,7 @@
   @media (max-width:980px){  .grid{grid-template-columns:repeat(2, minmax(0,1fr))} }
   @media (max-width:600px){  .grid{grid-template-columns:1fr} }
   
-  /* Cards; clip inner content so nothing spills outside rounded corners */
+  /* Cards */
   .day{
     min-width:0;
     background:linear-gradient(180deg, #0c162d, #0b1224);
@@ -48,12 +58,12 @@
     border-radius:14px;
     box-shadow:0 4px 14px rgba(0,0,0,.25);
     display:flex;flex-direction:column;min-height:420px;
-    overflow:hidden; /* <<< prevents dashed sections from overflowing */
+    overflow:hidden;
   }
   .day-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 12px 6px 12px}
   .day-title{font-weight:700;letter-spacing:.3px}
   
-  /* NEW: simple water counter row */
+  /* Water counter */
   .water{padding:0 12px 8px 12px}
   .waterbar{
     display:flex;align-items:center;gap:10px;
@@ -71,7 +81,30 @@
   
   /* Meals */
   .content{padding:8px 10px 12px 10px;display:grid;gap:10px}
-  .meal{border:1px dashed #223257;background:#0b1429;border-radius:12px;padding:8px;max-width:100%;overflow:hidden}
+  .meal{
+    border:1px dashed var(--grid-bold);
+    background:#0b1429;
+    border-radius:12px;
+    padding:8px;max-width:100%;overflow:hidden
+  }
+  /* Distinct tints by meal type */
+  .meal[data-meal="breakfast"]{
+    background:linear-gradient(180deg, var(--breakfast-bg), #0b1429 85%);
+    border-color:var(--breakfast-bd);
+  }
+  .meal[data-meal="lunch"]{
+    background:linear-gradient(180deg, var(--lunch-bg), #0b1429 85%);
+    border-color:var(--lunch-bd);
+  }
+  .meal[data-meal="dinner"]{
+    background:linear-gradient(180deg, var(--dinner-bg), #0b1429 85%);
+    border-color:var(--dinner-bd);
+  }
+  .meal[data-meal="snacks"]{
+    background:linear-gradient(180deg, var(--snacks-bg), #0b1429 85%);
+    border-color:var(--snacks-bd);
+  }
+
   .meal.dragover{outline:2px solid #4f46e5}
   .meal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
   .meal-title{font-weight:600;color:#cbd5e1;font-size:14px}
@@ -81,10 +114,13 @@
   .list{display:flex;flex-wrap:wrap;gap:6px;min-height:38px;max-width:100%}
   .item{display:inline-flex;align-items:center;gap:6px;padding:6px 8px;border-radius:10px;border:1px solid var(--border);background:#0d1934;cursor:grab}
   .item[draggable="true"]:active{cursor:grabbing}
-  .item .del{border:1px solid var(--border);background:#1a2446;border-radius:7px;padding:2px 6px;font-size:12px;cursor:pointer}
+  .item .btn-mini{border:1px solid var(--border);border-radius:7px;padding:2px 6px;font-size:12px;cursor:pointer}
+  .item .del{background:#1a2446}
   .item .del:hover{background:#2a3669}
-  .item .edit{border:1px solid var(--border);background:#103255;border-radius:7px;padding:2px 6px;font-size:12px;cursor:pointer}
+  .item .edit{background:#103255}
   .item .edit:hover{background:#154066}
+  .item .dup{background:#183216}
+  .item .dup:hover{background:#1f4520}
   
   .muted{color:var(--muted);font-size:12px}
   .spacer{flex:1}
@@ -100,8 +136,6 @@
   .dlg-foot{display:flex;gap:8px;justify-content:flex-end;padding:12px 14px;border-top:1px solid var(--border)}
   .hidden{display:none}
   .sr{position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden}
-
-
 </style>
 </head>
 <body>
@@ -275,15 +309,6 @@
     setupDndZones();
   }
 
-  function dropsHTML(goal, count, di){
-    let out = '';
-    for(let i=0;i<goal;i++){
-      const active = i < count ? 'active' : '';
-      out += `<div class="drop ${active}" role="button" aria-label="Water cup ${i+1}" data-action="toggleDrop" data-di="${di}" data-index="${i}">💧</div>`;
-    }
-    return out;
-  }
-
   function mealSectionHTML(di, mealKey, items){
     const title = mealKey[0].toUpperCase() + mealKey.slice(1);
     return `
@@ -307,8 +332,9 @@
     return `
       <span class="item" draggable="true" data-di="${di}" data-meal="${mealKey}" data-idx="${idx}" aria-grabbed="false">
         <span class="text">${esc}</span>
-        <button class="edit" title="Edit" data-action="editItem" data-di="${di}" data-meal="${mealKey}" data-idx="${idx}">Edit</button>
-        <button class="del" title="Remove" data-action="delItem" data-di="${di}" data-meal="${mealKey}" data-idx="${idx}">✕</button>
+        <button class="btn-mini edit" title="Edit" data-action="editItem" data-di="${di}" data-meal="${mealKey}" data-idx="${idx}">Edit</button>
+        <button class="btn-mini dup"  title="Duplicate" data-action="dupItem"  data-di="${di}" data-meal="${mealKey}" data-idx="${idx}">Duplicate</button>
+        <button class="btn-mini del"  title="Remove" data-action="delItem"  data-di="${di}" data-meal="${mealKey}" data-idx="${idx}">✕</button>
       </span>
     `;
   }
@@ -316,13 +342,13 @@
   function onGridClick(e){
     const btn = e.target.closest('button');
     if(!btn) {
-      // Maybe clicked a drop
+      // Maybe clicked a water drop (kept as-is if you add drops later)
       const drop = e.target.closest('.drop');
       if(drop){
         const di = +drop.dataset.di;
         const ix = +drop.dataset.index;
         const c = data.days[di].water;
-        c.count = (ix < c.count) ? ix : ix+1; // toggle to that level
+        c.count = (ix < c.count) ? ix : ix+1;
         clampWater(di);
         save(); render();
       }
@@ -340,7 +366,6 @@
       data.days[di].meals[meal].push(val);
       input.value = '';
       save(); render();
-      // focus back for fast entry
       setTimeout(()=> input.focus(),0);
     } else if(action === 'delItem'){
       const meal = btn.dataset.meal, idx = +btn.dataset.idx;
@@ -353,11 +378,17 @@
       if(next !== null){
         const s = next.trim();
         if(s.length === 0){
-          // treat empty as delete
           data.days[di].meals[meal].splice(idx,1);
         } else {
           data.days[di].meals[meal][idx] = s;
         }
+        save(); render();
+      }
+    } else if(action === 'dupItem'){
+      const meal = btn.dataset.meal, idx = +btn.dataset.idx;
+      const cur = data.days[di].meals[meal][idx];
+      if(typeof cur === 'string'){
+        data.days[di].meals[meal].push(cur);
         save(); render();
       }
     } else if(action === 'waterPlus'){
@@ -387,7 +418,6 @@
       inp.value = '';
       save(); render();
       setTimeout(()=> {
-        // re-focus the same input
         const ref = grid.querySelector(`input[data-role="input"][data-di="${di}"][data-meal="${meal}"]`);
         if(ref) ref.focus();
       },0);
@@ -480,18 +510,14 @@
     const {di:fromDi, meal:fromMeal, idx} = payload.from;
     const txt = payload.text;
 
-    // Guard
     if(typeof txt !== 'string') return;
-    // Remove from source if still present at idx with same text
     const src = data.days[fromDi].meals[fromMeal];
     if(src[idx] === txt){
       src.splice(idx,1);
     } else {
-      // If it moved by previous ops, remove the first matching instance
       const p = src.indexOf(txt);
       if(p > -1) src.splice(p,1);
     }
-    // Add to target at end
     data.days[toDi].meals[toMeal].push(txt);
     save(); render();
   }
@@ -520,7 +546,6 @@
       await navigator.clipboard.writeText(txt);
       toast('JSON copied');
     }catch(_){
-      // Fallback
       const ta = document.createElement('textarea');
       ta.value = txt;
       document.body.appendChild(ta);
@@ -562,7 +587,7 @@
     }
   }
 
-  // Small toast with native alert-like feel without blocking
+  // Toast
   let toastTimer = null;
   function toast(msg){
     let el = document.getElementById('toast');
