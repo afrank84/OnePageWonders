@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>One-File Calendar</title>
+<title>One-File Calendar — DnD + Repeat</title>
 <style>
   :root{
     --bg:#0f172a; --panel:#0b1224; --panel2:#0c162d; --text:#e5e7eb; --muted:#94a3b8;
@@ -12,7 +12,7 @@
   *{box-sizing:border-box}
   html,body{height:100%}
   body{margin:0;background:linear-gradient(160deg,#0b1022,#0f172a 50%,#0b1224 100%);color:var(--text);font-family:system-ui,Segoe UI,Roboto,Ubuntu,Helvetica,Arial}
-  ..wrap{width:100%;padding:16px}
+  .wrap{width:100%;padding:16px} /* full-width */
   header{position:sticky;top:0;background:rgba(11,18,36,.8);backdrop-filter:blur(6px);border-bottom:1px solid var(--border);z-index:10}
   header .inner{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 0}
   h1{font-size:18px;margin:0 12px 0 0;color:#fff;white-space:nowrap}
@@ -20,7 +20,6 @@
   button:hover{background:#112042}
   .primary{background:var(--accent);border-color:#000;color:#051730}
   .danger{background:#2a0f16;color:#f8d7da;border-color:#5b1a22}
-  .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
   .spacer{flex:1}
   .bar{display:flex;gap:8px;align-items:center}
   .tag{font-size:12px;color:var(--muted)}
@@ -42,34 +41,30 @@
   .week{display:grid;grid-template-columns:60px repeat(7,1fr);border:1px solid var(--border);border-radius:12px;overflow:hidden}
   .week .head{display:contents}
   .week .head div{padding:8px;border-right:1px solid var(--border);text-align:center;background:var(--panel2);font-size:12px;color:var(--muted)}
-  .week .col{border-right:1px solid var(--border);position:relative}
+  .week .col{border-right:1px solid var(--border);position:relative;user-select:none}
   .week .times{background:var(--panel2)}
   .slot{height:40px;border-top:1px solid var(--grid)}
   .slot.bold{border-top:1px solid var(--grid2)}
   .time{height:40px;border-top:1px solid var(--grid);padding:2px 6px;font-size:11px;color:var(--muted)}
-  .block{position:absolute;left:4px;right:4px;border-radius:8px;background:#1b2a52;border:1px solid #203060;padding:4px 6px;font-size:12px;cursor:pointer;overflow:hidden}
-  .ghost{position:absolute;left:4px;right:4px;border:1px dashed #375;pointer-events:none;border-radius:8px}
+  .block{position:absolute;left:4px;right:4px;border-radius:8px;background:#1b2a52;border:1px solid #203060;padding:4px 6px;font-size:12px;cursor:grab;overflow:hidden}
+  .block .resize{position:absolute;left:6px;right:6px;bottom:2px;height:6px;border-radius:3px;background:rgba(255,255,255,.25);cursor:ns-resize}
+  .dragging{opacity:.85;outline:2px dashed #6aa0ff}
+  .ghost{position:absolute;left:4px;right:4px;border:2px dashed #6aa0ff;pointer-events:none;border-radius:8px}
   /* Dialog */
-  dialog{border:none;border-radius:14px;padding:0;max-width:520px;width:92%;background:var(--panel);color:var(--text)}
+  dialog{border:none;border-radius:14px;padding:0;max-width:560px;width:92%;background:var(--panel);color:var(--text)}
   dialog::backdrop{background:rgba(0,0,0,.5)}
   .dlg{padding:14px}
   .dlg h3{margin:0 0 10px 0}
   .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
   .grid>label{display:flex;flex-direction:column;font-size:12px;color:var(--muted);gap:6px}
-  input[type="text"],input[type="datetime-local"],input[type="date"],input[type="time"],input[type="color"],textarea{
+  input[type="text"],input[type="datetime-local"],input[type="date"],input[type="time"],input[type="color"],textarea,select{
     background:#0e1831;color:var(--text);border:1px solid var(--border);border-radius:10px;padding:8px 10px;width:100%
   }
   .row-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
   .hint{color:var(--muted);font-size:12px}
   .pill{display:inline-flex;gap:8px;align-items:center;background:#0e1831;border:1px solid var(--border);padding:6px 8px;border-radius:999px}
-  .legend{display:flex;gap:8px;flex-wrap:wrap}
-  .legend .pill input{width:16px;height:16px;border-radius:4px;border:none}
   .footnote{font-size:12px;color:var(--muted);margin-top:6px}
   .hidden{display:none}
-  .note{font-size:12px;color:var(--muted)}
-  .kbd{font:12px ui-monospace,SFMono-Regular,Menlo,Monaco; background:#111a32;border:1px solid #1d2a4b;border-bottom-width:2px;border-radius:6px;padding:2px 6px}
-  .flex{display:flex;gap:8px;align-items:center}
-  .tight{gap:6px}
 </style>
 </head>
 <body>
@@ -87,7 +82,7 @@
       <span class="tag" id="rangeLabel"></span>
     </div>
     <div class="spacer"></div>
-    <div class="row">
+    <div class="bar">
       <button id="btn-export">Export JSON</button>
       <label class="pill"><input id="file" type="file" accept="application/json" class="hidden"><span>Import JSON</span></label>
       <button id="btn-clear" class="danger">Clear All</button>
@@ -97,7 +92,7 @@
 
 <main class="wrap">
   <div id="calendar" class="panel"></div>
-  <div class="footnote">Tip: Click a day (or drag in Month view) to add/move events. Click an event to edit. Data is saved in your browser (localStorage).</div>
+  <div class="footnote">Tips: Month view — drag events between days. Week view — drag to move; drag the pale bar at the bottom to resize. Repeats: set in the dialog. (Edits apply to the whole series for now.)</div>
 </main>
 
 <dialog id="eventDialog">
@@ -111,10 +106,37 @@
       <label><span class="hint">Start</span><input type="datetime-local" id="start"/></label>
       <label><span class="hint">End</span><input type="datetime-local" id="end"/></label>
     </div>
-    <div class="flex tight" style="margin-top:8px">
-      <label class="pill"><input type="checkbox" id="allDay"><span>All-day</span></label>
-      <label class="pill"><span>Color</span><input type="color" id="color" value="#60a5fa" style="background:transparent;border:none;padding:0;width:28px;height:22px"></label>
+    <div class="grid" style="margin-top:8px">
+      <label><span class="hint">All-day</span><select id="allDaySel"><option value="no">No</option><option value="yes">Yes</option></select></label>
+      <label><span class="hint">Color</span><input type="color" id="color" value="#60a5fa" style="background:transparent;border:none;padding:0;width:48px;height:36px"></label>
     </div>
+
+    <fieldset style="margin-top:10px;border:1px solid var(--border);border-radius:10px;padding:8px">
+      <legend class="hint" style="padding:0 6px">Repeat</legend>
+      <div class="grid">
+        <label><span class="hint">Frequency</span>
+          <select id="freq">
+            <option value="NONE">None</option>
+            <option value="DAILY">Daily</option>
+            <option value="WEEKLY">Weekly</option>
+            <option value="MONTHLY">Monthly</option>
+            <option value="YEARLY">Yearly</option>
+          </select>
+        </label>
+        <label><span class="hint">Interval</span><input type="number" id="interval" min="1" value="1"/></label>
+      </div>
+      <div class="grid" style="margin-top:8px">
+        <label><span class="hint">Until (optional)</span><input type="date" id="until"/></label>
+        <label><span class="hint">On weekdays (weekly only)</span>
+          <select id="byweekday" multiple size="5">
+            <option value="0">Sun</option><option value="1">Mon</option><option value="2">Tue</option>
+            <option value="3">Wed</option><option value="4">Thu</option><option value="5">Fri</option><option value="6">Sat</option>
+          </select>
+        </label>
+      </div>
+      <div class="hint" style="margin-top:6px">Examples: Weekly every 1 week on Mon/Wed/Fri; Monthly every 1 month (same day number).</div>
+    </fieldset>
+
     <div class="row-btns">
       <button value="cancel">Cancel</button>
       <button id="btn-del" class="danger hidden" value="delete">Delete</button>
@@ -127,12 +149,14 @@
 <script>
 (() => {
   const $ = sel => document.querySelector(sel);
-  const $$ = sel => [...document.querySelectorAll(sel)];
   const calEl = $('#calendar');
   const viewSel = $('#view');
   const rangeLabel = $('#rangeLabel');
-  const STORAGE_KEY = 'singleCal.events.v1';
+  const STORAGE_KEY = 'singleCal.events.v2';
   const TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const HOUR_PX = 40;         // 40px per hour
+  const SNAP_MIN = 30;        // snap to 30 minutes
+  const SNAP_PX = HOUR_PX*(SNAP_MIN/60);
 
   let state = {
     cursor: startOfDay(new Date()),
@@ -142,39 +166,89 @@
 
   // ----- Utils -----
   function pad(n){return String(n).padStart(2,'0')}
-  function isoLocal(d){
-    const z = new Date(d.getTime() - d.getTimezoneOffset()*60000);
-    return z.toISOString().slice(0,16);
-  }
-  function parseLocal(str){ // yyyy-mm-ddThh:mm
-    if(!str) return new Date();
-    const [d,t] = str.split('T');
-    const [Y,M,D] = d.split('-').map(Number);
-    const [h,m] = t.split(':').map(Number);
-    const dt = new Date(Y, M-1, D, h, m);
-    return dt;
-  }
   function startOfDay(d){return new Date(d.getFullYear(), d.getMonth(), d.getDate())}
   function endOfDay(d){return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23,59,59,999)}
   function addDays(d,n){let x=new Date(d);x.setDate(x.getDate()+n);return x}
   function addWeeks(d,n){return addDays(d, n*7)}
   function addMonths(d,n){let x=new Date(d);x.setMonth(x.getMonth()+n);return x}
+  function addMinutes(d,m){let x=new Date(d);x.setMinutes(x.getMinutes()+m);return x}
   function sameDay(a,b){return a.getFullYear()==b.getFullYear() && a.getMonth()==b.getMonth() && a.getDate()==b.getDate()}
   function fmtDate(d){return d.toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'})}
-  function fmtDay(d){return d.toLocaleDateString(undefined,{month:'short',day:'numeric'})}
   function fmtWeekRange(start){
     const end = addDays(start,6);
     const sameMonth = start.getMonth()===end.getMonth() && start.getFullYear()===end.getFullYear();
     if(sameMonth) return `${start.toLocaleDateString(undefined,{month:'long'})} ${start.getDate()}–${end.getDate()}, ${end.getFullYear()}`;
     return `${fmtDate(start)} – ${fmtDate(end)}`;
   }
-  function dayKey(d){return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`}
+  function isoLocal(d){ const z = new Date(d.getTime() - d.getTimezoneOffset()*60000); return z.toISOString().slice(0,16) }
+  function parseLocal(str){ if(!str) return new Date(); const [d,t] = str.split('T'); const [Y,M,D]=d.split('-').map(Number); const [h,m]=t.split(':').map(Number); return new Date(Y,M-1,D,h,m) }
+  function isoDateOnly(d){ return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}` }
+  function parseDateOnly(s){ if(!s) return null; const [Y,M,D]=s.split('-').map(Number); return new Date(Y,M-1,D) }
+  function clamp(v,min,max){return Math.max(min, Math.min(max, v))}
+  function floorToSnap(px){ return Math.floor(px/SNAP_PX)*SNAP_PX }
 
   // ----- Storage -----
-  function loadEvents(){
-    try{ return JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]') }catch{ return [] }
-  }
+  function loadEvents(){ try{ return JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]') }catch{ return [] } }
   function saveEvents(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state.events)) }
+
+  // ----- Recurrence expansion -----
+  function expandEvents(rangeStart, rangeEnd){
+    const out = [];
+    for(const ev of state.events){
+      const r = ev.rrule || {freq:'NONE'};
+      if(r.freq==='NONE'){ out.push({...ev}); continue; }
+
+      const baseStart = new Date(ev.start);
+      const baseEnd   = new Date(ev.end);
+      const until = r.until ? endOfDay(new Date(r.until)) : null;
+      const interval = Math.max(1, Number(r.interval||1));
+
+      // helper to push an occurrence
+      const pushOcc = (startDate)=>{
+        const dur = baseEnd - baseStart;
+        const occStart = new Date(startDate);
+        const occEnd = new Date(occStart.getTime()+dur);
+        if(occEnd < rangeStart || occStart > rangeEnd) return;
+        out.push({...ev, _occurrence:true, start:occStart, end:occEnd});
+      };
+
+      if(r.freq==='DAILY'){
+        let cur = new Date(baseStart);
+        while(cur <= rangeEnd && (!until || cur <= until)){
+          if(cur >= rangeStart) pushOcc(cur);
+          cur = addDays(cur, interval);
+        }
+      }else if(r.freq==='WEEKLY'){
+        const weekdays = (r.byweekday && r.byweekday.length) ? r.byweekday.map(Number) : [baseStart.getDay()];
+        // align to start of week (Sunday)
+        let weekAnchor = startOfDay(addDays(baseStart, -baseStart.getDay()));
+        while(weekAnchor <= rangeEnd && (!until || weekAnchor <= until)){
+          for(const wd of weekdays){
+            const occ = addDays(weekAnchor, wd);
+            // keep the original time
+            occ.setHours(baseStart.getHours(), baseStart.getMinutes(), 0, 0);
+            if(occ >= rangeStart && (!until || occ <= until)) pushOcc(occ);
+          }
+          weekAnchor = addWeeks(weekAnchor, interval);
+        }
+      }else if(r.freq==='MONTHLY'){
+        let cur = new Date(baseStart);
+        while(cur <= rangeEnd && (!until || cur <= until)){
+          if(cur >= rangeStart) pushOcc(cur);
+          cur = addMonths(cur, interval);
+        }
+      }else if(r.freq==='YEARLY'){
+        let cur = new Date(baseStart);
+        while(cur <= rangeEnd && (!until || cur <= until)){
+          if(cur >= rangeStart) pushOcc(cur);
+          cur.setFullYear(cur.getFullYear()+interval);
+        }
+      }else{
+        out.push({...ev});
+      }
+    }
+    return out;
+  }
 
   // ----- Rendering -----
   function render(){
@@ -183,15 +257,30 @@
     else renderWeek();
   }
 
+  function visibleRangeMonth(){
+    const y = state.cursor.getFullYear(), m = state.cursor.getMonth();
+    const first = new Date(y,m,1);
+    const start = addDays(first, -first.getDay()); // Sunday start
+    const end = addDays(start, 41);
+    return {start, end};
+  }
+  function visibleRangeWeek(){
+    const start = startOfDay(addDays(state.cursor, -state.cursor.getDay()));
+    const end = endOfDay(addDays(start,6));
+    return {start, end};
+  }
+
   function renderMonth(){
     calEl.innerHTML = '';
     const now = new Date();
     const y = state.cursor.getFullYear(), m = state.cursor.getMonth();
     const first = new Date(y,m,1);
-    const start = addDays(first, -((first.getDay()+6)%7)); // Monday-start-like grid? Use Sunday-start: uncomment next line
-    // const start = addDays(first, -first.getDay());
+    const start = addDays(first, -first.getDay());
     const title = state.cursor.toLocaleDateString(undefined,{year:'numeric',month:'long'});
     rangeLabel.textContent = `${title} • ${TZ}`;
+
+    const {start:rs, end:re} = visibleRangeMonth();
+    const evs = expandEvents(rs,re);
 
     const dow = document.createElement('div');
     dow.className='dow';
@@ -210,7 +299,6 @@
       if(d.getMonth()!==m) cell.classList.add('out');
       if(sameDay(d, now)) cell.classList.add('today');
 
-      // date label
       const date = document.createElement('div');
       date.className='date';
       date.textContent = d.getDate();
@@ -223,8 +311,7 @@
       btn.onclick = (e)=>{ e.stopPropagation(); openDialog({start: d, end: d, allDay:true})};
       cell.appendChild(btn);
 
-      // events
-      dayEvents(d).forEach(ev=>{
+      dayEventsFromList(d, evs).forEach(ev=>{
         const el = document.createElement('div');
         el.className='event';
         el.draggable = true;
@@ -235,39 +322,56 @@
         }
         el.textContent = ev.title || '(untitled)';
         el.title = ev.allDay ? 'All-day' : `${new Date(ev.start).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} – ${new Date(ev.end).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`;
-        el.addEventListener('click', (e)=>{ e.stopPropagation(); openDialog(ev) });
+        el.addEventListener('click', (e)=>{ e.stopPropagation(); openDialog(originalEvent(ev)) });
         el.addEventListener('dragstart', (e)=>{
-          e.dataTransfer.setData('text/plain', ev.id);
+          e.dataTransfer.setData('text/plain', JSON.stringify({id: ev.id, when: d}));
         });
         cell.appendChild(el);
       });
 
-      // click empty to add
       cell.addEventListener('click', ()=>openDialog({start: d, end: d, allDay:true}));
-      // drop support
       cell.addEventListener('dragover', e=>e.preventDefault());
       cell.addEventListener('drop', e=>{
         e.preventDefault();
-        const id = e.dataTransfer.getData('text/plain');
-        const idx = state.events.findIndex(x=>x.id===id);
-        if(idx>=0){
-          const ev = state.events[idx];
-          const dur = ev.allDay ? 0 : (new Date(ev.end)-new Date(ev.start));
-          const s = new Date(d); // move start to dropped day
-          const e2 = ev.allDay ? new Date(d) : new Date(s.getTime()+dur);
-          state.events[idx] = {...ev, start: s, end: e2, allDay: ev.allDay};
+        try{
+          const payload = JSON.parse(e.dataTransfer.getData('text/plain'));
+          const srcEv = state.events.find(x=>x.id===payload.id);
+          if(!srcEv) return;
+          const base = new Date(srcEv.start);
+          const dur = srcEv.allDay ? 0 : (new Date(srcEv.end)-new Date(srcEv.start));
+          const s = new Date(d); if(!srcEv.allDay){ s.setHours(base.getHours(), base.getMinutes(),0,0); }
+          const e2 = srcEv.allDay ? new Date(d) : new Date(s.getTime()+dur);
+          // move entire series start anchor if repeating, else just dates
+          const updated = {...srcEv, start: s, end: e2};
+          replaceEvent(updated);
           saveEvents(); render();
-        }
+        }catch(_){}
       });
 
       grid.appendChild(cell);
     }
   }
 
+  function dayEventsFromList(day, list){
+    const s = startOfDay(day), e = endOfDay(day);
+    return list.filter(ev=>{
+      if(ev.allDay){
+        const ds = startOfDay(new Date(ev.start));
+        return ds.getTime()>=s.getTime() && ds.getTime()<=e.getTime();
+      }else{
+        const st = new Date(ev.start), en = new Date(ev.end);
+        return st<=e && en>=s;
+      }
+    }).sort((a,b)=> (+a.allDay===+b.allDay)?(new Date(a.start)-new Date(b.start)) : (a.allDay? -1:1));
+  }
+
   function renderWeek(){
     calEl.innerHTML = '';
-    const start = startOfWeek(state.cursor);
+    const start = startOfDay(addDays(state.cursor, -state.cursor.getDay()));
     rangeLabel.textContent = `${fmtWeekRange(start)} • ${TZ}`;
+
+    const {start:rs, end:re} = visibleRangeWeek();
+    const evs = expandEvents(rs,re);
 
     const wrap = document.createElement('div');
     wrap.className='week';
@@ -295,65 +399,166 @@
     // day columns
     for(let i=0;i<7;i++){
       const d = addDays(start,i);
-      const col = document.createElement('div'); col.className='col';
+      const col = document.createElement('div'); col.className='col'; col.dataset.day = d.toISOString();
       wrap.appendChild(col);
 
+      // background slots
       for(let h=0;h<24;h++){
         const s = document.createElement('div');
         s.className = 'slot' + (h%6===0?' bold':'');
         s.dataset.hour = h;
         s.addEventListener('dblclick', ()=>{
           const st = new Date(d.getFullYear(), d.getMonth(), d.getDate(), h, 0);
-          const en = new Date(d.getFullYear(), d.getMonth(), d.getDate(), Math.min(h+1,23), 0);
+          const en = addMinutes(st, 60);
           openDialog({start: st, end: en, allDay:false});
         });
         col.appendChild(s);
       }
 
-      // place events
-      dayTimedEvents(d).forEach(ev=>{
-        const startH = toHours(new Date(ev.start) - startOfDay(d));
-        const endH = Math.max(startH + Math.max(0.5,(new Date(ev.end)-new Date(ev.start))/3600000), startH+0.5);
-        const top = Math.max(0, startH*40); // 40px per hour
-        const height = Math.max(20, (endH-startH)*40 - 4);
+      // place events (timed only)
+      dayEventsFromList(d, evs).filter(e=>!e.allDay).forEach(ev=>{
+        const st = new Date(ev.start), en = new Date(ev.end);
+        const startH = (st - startOfDay(d))/3600000;
+        const endH = (en - startOfDay(d))/3600000;
+        const top = clamp(startH*HOUR_PX, 0, 24*HOUR_PX-10);
+        const height = Math.max(20, (endH-startH)*HOUR_PX - 4);
+
         const block = document.createElement('div');
         block.className='block';
-        if(ev.color){
-          block.style.background = ev.color + '33';
-          block.style.borderColor = ev.color;
-        }
+        if(ev.color){ block.style.background = ev.color + '33'; block.style.borderColor = ev.color; }
         block.style.top = `${top+2}px`;
         block.style.height = `${height}px`;
         block.textContent = ev.title || '(untitled)';
-        block.title = `${new Date(ev.start).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} – ${new Date(ev.end).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`;
-        block.addEventListener('click', ()=>openDialog(ev));
+        block.title = `${st.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} – ${en.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`;
+        block.dataset.id = ev.id;
+        block.dataset.start = st.toISOString();
+
+        // open dialog
+        block.addEventListener('dblclick', ()=>openDialog(originalEvent(ev)));
+
+        // drag to move
+        block.addEventListener('mousedown', (e)=>{
+          if(e.target.classList.contains('resize')) return; // resizing handled below
+          e.preventDefault();
+          startDragMove(e, col, block, ev);
+        });
+
+        // resize handle
+        const handle = document.createElement('div'); handle.className='resize'; block.appendChild(handle);
+        handle.addEventListener('mousedown', (e)=>{
+          e.stopPropagation();
+          e.preventDefault();
+          startResize(e, col, block, ev);
+        });
+
         col.appendChild(block);
       });
     }
   }
 
-  function toHours(ms){ return ms/3600000 }
-
-  function startOfWeek(d){
-    const s = startOfDay(d);
-    const dow = s.getDay(); // 0 Sun
-    return addDays(s, -dow); // Sunday start. For Monday start: addDays(s, (dow+6)%7*-1)
+  function originalEvent(occ){
+    // occ may be an expanded occurrence; return the stored series/root event
+    const found = state.events.find(e=>e.id===occ.id);
+    return found || occ;
   }
 
-  function dayEvents(day){
-    const s = startOfDay(day), e = endOfDay(day);
-    return state.events.filter(ev=>{
-      if(ev.allDay){
-        const ds = startOfDay(new Date(ev.start));
-        return ds.getTime()>=s.getTime() && ds.getTime()<=e.getTime();
-      }else{
-        const st = new Date(ev.start), en = new Date(ev.end);
-        return st<=e && en>=s; // overlap
-      }
-    }).sort((a,b)=> (+a.allDay===+b.allDay)?(new Date(a.start)-new Date(b.start)) : (a.allDay? -1:1));
+  // ----- DnD in Week view -----
+  function startDragMove(e, col, block, ev){
+    const startY = e.clientY;
+    const rect = col.getBoundingClientRect();
+    const offsetY = e.clientY - block.getBoundingClientRect().top;
+    const dayIndexStart = [...col.parentElement.children].indexOf(col)-1; // -1 for times column
+    const ghost = mkGhost(col, block);
+
+    block.classList.add('dragging');
+
+    function onMove(evMouse){
+      const x = evMouse.clientX;
+      const y = evMouse.clientY;
+      const parent = col.parentElement;
+      // which day column?
+      const columns = [...parent.querySelectorAll('.col')];
+      const targetCol = columns.find(c=>{
+        const r = c.getBoundingClientRect();
+        return x>=r.left && x<=r.right;
+      }) || col;
+
+      const tr = targetCol.getBoundingClientRect();
+      let yInside = clamp(y - tr.top - offsetY, 0, 24*HOUR_PX-20);
+      yInside = floorToSnap(yInside);
+
+      ghost.style.top = `${yInside+2}px`;
+      if(ghost.parentElement!==targetCol){ targetCol.appendChild(ghost); }
+    }
+
+    function onUp(evMouse){
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      block.classList.remove('dragging');
+      const targetCol = ghost.parentElement;
+      const tr = targetCol.getBoundingClientRect();
+      let yInside = parseFloat(ghost.style.top)||0;
+
+      const dayISO = targetCol.dataset.day;
+      const day = new Date(dayISO);
+      const minutes = Math.round(yInside / HOUR_PX * 60 / SNAP_MIN)*SNAP_MIN;
+
+      const durMin = Math.max(30, Math.round((new Date(ev.end)-new Date(ev.start))/60000 / SNAP_MIN)*SNAP_MIN);
+      const newStart = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 0, 0);
+      newStart.setMinutes(minutes);
+      const newEnd = addMinutes(newStart, durMin);
+
+      // move series anchor if repeating; otherwise normal update
+      const src = originalEvent(ev);
+      const updated = {...src, start:newStart, end:newEnd, allDay:false};
+      replaceEvent(updated);
+      ghost.remove();
+      saveEvents(); render();
+    }
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
   }
-  function dayTimedEvents(day){
-    return dayEvents(day).filter(e=>!e.allDay);
+
+  function startResize(e, col, block, occ){
+    const startY = e.clientY;
+    const startTop = parseFloat(block.style.top)||0;
+    const startHeight = parseFloat(block.style.height)||40;
+    const ghost = mkGhost(col, block);
+
+    function onMove(evMouse){
+      let h = startHeight + (evMouse.clientY - startY);
+      h = Math.max(20, floorToSnap(h));
+      ghost.style.height = `${h}px`;
+    }
+    function onUp(){
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+
+      const h = parseFloat(ghost.style.height)||startHeight;
+      const minutes = Math.max(30, Math.round(h / HOUR_PX * 60 / SNAP_MIN)*SNAP_MIN);
+
+      const src = originalEvent(occ);
+      const st = new Date(src.start);
+      const newEnd = addMinutes(new Date(src.start), minutes);
+
+      const updated = {...src, end:newEnd, allDay:false};
+      replaceEvent(updated);
+      ghost.remove();
+      saveEvents(); render();
+    }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }
+
+  function mkGhost(col, block){
+    let g = document.createElement('div');
+    g.className='ghost';
+    g.style.top = block.style.top;
+    g.style.left = '4px'; g.style.right='4px';
+    g.style.height = block.style.height;
+    col.appendChild(g);
+    return g;
   }
 
   // ----- Dialog -----
@@ -363,9 +568,13 @@
   const fldTitle = $('#title');
   const fldStart = $('#start');
   const fldEnd = $('#end');
-  const fldAllDay = $('#allDay');
+  const selAllDay = $('#allDaySel');
   const fldColor = $('#color');
   const btnDel = $('#btn-del');
+  const selFreq = $('#freq');
+  const fldInterval = $('#interval');
+  const fldUntil = $('#until');
+  const selByweekday = $('#byweekday');
 
   function openDialog(ev){
     const isNew = !ev.id;
@@ -373,39 +582,36 @@
     btnDel.classList.toggle('hidden', isNew);
     fldId.value = ev.id || '';
     fldTitle.value = ev.title || '';
-    fldAllDay.checked = !!ev.allDay;
+    selAllDay.value = ev.allDay ? 'yes' : 'no';
     fldColor.value = ev.color || '#60a5fa';
 
-    if(ev.allDay){
-      const sd = startOfDay(new Date(ev.start||state.cursor));
-      const ed = startOfDay(new Date(ev.end||ev.start||state.cursor));
-      fldStart.type='date'; fldEnd.type='date';
-      fldStart.value = `${sd.getFullYear()}-${pad(sd.getMonth()+1)}-${pad(sd.getDate())}`;
-      fldEnd.value   = `${ed.getFullYear()}-${pad(ed.getMonth()+1)}-${pad(ed.getDate())}`;
-    }else{
-      fldStart.type='datetime-local'; fldEnd.type='datetime-local';
-      const s = ev.start ? new Date(ev.start) : new Date(state.cursor);
-      const e = ev.end ? new Date(ev.end) : addHours(s,1);
-      fldStart.value = isoLocal(s);
-      fldEnd.value = isoLocal(e);
-    }
+    const s = new Date(ev.start || state.cursor);
+    const e = new Date(ev.end || addMinutes(s,60));
+    fldStart.value = isoLocal(s);
+    fldEnd.value   = isoLocal(e);
 
-    fldAllDay.onchange = ()=>{
-      const keep = fldStart.value;
-      if(fldAllDay.checked){
+    const r = ev.rrule || {freq:'NONE', interval:1, byweekday:[], until:''};
+    selFreq.value = r.freq || 'NONE';
+    fldInterval.value = r.interval || 1;
+    fldUntil.value = r.until ? isoDateOnly(new Date(r.until)) : '';
+    [...selByweekday.options].forEach(opt => opt.selected = (r.byweekday||[]).map(String).includes(opt.value));
+
+    // All-day toggle adjusts inputs
+    selAllDay.onchange = ()=>{
+      const start = parseLocal(fldStart.value);
+      const end = parseLocal(fldEnd.value);
+      if(selAllDay.value==='yes'){
         fldStart.type='date'; fldEnd.type='date';
-        const s = parseLocal(keep);
-        const e = addHours(s,1);
-        fldStart.value = isoDateOnly(s);
-        fldEnd.value = isoDateOnly(e);
+        fldStart.value = isoDateOnly(start);
+        fldEnd.value = isoDateOnly(end);
       }else{
         fldStart.type='datetime-local'; fldEnd.type='datetime-local';
-        const s = parseDateOnly(fldStart.value);
-        const e = parseDateOnly(fldEnd.value) || s;
-        fldStart.value = isoLocal(new Date(s.getFullYear(), s.getMonth(), s.getDate(), 9, 0));
-        fldEnd.value   = isoLocal(new Date(e.getFullYear(), e.getMonth(), e.getDate(), 10, 0));
+        fldStart.value = isoLocal(start);
+        fldEnd.value = isoLocal(end);
       }
     };
+    // initialize type
+    selAllDay.dispatchEvent(new Event('change'));
 
     dlg.returnValue = '';
     dlg.showModal();
@@ -418,33 +624,41 @@
         state.events = state.events.filter(e=>e.id!==fldId.value);
         saveEvents(); render(); return;
       }
-      // save
+      // save / update
       const id = fldId.value || crypto.randomUUID();
       const title = fldTitle.value.trim() || 'Untitled';
       const color = fldColor.value;
-      let start, end, allDay = fldAllDay.checked;
+      let allDay = (selAllDay.value==='yes');
+      let start, end;
 
       if(allDay){
-        const s = parseDateOnly(fldStart.value);
+        const s = parseDateOnly(fldStart.value) || new Date();
         const e = parseDateOnly(fldEnd.value) || s;
         start = startOfDay(s);
         end   = startOfDay(e);
       }else{
-        start = parseLocal(fldStart.value);
-        end   = parseLocal(fldEnd.value);
+        start = parseLocal(fldStart.value)||new Date();
+        end   = parseLocal(fldEnd.value)||addMinutes(start,60);
       }
       if(end < start){ const tmp = start; start = end; end = tmp; }
 
-      const ev = {id, title, start, end, allDay, color};
-      const idx = state.events.findIndex(x=>x.id===id);
-      if(idx>=0) state.events[idx] = ev; else state.events.push(ev);
+      const freq = selFreq.value;
+      const interval = Math.max(1, Number(fldInterval.value||1));
+      const until = fldUntil.value ? parseDateOnly(fldUntil.value) : null;
+      const byweekday = [...selByweekday.selectedOptions].map(o=>Number(o.value));
+
+      const rrule = (freq==='NONE') ? {freq:'NONE'} : {freq, interval, until: until? isoDateOnly(until): '', byweekday};
+
+      const updated = {id, title, start, end, allDay, color, rrule};
+      replaceEvent(updated);
       saveEvents(); render();
     };
   }
 
-  function addHours(d,h){ const x=new Date(d); x.setHours(x.getHours()+h); return x }
-  function isoDateOnly(d){ return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}` }
-  function parseDateOnly(s){ const [Y,M,D]=s.split('-').map(Number); return new Date(Y,M-1,D) }
+  function replaceEvent(updated){
+    const idx = state.events.findIndex(x=>x.id===updated.id);
+    if(idx>=0) state.events[idx] = updated; else state.events.push(updated);
+  }
 
   // ----- Navigation -----
   $('#btn-today').onclick = ()=>{ state.cursor = startOfDay(new Date()); render() };
@@ -468,27 +682,37 @@
     a.click();
     URL.revokeObjectURL(a.href);
   };
-  $('.pill').onclick = ()=> $('#file').click();
+  document.querySelector('label.pill').onclick = ()=> $('#file').click();
   $('#file').addEventListener('change', async (e)=>{
     const f = e.target.files[0]; if(!f) return;
     try{
       const txt = await f.text();
       const arr = JSON.parse(txt);
       if(Array.isArray(arr)){
-        // basic shape check
         state.events = arr.map(x=>({
           id: x.id || crypto.randomUUID(),
           title: String(x.title||'Untitled'),
           start: new Date(x.start),
           end: new Date(x.end||x.start),
           allDay: !!x.allDay,
-          color: x.color || '#60a5fa'
+          color: x.color || '#60a5fa',
+          rrule: normalizeRRule(x.rrule)
         }));
         saveEvents(); render();
       }else alert('Invalid JSON format (expected an array).');
     }catch(err){ alert('Import failed: '+err.message) }
     e.target.value = '';
   });
+
+  function normalizeRRule(r){
+    if(!r||!r.freq||r.freq==='NONE') return {freq:'NONE'};
+    return {
+      freq: String(r.freq).toUpperCase(),
+      interval: Math.max(1, Number(r.interval||1)),
+      until: r.until || '',
+      byweekday: Array.isArray(r.byweekday) ? r.byweekday.map(Number) : []
+    };
+  }
 
   $('#btn-clear').onclick = ()=>{
     if(confirm('Delete all events?')){ state.events = []; saveEvents(); render(); }
