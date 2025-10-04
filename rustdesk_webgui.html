@@ -1,0 +1,682 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Non-Fiction Book Outliner</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#0b1224; --panel2:#0c162d; --ink:#e5e7eb; --muted:#9aa4b2;
+    --accent:#60a5fa; --ok:#34d399; --warn:#fbbf24; --danger:#f87171; --border:#1f2937;
+    --chip:#1a2440; --drag:#24314f; --shadow:0 10px 30px rgba(0,0,0,.35);
+  }
+  [data-theme="light"]{
+    --bg:#f6f7fb; --panel:#ffffff; --panel2:#f0f3f8; --ink:#0f1629; --muted:#5a667b;
+    --accent:#2563eb; --ok:#059669; --warn:#d97706; --danger:#dc2626; --border:#d9e0ee;
+    --chip:#e8eefc; --drag:#e6ecfb; --shadow:0 8px 18px rgba(0,0,0,.08);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:linear-gradient(160deg,var(--panel2),var(--bg));color:var(--ink);font:14px/1.45 system-ui,Segoe UI,Roboto,Ubuntu,Helvetica,Arial}
+  header{position:sticky;top:0;z-index:10;background:linear-gradient(180deg,var(--panel),#0000);backdrop-filter:saturate(1.1) blur(6px);
+         border-bottom:1px solid var(--border); box-shadow:var(--shadow)}
+  .wrap{max-width:1100px;margin:0 auto;padding:16px}
+  h1{margin:0 0 8px;font-size:22px;letter-spacing:.2px}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .toolbar .btn{border:1px solid var(--border);background:var(--panel);color:var(--ink);padding:8px 10px;border-radius:10px;cursor:pointer}
+  .toolbar .btn:hover{border-color:var(--accent)}
+  .toolbar .ghost{background:transparent}
+  .toolbar input[type="file"]{display:none}
+  .grid{display:grid;grid-template-columns: 1.1fr .9fr; gap:16px; align-items:start; padding:16px}
+  @media (max-width: 900px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow);overflow:hidden}
+  .card h2{font-size:16px;margin:0;padding:12px 14px;border-bottom:1px solid var(--border)}
+  .card .body{padding:12px}
+  .statusbar{display:flex;gap:12px;flex-wrap:wrap;padding:8px 12px;color:var(--muted);font-size:13px;border-top:1px dashed var(--border)}
+  .stat{display:flex;gap:6px;align-items:center;background:var(--chip);padding:6px 8px;border-radius:999px;border:1px solid var(--border)}
+  .outline{padding:10px}
+  .search{display:flex;gap:8px}
+  .search input{flex:1;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--panel2);color:var(--ink)}
+  .outline ol{list-style:none;margin:0;padding:0}
+  .item{border:1px solid var(--border);background:var(--panel);border-radius:12px;margin:10px 0; padding:10px; position:relative}
+  .item.dragging{outline:2px dashed var(--accent);background:var(--drag)}
+  .topline{display:flex;gap:8px;align-items:center}
+  .handle{cursor:grab;user-select:none;padding:4px 6px;border:1px dashed var(--border);border-radius:8px}
+  .badge{font-size:12px;color:var(--muted);padding:2px 8px;border:1px solid var(--border);border-radius:999px;background:var(--chip)}
+  .title[contenteditable]{outline:none;border:1px dashed transparent;border-radius:8px;padding:4px 6px}
+  .title[contenteditable]:focus{border-color:var(--accent);background:var(--panel2)}
+  .controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+  select,input[type="number"]{border:1px solid var(--border);background:var(--panel2);color:var(--ink);padding:6px 8px;border-radius:8px}
+  .notes{width:100%;min-height:64px;margin-top:8px;border:1px solid var(--border);border-radius:10px;background:var(--panel2);color:var(--ink);padding:8px}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+  .chip{border:1px solid var(--border);background:var(--chip);color:var(--ink);padding:4px 8px;border-radius:10px;font-size:12px}
+  .mini{font-size:12px;color:var(--muted)}
+  .smallbtn{border:1px solid var(--border);background:var(--panel2);padding:4px 8px;border-radius:8px;cursor:pointer}
+  .smallbtn:hover{border-color:var(--accent)}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .progress{height:10px;background:var(--panel2);border:1px solid var(--border);border-radius:999px;overflow:hidden}
+  .progress > span{display:block;height:100%;background:linear-gradient(90deg,var(--ok),var(--accent));width:0%}
+  .muted{color:var(--muted)}
+  .footer{padding:10px 14px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+  .list-inline{display:flex;gap:6px;flex-wrap:wrap}
+  .kbd{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:12px; padding:2px 6px; border:1px solid var(--border); border-radius:6px; background:var(--panel2)}
+  details{margin-top:6px}
+  summary{cursor:pointer;color:var(--muted)}
+  .hidden{display:none}
+  @media print{
+    header,.toolbar,.footer,.smallbtn{display:none !important}
+    body{background:#fff}
+    .card{box-shadow:none;border-color:#ddd}
+  }
+</style>
+</head>
+<body data-theme="dark">
+<header>
+  <div class="wrap">
+    <h1>📚 Non-Fiction Book Outliner</h1>
+    <div class="toolbar">
+      <button class="btn" id="addPart">+ Part</button>
+      <button class="btn" id="addChapter">+ Chapter</button>
+      <button class="btn" id="addSection">+ Section</button>
+      <button class="btn ghost" id="expandAll">Expand</button>
+      <button class="btn ghost" id="collapseAll">Collapse</button>
+      <button class="btn" id="templateBtn">Template</button>
+      <label class="btn"><input type="file" id="importFile" accept=".json">Import JSON</label>
+      <button class="btn" id="exportBtn">Export JSON</button>
+      <button class="btn ghost" id="clearBtn" title="Clear everything">Clear</button>
+      <button class="btn ghost" onclick="window.print()">Print</button>
+      <span style="margin-left:auto"></span>
+      <button class="btn" id="themeBtn">🌗 Theme</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="grid">
+    <section class="card">
+      <h2>Outline</h2>
+      <div class="body">
+        <div class="search" style="margin-bottom:10px">
+          <input id="projectTitle" placeholder="Working title of your book…" />
+          <input id="filter" placeholder="Filter outline (e.g., 'chapter', 'done', 'introduction')" />
+        </div>
+        <div class="outline">
+          <ol id="list"></ol>
+        </div>
+      </div>
+      <div class="footer">
+        <div class="list-inline mini">
+          <span>Shortcuts:</span>
+          <span class="kbd">N</span> new chapter
+          <span class="kbd">S</span> export
+          <span class="kbd">/</span> filter
+          <span class="kbd">Ctrl/Cmd + ↑/↓</span> move
+        </div>
+        <div class="mini">Autosaves locally</div>
+      </div>
+      <div class="statusbar" id="statusbar"></div>
+    </section>
+
+    <aside class="card">
+      <h2>Planner & Sources</h2>
+      <div class="body">
+        <label class="row">
+          <span>Working cadence (words/day):</span>
+          <input type="number" id="cadence" min="0" step="100" value="500" />
+        </label>
+        <label class="row">
+          <span>Target words (entire book):</span>
+          <input type="number" id="bookTarget" min="0" step="500" value="50000" />
+        </label>
+
+        <div class="row" style="margin:8px 0">
+          <div class="progress" style="flex:1"><span id="bookProgress"></span></div>
+          <span class="mini" id="bookPct">0%</span>
+        </div>
+
+        <details open>
+          <summary>Daily focus note</summary>
+          <textarea id="dailyNote" class="notes" placeholder="What will you finish today? (1–3 high-leverage tasks)"></textarea>
+        </details>
+
+        <details open>
+          <summary>Source list (citations / links)</summary>
+          <div id="sources"></div>
+          <div class="row" style="margin-top:6px">
+            <input id="srcTitle" placeholder="Source title" />
+            <input id="srcUrl" placeholder="URL or citation" />
+            <button class="smallbtn" id="addSource">Add</button>
+          </div>
+        </details>
+
+        <details>
+          <summary>Common non-fiction beats</summary>
+          <div class="chips">
+            <span class="chip">Problem</span>
+            <span class="chip">Promise</span>
+            <span class="chip">Credibility</span>
+            <span class="chip">Framework</span>
+            <span class="chip">Case studies</span>
+            <span class="chip">Objections</span>
+            <span class="chip">Action plan</span>
+            <span class="chip">Appendix</span>
+          </div>
+        </details>
+      </div>
+    </aside>
+  </div>
+</main>
+
+<script>
+(() => {
+  const $ = sel => document.querySelector(sel);
+  const list = $('#list');
+  const statusbar = $('#statusbar');
+  const LS_KEY = 'nf_outline_v1';
+
+  let state = {
+    title: '',
+    cadence: 500,
+    bookTarget: 50000,
+    nodes: [],      // array of outline items
+    sources: [],    // [{id, title, url}]
+    dailyNote: ''
+  };
+
+  const blank = (type='chapter') => ({
+    id: crypto.randomUUID(),
+    type,                // 'part' | 'chapter' | 'section'
+    title: type === 'part' ? 'New Part' : type === 'chapter' ? 'New Chapter' : 'New Section',
+    status: 'not-started',  // not-started | drafting | revising | done
+    target: type === 'chapter' ? 2500 : (type === 'part' ? 0 : 600),
+    words: 0,
+    notes: '',
+    keypoints: [],
+    children: []
+  });
+
+  // --- Persistence
+  const save = debounce(() => {
+    localStorage.setItem(LS_KEY, JSON.stringify(state));
+    renderStats();
+  }, 200);
+
+  function load() {
+    const s = localStorage.getItem(LS_KEY);
+    if (s) try { state = JSON.parse(s) } catch {}
+  }
+
+  // --- Utilities
+  function debounce(fn, t){ let id; return (...a)=>{ clearTimeout(id); id=setTimeout(()=>fn(...a),t)}}
+  function el(tag, attrs={}, ...kids){
+    const e = document.createElement(tag);
+    for (const [k,v] of Object.entries(attrs)){
+      if (k==='class') e.className = v;
+      else if (k==='dataset') Object.entries(v).forEach(([dk,dv])=> e.dataset[dk]=dv);
+      else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
+      else if (v!==null) e.setAttribute(k,v);
+    }
+    kids.forEach(k => e.append(k));
+    return e;
+  }
+  function walk(nodes, fn){
+    for (const n of nodes){
+      fn(n);
+      if (n.children?.length) walk(n.children, fn);
+    }
+  }
+  function findById(id, nodes=state.nodes, parent=null){
+    for (let i=0;i<nodes.length;i++){
+      const n = nodes[i];
+      if (n.id === id) return {node:n, parent, index:i};
+      if (n.children?.length){
+        const r = findById(id, n.children, n);
+        if (r) return r;
+      }
+    }
+    return null;
+  }
+
+  // --- Rendering
+  function render(){
+    list.innerHTML = '';
+    const filterVal = $('#filter').value.trim().toLowerCase();
+    const renderLevel = (nodes, container) => {
+      nodes.forEach(n => {
+        const li = renderItem(n, filterVal);
+        container.append(li);
+        if (n.children?.length){
+          const ol = el('ol', {style:'margin-left:16px'});
+          li.append(ol);
+          renderLevel(n.children, ol);
+        }
+      });
+    };
+    renderLevel(state.nodes, list);
+    renderStats();
+  }
+
+  function renderItem(n, filterVal){
+    const visible = !filterVal || matchesFilter(n, filterVal);
+    const item = el('li', {class:'item', draggable:true, id:n.id});
+    if (!visible) item.classList.add('hidden');
+
+    const handle = el('span', {class:'handle', title:'Drag to reorder', draggable:false}, '⋮⋮');
+    const badge = el('span', {class:'badge'}, cap(n.type));
+    const title = el('div', {class:'title', contenteditable:'true'}, n.title);
+    title.addEventListener('input', () => { n.title = title.textContent.trim(); save() });
+
+    const topline = el('div', {class:'topline'}, handle, badge, title);
+    item.append(topline);
+
+    // Controls row
+    const statusSel = el('select', {},
+      ...['not-started','drafting','revising','done'].map(v => {
+        const o = el('option', {value:v}, labelStatus(v)); if (v===n.status) o.selected = true; return o;
+      })
+    );
+    statusSel.addEventListener('change', () => { n.status = statusSel.value; save(); renderStats() });
+
+    const target = el('input', {type:'number', min:'0', step:'50', value:n.target, title:'Target words'});
+    target.addEventListener('change', ()=>{ n.target = +target.value||0; save(); renderStats() });
+
+    const words = el('input', {type:'number', min:'0', step:'50', value:n.words, title:'Draft word count'});
+    words.addEventListener('change', ()=>{ n.words = +words.value||0; save(); renderStats() });
+
+    const addChildBtn = el('button', {class:'smallbtn'}, n.type==='part' ? '+ Chapter' : '+ Section');
+    addChildBtn.addEventListener('click', () => {
+      const t = (n.type==='part') ? 'chapter' : 'section';
+      n.children.push(blank(t)); save(); render();
+    });
+
+    const addSiblingBtn = el('button', {class:'smallbtn'}, '+ Sibling');
+    addSiblingBtn.addEventListener('click', () => {
+      const p = findById(n.id);
+      if (!p) return;
+      const arr = p.parent ? p.parent.children : state.nodes;
+      const sibType = n.type; // same level
+      arr.splice(p.index+1, 0, blank(sibType));
+      save(); render();
+    });
+
+    const toggleBtn = el('button', {class:'smallbtn'}, 'Collapse');
+    let collapsed = false;
+    toggleBtn.addEventListener('click', () => {
+      collapsed = !collapsed;
+      const kids = item.querySelector(':scope > ol');
+      if (kids) kids.style.display = collapsed ? 'none' : '';
+      toggleBtn.textContent = collapsed ? 'Expand' : 'Collapse';
+    });
+
+    const delBtn = el('button', {class:'smallbtn', title:'Delete'}, 'Delete');
+    delBtn.addEventListener('click', () => {
+      const loc = findById(n.id);
+      if (!loc) return;
+      const arr = loc.parent ? loc.parent.children : state.nodes;
+      arr.splice(loc.index,1); save(); render();
+    });
+
+    const ctrl = el('div', {class:'controls'},
+      el('span', {class:'mini'}, 'Status:'), statusSel,
+      el('span', {class:'mini'}, 'Target:'), target,
+      el('span', {class:'mini'}, 'Words:'), words,
+      addChildBtn, addSiblingBtn, toggleBtn, delBtn
+    );
+    item.append(ctrl);
+
+    // Notes
+    const notes = el('textarea', {class:'notes', placeholder:'Notes, anecdotes, studies to cite…'}, n.notes || '');
+    notes.addEventListener('input', ()=>{ n.notes = notes.value; save() });
+    item.append(notes);
+
+    // Key points pills
+    const kpWrap = el('div', {}, el('div',{class:'mini muted'},'Key points (comma separated)'));
+    const kpInput = el('input', {placeholder:'e.g., origin story, key framework, case study'});
+    kpInput.value = n.keypoints?.join(', ') || '';
+    kpInput.addEventListener('change', () => {
+      n.keypoints = kpInput.value.split(',').map(s=>s.trim()).filter(Boolean);
+      renderKeyChips(); save();
+    });
+    kpWrap.append(kpInput);
+    const chipBox = el('div',{class:'chips', style:'margin-top:6px'}); kpWrap.append(chipBox);
+    function renderKeyChips(){
+      chipBox.innerHTML='';
+      (n.keypoints||[]).forEach(k => chipBox.append(el('span',{class:'chip'},k)));
+    }
+    renderKeyChips();
+    item.append(kpWrap);
+
+    // Drag & drop
+    item.addEventListener('dragstart', (e)=>{
+      item.classList.add('dragging');
+      e.dataTransfer.setData('text/plain', n.id);
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    item.addEventListener('dragend', ()=> item.classList.remove('dragging'));
+
+    item.addEventListener('dragover', (e)=>{
+      e.preventDefault();
+      const draggingId = e.dataTransfer.getData('text/plain');
+      if (!draggingId || draggingId===n.id) return;
+      item.style.outline = '2px dashed var(--accent)';
+    });
+    item.addEventListener('dragleave', ()=> item.style.outline='');
+
+    item.addEventListener('drop', (e)=>{
+      e.preventDefault();
+      item.style.outline='';
+      const draggedId = e.dataTransfer.getData('text/plain');
+      if (!draggedId || draggedId===n.id) return;
+      moveBefore(draggedId, n.id);
+    });
+
+    return item;
+  }
+
+  function moveBefore(srcId, dstId){
+    const src = findById(srcId);
+    const dst = findById(dstId);
+    if (!src || !dst) return;
+
+    // Remove src
+    const srcArr = src.parent ? src.parent.children : state.nodes;
+    const [moving] = srcArr.splice(src.index,1);
+
+    // Insert before dst in its current parent
+    const dstArr = dst.parent ? dst.parent.children : state.nodes;
+    const insertIndex = dstArr.findIndex(x=>x.id===dstId);
+    // Prevent illegal nesting: can't drop under a section directly
+    // Here we just do same-level reordering
+    dstArr.splice(insertIndex,0,moving);
+    save(); render();
+  }
+
+  function matchesFilter(n, f){
+    const hay = [n.title, n.type, n.status, ...(n.keypoints||[]), (n.notes||'')].join(' ').toLowerCase();
+    return hay.includes(f);
+  }
+
+  function cap(s){ return s.charAt(0).toUpperCase()+s.slice(1) }
+  function labelStatus(s){
+    return { 'not-started':'Not started', drafting:'Drafting', revising:'Revising', done:'Done' }[s] || s;
+  }
+
+  // --- Stats & progress
+  function totals(){
+    let targets=0, words=0, counts={total:0, done:0, drafting:0, revising:0, notStarted:0};
+    walk(state.nodes, (n)=>{
+      if (n.type!=='part') { targets += (n.target||0); words += (n.words||0) }
+      counts.total++;
+      if (n.status==='done') counts.done++;
+      else if (n.status==='drafting') counts.drafting++;
+      else if (n.status==='revising') counts.revising++;
+      else counts.notStarted++;
+    });
+    return {targets, words, counts};
+  }
+
+  function renderStats(){
+    const {targets, words, counts} = totals();
+    const cadence = +$('#cadence').value || 0;
+    const bookTarget = +$('#bookTarget').value || 0;
+    const pct = bookTarget ? Math.min(100, Math.round((words / bookTarget)*100)) : (targets? Math.min(100, Math.round((words/targets)*100)) : 0);
+    $('#bookProgress').style.width = pct + '%';
+    $('#bookPct').textContent = pct + '%';
+
+    statusbar.innerHTML = '';
+    const chips = [
+      ['Total items', counts.total],
+      ['Done', counts.done],
+      ['Revising', counts.revising],
+      ['Drafting', counts.drafting],
+      ['Not started', counts.notStarted],
+      ['Words', words.toLocaleString()],
+      ['Target', (bookTarget || targets).toLocaleString()],
+      ['Gap', Math.max(0, (bookTarget||targets) - words).toLocaleString()],
+      ['Cadence/day', cadence]
+    ];
+    chips.forEach(([k,v]) => statusbar.append(el('div',{class:'stat'}, el('strong',{},k+':'), el('span',{},' '+v))));
+  }
+
+  // --- Actions
+  function addNode(type){
+    const sel = document.getSelection();
+    let current = null;
+    if (sel && sel.anchorNode){
+      const li = sel.anchorNode.closest?.('.item');
+      if (li) current = findById(li.id)?.node;
+    }
+    if (!current){
+      // top-level insert
+      state.nodes.push(blank(type));
+    } else {
+      if (type==='part'){ // top-level
+        state.nodes.push(blank('part'));
+      } else {
+        // insert based on current type
+        if (current.type==='part' && type==='chapter') current.children.push(blank('chapter'));
+        else if (current.type!=='section' && type==='section'){
+          // add section as child
+          if (!current.children) current.children=[];
+          current.children.push(blank('section'));
+        } else {
+          // sibling
+          const loc = findById(current.id);
+          const arr = loc.parent ? loc.parent.children : state.nodes;
+          arr.splice(loc.index+1,0, blank(type));
+        }
+      }
+    }
+    save(); render();
+  }
+
+  function exportJSON(){
+    const data = JSON.stringify(state, null, 2);
+    const blob = new Blob([data], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    const safeTitle = (state.title || 'outline').replace(/[^\w\-]+/g,'_');
+    a.download = `${safeTitle}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  function importJSON(file){
+    const fr = new FileReader();
+    fr.onload = () => {
+      try{
+        const obj = JSON.parse(fr.result);
+        if (!obj || typeof obj!=='object') throw 0;
+        state = Object.assign({title:'',cadence:500,bookTarget:50000,nodes:[],sources:[],dailyNote:''}, obj);
+        hydrateUI();
+        save(); render();
+      }catch(e){ alert('Invalid JSON file.') }
+    };
+    fr.readAsText(file);
+  }
+
+  function hydrateUI(){
+    $('#projectTitle').value = state.title || '';
+    $('#cadence').value = state.cadence || 500;
+    $('#bookTarget').value = state.bookTarget || 50000;
+    $('#dailyNote').value = state.dailyNote || '';
+    // sources
+    const wrap = $('#sources'); wrap.innerHTML='';
+    state.sources.forEach(s => wrap.append(renderSource(s)));
+  }
+
+  // --- Sources
+  function renderSource(s){
+    const row = el('div', {class:'row', style:'margin:6px 0'});
+    const title = el('input', {value:s.title || '', placeholder:'Title'});
+    const url = el('input', {value:s.url || '', placeholder:'URL or citation'});
+    const del = el('button', {class:'smallbtn'}, 'Remove');
+    title.addEventListener('change', ()=>{ s.title = title.value; save() });
+    url.addEventListener('change', ()=>{ s.url = url.value; save() });
+    del.addEventListener('click', ()=>{
+      state.sources = state.sources.filter(x=>x.id!==s.id);
+      save(); row.remove();
+    });
+    row.append(title, url, del);
+    return row;
+  }
+
+  // --- Template
+  function applyTemplate(){
+    if (!confirm('Insert a non-fiction template? This adds items to your current outline.')) return;
+    const T = [
+      {type:'part', title:'Front Matter', kids:[
+        {type:'chapter', title:'Foreword', kids:[]},
+        {type:'chapter', title:'Preface', kids:[]},
+        {type:'chapter', title:'Introduction', kids:[
+          {type:'section', title:'Problem & Stakes'},
+          {type:'section', title:'Who this book is for'},
+          {type:'section', title:'How to use this book'}
+        ]}
+      ]},
+      {type:'part', title:'Core Argument', kids:[
+        {type:'chapter', title:'Framework Overview', kids:[
+          {type:'section', title:'Key Principles'},
+          {type:'section', title:'Definitions'}
+        ]},
+        {type:'chapter', title:'Method / Process', kids:[
+          {type:'section', title:'Step 1'},
+          {type:'section', title:'Step 2'},
+          {type:'section', title:'Step 3'}
+        ]},
+        {type:'chapter', title:'Case Studies', kids:[
+          {type:'section', title:'Case A'},
+          {type:'section', title:'Case B'}
+        ]},
+        {type:'chapter', title:'Common Objections', kids:[
+          {type:'section', title:'Objection 1'},
+          {type:'section', title:'Objection 2'}
+        ]}
+      ]},
+      {type:'part', title:'Application', kids:[
+        {type:'chapter', title:'Action Plan', kids:[
+          {type:'section', title:'Checklist'},
+          {type:'section', title:'First 30 Days'}
+        ]},
+        {type:'chapter', title:'Tools & Resources', kids:[
+          {type:'section', title:'Worksheets'},
+          {type:'section', title:'Further Reading'}
+        ]}
+      ]},
+      {type:'part', title:'Back Matter', kids:[
+        {type:'chapter', title:'Conclusion'},
+        {type:'chapter', title:'Appendices'},
+        {type:'chapter', title:'Notes & References'},
+        {type:'chapter', title:'Index'}
+      ]}
+    ];
+    const toNode = (t)=> {
+      const n = blank(t.type); n.title = t.title; n.children = (t.kids||[]).map(toNode); return n;
+    };
+    T.forEach(t => state.nodes.push(toNode(t)));
+    save(); render();
+  }
+
+  // --- Theme
+  function toggleTheme(){
+    const cur = document.body.getAttribute('data-theme');
+    const next = cur==='dark' ? 'light' : 'dark';
+    document.body.setAttribute('data-theme', next);
+    localStorage.setItem(LS_KEY+'_theme', next);
+  }
+  function hydrateTheme(){
+    const t = localStorage.getItem(LS_KEY+'_theme');
+    if (t) document.body.setAttribute('data-theme', t);
+  }
+
+  // --- Global events
+  $('#addPart').onclick = ()=> addNode('part');
+  $('#addChapter').onclick = ()=> addNode('chapter');
+  $('#addSection').onclick = ()=> addNode('section');
+  $('#exportBtn').onclick = exportJSON;
+  $('#importFile').addEventListener('change', e => {
+    const f = e.target.files[0]; if (f) importJSON(f);
+    e.target.value = '';
+  });
+  $('#templateBtn').onclick = applyTemplate;
+  $('#clearBtn').onclick = () => {
+    if (confirm('Clear the whole outline?')) {
+      state.nodes = []; save(); render();
+    }
+  };
+  $('#themeBtn').onclick = toggleTheme;
+
+  $('#expandAll').onclick = () => {
+    document.querySelectorAll('.item > ol').forEach(ol => ol.style.display='');
+  };
+  $('#collapseAll').onclick = () => {
+    document.querySelectorAll('.item > ol').forEach(ol => ol.style.display='none');
+  };
+
+  $('#filter').addEventListener('input', debounce(render, 120));
+  $('#projectTitle').addEventListener('input', ()=>{ state.title = $('#projectTitle').value; save() });
+  $('#cadence').addEventListener('change', ()=>{ state.cadence = +$('#cadence').value||0; save(); renderStats() });
+  $('#bookTarget').addEventListener('change', ()=>{ state.bookTarget = +$('#bookTarget').value||0; save(); renderStats() });
+  $('#dailyNote').addEventListener('input', ()=>{ state.dailyNote = $('#dailyNote').value; save() });
+
+  $('#addSource').onclick = () => {
+    const t = $('#srcTitle').value.trim();
+    const u = $('#srcUrl').value.trim();
+    if (!t && !u) return;
+    const s = {id:crypto.randomUUID(), title:t, url:u};
+    state.sources.push(s);
+    $('#sources').append(renderSource(s));
+    $('#srcTitle').value=''; $('#srcUrl').value='';
+    save();
+  };
+
+  // Keyboard shortcuts
+  document.addEventListener('keydown', (e)=>{
+    if (e.key === 'N' || e.key === 'n'){
+      if (e.target.matches('input,textarea,[contenteditable="true"]')) return;
+      e.preventDefault();
+      addNode('chapter');
+    } else if ((e.key === 's' || e.key==='S') && (e.ctrlKey || e.metaKey)){
+      e.preventDefault(); exportJSON();
+    } else if (e.key === '/'){
+      if (e.target.matches('input,textarea,[contenteditable="true"]')) return;
+      e.preventDefault(); $('#filter').focus();
+    } else if ((e.ctrlKey || e.metaKey) && (e.key === 'ArrowUp' || e.key==='ArrowDown')){
+      const sel = document.getSelection();
+      const li = sel?.anchorNode?.closest?.('.item');
+      if (!li) return;
+      const loc = findById(li.id); if (!loc) return;
+      const arr = loc.parent ? loc.parent.children : state.nodes;
+      const dir = e.key==='ArrowUp' ? -1 : 1;
+      const ni = loc.index + dir;
+      if (ni<0 || ni>=arr.length) return;
+      e.preventDefault();
+      const [m] = arr.splice(loc.index,1);
+      arr.splice(ni,0,m); save(); render();
+      // try to restore focus
+      const newLi = document.getElementById(m.id);
+      newLi?.querySelector('.title')?.focus();
+    }
+  });
+
+  // Boot
+  load(); hydrateTheme(); hydrateUI(); render();
+
+  // Helper: initial welcome for empty state
+  if (state.nodes.length===0){
+    state.nodes.push(blank('part'));
+    state.nodes[0].title = 'Start Here';
+    state.nodes[0].children.push(Object.assign(blank('chapter'),{
+      title:'Define your thesis',
+      notes:'In one sentence: What change will the reader achieve? Why now?'
+    }));
+    state.nodes[0].children.push(Object.assign(blank('chapter'),{
+      title:'Audience & promise',
+      notes:'Who exactly is this for? What will they be able to do?'
+    }));
+    save(); render();
+  }
+})();
+</script>
+</body>
+</html>
