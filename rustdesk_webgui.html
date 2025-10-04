@@ -3,382 +3,76 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>RustDesk Web GUI — Simple</title>
-
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
-  integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
-
+<title>RustDesk Web GUI</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 <style>
-  html, body { height: 100%; }
-  body { margin: 0; }
-  .app {
-    display: grid;
-    grid-template-columns: 380px 1fr;
-    gap: 0;
-    min-height: 100vh;
-  }
-  .left {
-    border-right: 1px solid #dee2e6;
-  }
-  .list-wrap {
-    height: calc(100vh - 120px);
-    overflow: auto;
-    border: 1px solid #e9ecef;
-    border-radius: .5rem;
-  }
-  .table thead th {
-    position: sticky; top: 0; background: #fff; z-index: 1;
-  }
-  iframe {
-    width: 100%;
-    height: calc(100vh - 56px);
-    border: 0;
-  }
-  .toolbar { position: sticky; top: 0; background: #fff; z-index: 5; border-bottom: 1px solid #dee2e6; }
-  @media (max-width: 900px){
-    .app { grid-template-columns: 1fr; }
-    .left { border-right: none; border-bottom: 1px solid #dee2e6; }
-  }
+  body {margin:0}
+  .app {display:grid;grid-template-columns:380px 1fr;min-height:100vh}
+  .left {border-right:1px solid #dee2e6;padding:1rem}
+  @media(max-width:900px){.app{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 
-<!-- Top bar -->
-<nav class="toolbar navbar bg-white">
+<nav class="navbar bg-light border-bottom">
   <div class="container-fluid">
-    <span class="navbar-brand mb-0 h5">RustDesk Web GUI</span>
-    <div class="d-flex gap-2">
-      <button id="importBtn" class="btn btn-outline-secondary btn-sm">Import</button>
-      <button id="exportBtn" class="btn btn-outline-secondary btn-sm">Export</button>
-      <button id="addBtn" class="btn btn-primary btn-sm">Add</button>
-    </div>
+    <span class="navbar-brand">RustDesk Web GUI</span>
+    <button class="btn btn-primary btn-sm" onclick="openWeb()">Open Web Client</button>
   </div>
 </nav>
 
 <main class="app">
-  <!-- Left column -->
-  <section class="left p-3">
-    <div class="mb-2">
-      <div class="input-group">
-        <span class="input-group-text">Search</span>
-        <input id="searchBox" class="form-control" placeholder="name or id">
-        <button id="clearBtn" class="btn btn-outline-secondary">Clear</button>
-      </div>
-    </div>
-
-    <div class="d-flex justify-content-between align-items-center mb-2">
-      <div>
-        <small class="text-muted">Entries: <span id="count">0</span></small>
-      </div>
-      <div class="d-flex align-items-center gap-2">
-        <small class="text-muted">Sort</small>
-        <select id="sortBy" class="form-select form-select-sm" style="width:auto">
-          <option value="name">Name</option>
-          <option value="id">ID</option>
-          <option value="updated">Recently Updated</option>
-        </select>
-      </div>
-    </div>
-
-    <div class="list-wrap">
-      <table class="table table-sm align-middle mb-0">
-        <thead>
-          <tr>
-            <th style="width: 45%;">Name</th>
-            <th style="width: 30%;">ID</th>
-            <th class="text-center" style="width: 25%;">Actions</th>
-          </tr>
-        </thead>
-        <tbody id="rows"></tbody>
-      </table>
-    </div>
-
-    <div class="mt-2">
-      <small class="text-muted">
-        “Open App” uses <code>rustdesk://&lt;id&gt;</code>.  
-        The web client is on the right → <code>https://rustdesk.com/web/</code>
-      </small>
-    </div>
+  <!-- Left: List -->
+  <section class="left">
+    <h6>Computers</h6>
+    <ul id="list" class="list-group mb-3"></ul>
+    <button class="btn btn-outline-secondary btn-sm" onclick="add()">Add Computer</button>
   </section>
 
-  <!-- Right column: fixed RustDesk web client -->
-  <section class="right">
-    <div class="px-3 py-2 border-bottom bg-light d-flex align-items-center gap-2">
-      <strong>RustDesk Web Client</strong>
-      <a class="ms-auto btn btn-outline-secondary btn-sm" href="https://rustdesk.com/web/" target="_blank" rel="noopener">Open in new tab</a>
-    </div>
-    <iframe src="https://rustdesk.com/web/" title="RustDesk Web"></iframe>
+  <!-- Right: Just a placeholder -->
+  <section class="p-3">
+    <p class="text-muted">Click “Open Web Client” above to launch <code>https://rustdesk.com/web/</code>.</p>
   </section>
 </main>
 
-<!-- Add/Edit modal -->
-<div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 id="editTitle" class="modal-title">Add Computer</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <form id="editForm" class="vstack gap-3">
-          <div>
-            <label class="form-label">Name</label>
-            <input id="f_name" class="form-control" required>
-          </div>
-          <div>
-            <label class="form-label">RustDesk ID</label>
-            <input id="f_id" class="form-control" required>
-          </div>
-          <div>
-            <label class="form-label">Notes (optional)</label>
-            <textarea id="f_notes" class="form-control" rows="2"></textarea>
-          </div>
-          <input type="hidden" id="f_internal">
-        </form>
-      </div>
-      <div class="modal-footer">
-        <button id="deleteBtn" class="btn btn-outline-danger me-auto" style="display:none">Delete</button>
-        <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-        <button id="saveBtn" class="btn btn-primary">Save</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<input id="fileImport" type="file" accept="application/json" hidden />
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
-  integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
-  crossorigin="anonymous"></script>
-
 <script>
-/* ===== Storage ===== */
-const LS_KEY = 'rd_simple_book_v1';
+let list = JSON.parse(localStorage.getItem("rd_list")||"[]");
+const ul=document.getElementById("list");
 
-function loadAll(){
-  try {
-    const data = JSON.parse(localStorage.getItem(LS_KEY) || '[]');
-    return Array.isArray(data) ? data : [];
-  } catch { return []; }
-}
-function saveAll(list){ localStorage.setItem(LS_KEY, JSON.stringify(list)); }
-
-/* ===== State ===== */
-let items = loadAll();
-let search = '';
-let sortBy = 'name';
-
-/* ===== Elements ===== */
-const rowsEl = document.getElementById('rows');
-const countEl = document.getElementById('count');
-const searchBox = document.getElementById('searchBox');
-const clearBtn = document.getElementById('clearBtn');
-const sortSel = document.getElementById('sortBy');
-const addBtn = document.getElementById('addBtn');
-const exportBtn = document.getElementById('exportBtn');
-const importBtn = document.getElementById('importBtn');
-const fileImport = document.getElementById('fileImport');
-
-/* Modal */
-const m = new bootstrap.Modal(document.getElementById('editModal'));
-const editTitle = document.getElementById('editTitle');
-const f_name = document.getElementById('f_name');
-const f_id = document.getElementById('f_id');
-const f_notes = document.getElementById('f_notes');
-const f_internal = document.getElementById('f_internal');
-const deleteBtn = document.getElementById('deleteBtn');
-const saveBtn = document.getElementById('saveBtn');
-
-function uid(){ return 'id_' + Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
-
-/* ===== Render ===== */
 function render(){
-  const q = search.trim().toLowerCase();
-  let list = items.filter(x => {
-    const hay = (x.name||'') + ' ' + (x.id||'') + ' ' + (x.notes||'');
-    return hay.toLowerCase().includes(q);
+  ul.innerHTML="";
+  list.forEach((pc,i)=>{
+    const li=document.createElement("li");
+    li.className="list-group-item d-flex justify-content-between align-items-center";
+    li.innerHTML=`<span>${pc.name} <small class="text-muted">${pc.id}</small></span>
+      <div>
+        <button class="btn btn-sm btn-outline-primary" onclick="openApp('${pc.id}')">Open App</button>
+        <button class="btn btn-sm btn-outline-dark" onclick="edit(${i})">Edit</button>
+      </div>`;
+    ul.appendChild(li);
   });
-
-  list.sort((a,b)=>{
-    if (sortBy === 'updated') return (b.updatedAt||0) - (a.updatedAt||0);
-    const av = (a[sortBy]||'').toString().toLowerCase();
-    const bv = (b[sortBy]||'').toString().toLowerCase();
-    return av.localeCompare(bv);
-  });
-
-  rowsEl.innerHTML = '';
-  for(const it of list){
-    const tr = document.createElement('tr');
-
-    const tdName = document.createElement('td');
-    tdName.innerHTML = `<div class="fw-semibold">${escapeHtml(it.name||'')}</div>
-                        <div class="small text-muted">${escapeHtml(it.notes||'')}</div>`;
-    tr.appendChild(tdName);
-
-    const tdId = document.createElement('td');
-    tdId.innerHTML = `<code>${escapeHtml(it.id||'')}</code>`;
-    tr.appendChild(tdId);
-
-    const tdActions = document.createElement('td');
-    tdActions.className = 'text-center';
-    tdActions.innerHTML = `
-      <div class="btn-group btn-group-sm" role="group">
-        <button class="btn btn-outline-primary" title="Open RustDesk app">Open App</button>
-        <button class="btn btn-outline-secondary" title="Copy ID">Copy</button>
-        <button class="btn btn-outline-dark" title="Edit">Edit</button>
-      </div>
-    `;
-    const [btnApp, btnCopy, btnEdit] = tdActions.querySelectorAll('button');
-    btnApp.addEventListener('click', ()=> openApp(it.id));
-    btnCopy.addEventListener('click', ()=> copyToClipboard(it.id));
-    btnEdit.addEventListener('click', ()=> openEdit(it.id_internal));
-    tr.appendChild(tdActions);
-
-    rowsEl.appendChild(tr);
-  }
-
-  countEl.textContent = list.length;
 }
-
-function escapeHtml(s){
-  return (s??'').replace(/[&<>"']/g, m=> ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-}
-
-/* ===== Actions ===== */
-function openApp(id){
+function add(){
+  const name=prompt("Name?");
+  if(!name) return;
+  const id=prompt("RustDesk ID?");
   if(!id) return;
-  location.href = 'rustdesk://' + encodeURIComponent(id);
-}
-
-function copyToClipboard(text){
-  if(!text) return;
-  navigator.clipboard?.writeText(text).then(()=> {
-    toast('ID copied');
-  }).catch(()=> alert('Copy failed.'));
-}
-
-function toast(msg){
-  const el = document.createElement('div');
-  el.textContent = msg;
-  el.className = 'position-fixed start-50 translate-middle-x bottom-0 mb-3 px-3 py-2 rounded border bg-white shadow';
-  el.style.zIndex = 2000;
-  document.body.appendChild(el);
-  setTimeout(()=> el.remove(), 1200);
-}
-
-/* ===== Edit / Add ===== */
-function clearForm(){
-  f_name.value = '';
-  f_id.value = '';
-  f_notes.value = '';
-  f_internal.value = '';
-}
-
-function openAdd(){
-  clearForm();
-  editTitle.textContent = 'Add Computer';
-  deleteBtn.style.display = 'none';
-  m.show();
-}
-
-function openEdit(internalId){
-  const it = items.find(x=> x.id_internal === internalId);
-  if(!it) return;
-  f_name.value = it.name || '';
-  f_id.value = it.id || '';
-  f_notes.value = it.notes || '';
-  f_internal.value = it.id_internal;
-  editTitle.textContent = 'Edit Computer';
-  deleteBtn.style.display = 'inline-block';
-  m.show();
-}
-
-saveBtn.addEventListener('click', ()=>{
-  const name = f_name.value.trim();
-  const id = f_id.value.trim();
-  if(!name || !id){ alert('Name and ID are required.'); return; }
-  const now = Date.now();
-
-  if(f_internal.value){
-    const i = items.findIndex(x=> x.id_internal === f_internal.value);
-    if(i>=0){
-      items[i] = Object.assign({}, items[i], { name, id, notes: f_notes.value.trim(), updatedAt: now });
-    }
-  }else{
-    items.push({ id_internal: uid(), name, id, notes: f_notes.value.trim(), createdAt: now, updatedAt: now });
-  }
-  saveAll(items);
+  list.push({name,id});
+  localStorage.setItem("rd_list",JSON.stringify(list));
   render();
-  m.hide();
-});
-
-deleteBtn.addEventListener('click', ()=>{
-  if(!confirm('Delete this entry?')) return;
-  const internal = f_internal.value;
-  items = items.filter(x=> x.id_internal !== internal);
-  saveAll(items);
-  render();
-  m.hide();
-});
-
-/* ===== Import / Export ===== */
-exportBtn.addEventListener('click', ()=>{
-  const data = JSON.stringify(items, null, 2);
-  const blob = new Blob([data], {type:'application/json'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = 'rustdesk-contacts.json'; a.click();
-  URL.revokeObjectURL(url);
-});
-
-importBtn.addEventListener('click', ()=> fileImport.click());
-fileImport.addEventListener('change', async (e)=>{
-  const file = e.target.files?.[0]; if(!file) return;
-  try{
-    const text = await file.text();
-    const arr = JSON.parse(text);
-    if(!Array.isArray(arr)) throw new Error('Not an array');
-    // Normalize + merge by id_internal if present
-    const incoming = arr.map(x=> ({
-      id_internal: x.id_internal || uid(),
-      name: x.name || '',
-      id: x.id || '',
-      notes: x.notes || '',
-      createdAt: x.createdAt || Date.now(),
-      updatedAt: x.updatedAt || Date.now()
-    }));
-    const map = new Map(items.map(x=> [x.id_internal, x]));
-    for(const it of incoming) map.set(it.id_internal, it);
-    items = Array.from(map.values());
-    saveAll(items);
-    render();
-    toast('Import complete');
-  }catch(err){
-    alert('Import failed: ' + err.message);
-  }finally{
-    e.target.value = '';
-  }
-});
-
-/* ===== Controls ===== */
-addBtn.addEventListener('click', openAdd);
-searchBox.addEventListener('input', (e)=> { search = e.target.value; render(); });
-clearBtn.addEventListener('click', ()=> { searchBox.value=''; search=''; render(); });
-sortSel.addEventListener('change', (e)=> { sortBy = e.target.value; render(); });
-
-/* ===== Init ===== */
-function ensureDemo(){
-  if(items.length===0){
-    items = [
-      { id_internal: uid(), name:'Office Desktop', id:'123-456-789', notes:'Main workstation', createdAt:Date.now(), updatedAt:Date.now() },
-      { id_internal: uid(), name:'Lab NUC', id:'ABCD-9876', notes:'Ubuntu host', createdAt:Date.now(), updatedAt:Date.now() }
-    ];
-    saveAll(items);
-  }
 }
-ensureDemo();
+function edit(i){
+  const name=prompt("Name?",list[i].name);
+  const id=prompt("ID?",list[i].id);
+  if(!name||!id) return;
+  list[i]={name,id};
+  localStorage.setItem("rd_list",JSON.stringify(list));
+  render();
+}
+function openApp(id){ location.href="rustdesk://"+encodeURIComponent(id); }
+function openWeb(){ window.open("https://rustdesk.com/web/","_blank"); }
+
 render();
 </script>
-
 </body>
 </html>
