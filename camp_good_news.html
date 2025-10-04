@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Camp Intake — Kids CRUD (Single Page)</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+<style>
+  :root{
+    --bg:#0f172a; --panel:#0b1224; --text:#e5e7eb; --muted:#9ca3af; --border:#1f2937; --accent:#60a5fa; --ok:#34d399; --danger:#ef4444;
+  }
+  body{background:linear-gradient(160deg,#0b1022,#0f172a 50%,#0b1224 100%);color:var(--text);font-family:system-ui,Segoe UI,Roboto,Ubuntu,Helvetica,Arial}
+  .card{background:var(--panel);border:1px solid var(--border)}
+  .form-text, .text-muted{color:var(--muted)!important}
+  .table{color:var(--text)}
+  .table thead th{background:#0c1428;border-bottom:2px solid var(--border);position:sticky;top:0;z-index:1}
+  .table td, .table th{border-color:var(--border)}
+  .btn-outline-light{--bs-btn-color:#e5e7eb;--bs-btn-border-color:#334155;--bs-btn-hover-bg:#1f2937;--bs-btn-hover-border-color:#475569}
+  .badge{font-weight:600}
+  .form-check-input:checked{background-color:var(--ok);border-color:var(--ok)}
+  .link{color:var(--accent);text-decoration:none}
+  .link:hover{text-decoration:underline}
+  .pill{font-size:.8rem;padding:.35rem .6rem;border:1px solid var(--border);border-radius:999px;background:#0d1730}
+  .table-responsive{max-height:50vh;overflow:auto;border:1px solid var(--border);border-radius:.5rem}
+  .sticky-actions{position:sticky;bottom:0;background:linear-gradient(180deg,transparent,rgba(0,0,0,.3));padding-top:.5rem}
+  .smallcaps{font-variant:all-small-caps;letter-spacing:.04em;color:var(--muted)}
+  .form-section-title{font-weight:700;font-size:1rem;margin-top:.75rem;margin-bottom:.25rem}
+</style>
+</head>
+<body>
+<div class="container py-4">
+  <header class="mb-3">
+    <div class="d-flex align-items-center justify-content-between">
+      <h1 class="h3 m-0">Camp Intake — New Kids</h1>
+      <div class="d-flex gap-2">
+        <button id="btnExport" class="btn btn-outline-light btn-sm" title="Download JSON of all kids">Export JSON</button>
+        <label class="btn btn-outline-light btn-sm mb-0">
+          Import JSON <input id="fileImport" type="file" accept="application/json" hidden>
+        </label>
+        <button id="btnClearAll" class="btn btn-outline-danger btn-sm" title="Remove ALL saved kids">Clear All</button>
+      </div>
+    </div>
+    <div class="smallcaps">Local-only storage (browser <code>localStorage</code>). No server needed.</div>
+  </header>
+
+  <div class="row g-3">
+    <div class="col-lg-5">
+      <div class="card">
+        <div class="card-body">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <h2 class="h5 m-0">New Kid Form</h2>
+            <span id="formMode" class="pill">Create</span>
+          </div>
+
+          <form id="kidForm" novalidate>
+            <input type="hidden" id="kidId">
+
+            <div class="form-section-title">Identity</div>
+            <div class="row g-2">
+              <div class="col-12">
+                <label class="form-label">Full Name <span class="text-danger">*</span></label>
+                <input id="name" class="form-control" placeholder="e.g., Jordan Smith" required />
+                <div class="form-text">First & last preferred.</div>
+              </div>
+              <div class="col-6">
+                <label class="form-label">Age <span class="text-danger">*</span></label>
+                <input id="age" type="number" min="5" max="18" class="form-control" required />
+              </div>
+              <div class="col-6">
+                <label class="form-label">Gender</label>
+                <select id="gender" class="form-select">
+                  <option value="">Unspecified</option>
+                  <option>Female</option>
+                  <option>Male</option>
+                  <option>Non-binary</option>
+                  <option>Prefer not to say</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-section-title">Logistics</div>
+            <div class="row g-2">
+              <div class="col-6">
+                <label class="form-label">Arrival Date</label>
+                <input id="arrival" type="date" class="form-control">
+              </div>
+              <div class="col-6">
+                <label class="form-label">Cabin / Group</label>
+                <input id="cabin" class="form-control" placeholder="e.g., A, B, Trailblazers">
+              </div>
+            </div>
+
+            <div class="form-section-title">Health & Safety</div>
+            <div class="row g-2">
+              <div class="col-12">
+                <label class="form-label">Allergies</label>
+                <input id="allergies" class="form-control" placeholder="e.g., peanuts, bees, none">
+              </div>
+              <div class="col-12">
+                <label class="form-label">Medications</label>
+                <input id="meds" class="form-control" placeholder="Optional">
+              </div>
+            </div>
+
+            <div class="form-section-title">Guardian & Contact</div>
+            <div class="row g-2">
+              <div class="col-12">
+                <label class="form-label">Primary Guardian Name <span class="text-danger">*</span></label>
+                <input id="guardian" class="form-control" placeholder="e.g., Casey Smith" required>
+              </div>
+              <div class="col-6">
+                <label class="form-label">Phone <span class="text-danger">*</span></label>
+                <input id="phone" class="form-control" placeholder="e.g., (555) 123-4567" required>
+              </div>
+              <div class="col-6">
+                <label class="form-label">Email</label>
+                <input id="email" type="email" class="form-control" placeholder="optional@example.com">
+              </div>
+            </div>
+
+            <div class="mt-2">
+              <label class="form-label">Notes</label>
+              <textarea id="notes" class="form-control" rows="3" placeholder="Behavioral notes, pickup instructions, swim level, etc."></textarea>
+            </div>
+
+            <div class="form-check my-3">
+              <input id="consent" class="form-check-input" type="checkbox">
+              <label class="form-check-label" for="consent">I have verified signed guardian consent is on file.</label>
+            </div>
+
+            <div class="d-flex gap-2 sticky-actions">
+              <button class="btn btn-primary" id="btnSave" type="submit">Save Kid</button>
+              <button class="btn btn-outline-light" id="btnResetDefaults" type="button">Reset Form Defaults</button>
+              <button class="btn btn-outline-warning ms-auto" id="btnCancelEdit" type="button" hidden>Cancel Edit</button>
+            </div>
+          </form>
+        </div>
+      </div>
+      <div class="text-muted mt-2 small">
+        Tip: Use Export/Import to move data between browsers or share with the admin desk.
+      </div>
+    </div>
+
+    <div class="col-lg-7">
+      <div class="card">
+        <div class="card-body">
+          <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-2">
+            <h2 class="h5 m-0">Roster</h2>
+            <div class="d-flex flex-wrap gap-2">
+              <input id="search" class="form-control form-control-sm" placeholder="Search name, cabin, guardian, allergy…" />
+              <select id="filterCabin" class="form-select form-select-sm" style="min-width:140px">
+                <option value="">All Cabins</option>
+              </select>
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th style="min-width:180px">Kid</th>
+                  <th>Age</th>
+                  <th>Cabin</th>
+                  <th>Allergies</th>
+                  <th>Guardian / Phone</th>
+                  <th>Arrives</th>
+                  <th style="min-width:130px">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="tbody"></tbody>
+            </table>
+          </div>
+          <div class="d-flex justify-content-between mt-2">
+            <div class="small text-muted" id="count"></div>
+            <button class="btn btn-sm btn-outline-light" id="btnSeed">Seed Sample Kids</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===== Simple Single-File CRUD with localStorage ===== */
+const LS_KEY = 'camp_kids_v1';
+
+const els = {
+  form: document.getElementById('kidForm'),
+  kidId: document.getElementById('kidId'),
+  name: document.getElementById('name'),
+  age: document.getElementById('age'),
+  gender: document.getElementById('gender'),
+  arrival: document.getElementById('arrival'),
+  cabin: document.getElementById('cabin'),
+  allergies: document.getElementById('allergies'),
+  meds: document.getElementById('meds'),
+  guardian: document.getElementById('guardian'),
+  phone: document.getElementById('phone'),
+  email: document.getElementById('email'),
+  notes: document.getElementById('notes'),
+  consent: document.getElementById('consent'),
+  formMode: document.getElementById('formMode'),
+  btnCancelEdit: document.getElementById('btnCancelEdit'),
+  btnResetDefaults: document.getElementById('btnResetDefaults'),
+  btnSave: document.getElementById('btnSave'),
+  tbody: document.getElementById('tbody'),
+  count: document.getElementById('count'),
+  search: document.getElementById('search'),
+  filterCabin: document.getElementById('filterCabin'),
+  btnExport: document.getElementById('btnExport'),
+  fileImport: document.getElementById('fileImport'),
+  btnClearAll: document.getElementById('btnClearAll'),
+  btnSeed: document.getElementById('btnSeed'),
+};
+
+function todayISO() {
+  const d = new Date();
+  d.setHours(0,0,0,0);
+  return d.toISOString().slice(0,10);
+}
+
+const DEFAULTS = {
+  age: 10,
+  gender: '',
+  arrival: todayISO(),
+  cabin: 'A',
+  allergies: 'none',
+  meds: '',
+  notes: '',
+  consent: false,
+};
+
+function resetFormToDefaults() {
+  els.kidId.value = '';
+  els.name.value = '';
+  els.age.value = DEFAULTS.age;
+  els.gender.value = DEFAULTS.gender;
+  els.arrival.value = DEFAULTS.arrival;
+  els.cabin.value = DEFAULTS.cabin;
+  els.allergies.value = DEFAULTS.allergies;
+  els.meds.value = DEFAULTS.meds;
+  els.guardian.value = '';
+  els.phone.value = '';
+  els.email.value = '';
+  els.notes.value = DEFAULTS.notes;
+  els.consent.checked = DEFAULTS.consent;
+  setMode('Create');
+}
+
+function setMode(mode){
+  els.formMode.textContent = mode;
+  const editing = mode === 'Edit';
+  els.btnCancelEdit.hidden = !editing;
+  els.btnSave.textContent = editing ? 'Save Changes' : 'Save Kid';
+}
+
+function loadKids(){
+  try{
+    return JSON.parse(localStorage.getItem(LS_KEY) || '[]');
+  }catch(e){
+    console.warn('localStorage parse failed', e);
+    return [];
+  }
+}
+
+function saveKids(arr){
+  localStorage.setItem(LS_KEY, JSON.stringify(arr));
+}
+
+function upsertKid(kid){
+  const arr = loadKids();
+  const idx = arr.findIndex(k=>k.id===kid.id);
+  if(idx>=0) arr[idx] = kid; else arr.push(kid);
+  saveKids(arr);
+}
+
+function deleteKid(id){
+  const arr = loadKids().filter(k=>k.id!==id);
+  saveKids(arr);
+}
+
+function render(){
+  const q = els.search.value.trim().toLowerCase();
+  const cabinFilter = els.filterCabin.value;
+  const arr = loadKids();
+
+  // Cabin filter options
+  const cabins = [...new Set(arr.map(k => (k.cabin || '').trim()).filter(Boolean))].sort();
+  els.filterCabin.innerHTML = '<option value="">All Cabins</option>' + cabins.map(c=>`<option ${c===cabinFilter?'selected':''}>${c}</option>`).join('');
+
+  const filtered = arr.filter(k=>{
+    const hay = [k.name,k.cabin,k.guardian,k.phone,k.allergies].join(' ').toLowerCase();
+    const matchQ = !q || hay.includes(q);
+    const matchCabin = !cabinFilter || (k.cabin||'')===cabinFilter;
+    return matchQ && matchCabin;
+  });
+
+  els.tbody.innerHTML = filtered.map(k=>`
+    <tr>
+      <td>
+        <div class="fw-semibold">${escapeHTML(k.name || '')}</div>
+        <div class="text-muted small">${escapeHTML(k.gender||'')}</div>
+      </td>
+      <td>${k.age ?? ''}</td>
+      <td>${escapeHTML(k.cabin||'')}</td>
+      <td>${escapeHTML(k.allergies||'')}</td>
+      <td>
+        <div class="fw-semibold">${escapeHTML(k.guardian||'')}</div>
+        <div class="text-muted small">${escapeHTML(k.phone||'')}${k.email? ' · '+escapeHTML(k.email):''}</div>
+      </td>
+      <td>${k.arrival || ''}</td>
+      <td>
+        <div class="d-flex gap-1">
+          <button class="btn btn-sm btn-outline-light" onclick="editKid('${k.id}')">Edit</button>
+          <button class="btn btn-sm btn-outline-danger" onclick="confirmDeleteKid('${k.id}')">Delete</button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+
+  els.count.textContent = `${filtered.length} shown / ${arr.length} total`;
+}
+
+function escapeHTML(s){
+  return (s??'').toString().replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
+}
+
+function editKid(id){
+  const k = loadKids().find(x=>x.id===id);
+  if(!k) return;
+  els.kidId.value = k.id;
+  els.name.value = k.name || '';
+  els.age.value = k.age ?? DEFAULTS.age;
+  els.gender.value = k.gender || '';
+  els.arrival.value = k.arrival || DEFAULTS.arrival;
+  els.cabin.value = k.cabin || '';
+  els.allergies.value = k.allergies || '';
+  els.meds.value = k.meds || '';
+  els.guardian.value = k.guardian || '';
+  els.phone.value = k.phone || '';
+  els.email.value = k.email || '';
+  els.notes.value = k.notes || '';
+  els.consent.checked = !!k.consent;
+  setMode('Edit');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function confirmDeleteKid(id){
+  const k = loadKids().find(x=>x.id===id);
+  if(!k) return;
+  if(confirm(`Delete ${k.name || 'this kid'}?`)){
+    deleteKid(id);
+    render();
+    if(els.kidId.value===id){ resetFormToDefaults(); }
+  }
+}
+
+function makeId(){
+  // time+random -> base36
+  return (Date.now().toString(36)+Math.random().toString(36).slice(2,8)).toUpperCase();
+}
+
+function formToKid(){
+  return {
+    id: els.kidId.value || makeId(),
+    name: els.name.value.trim(),
+    age: Number(els.age.value) || null,
+    gender: els.gender.value,
+    arrival: els.arrival.value || null,
+    cabin: els.cabin.value.trim(),
+    allergies: els.allergies.value.trim(),
+    meds: els.meds.value.trim(),
+    guardian: els.guardian.value.trim(),
+    phone: els.phone.value.trim(),
+    email: els.email.value.trim(),
+    notes: els.notes.value.trim(),
+    consent: !!els.consent.checked,
+    createdAt: els.kidId.value ? undefined : new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function validate(){
+  // very light validation
+  let ok = true;
+  const req = [els.name, els.age, els.guardian, els.phone];
+  req.forEach(el=>{
+    if(!el.value.trim()){
+      el.classList.add('is-invalid'); ok=false;
+    } else {
+      el.classList.remove('is-invalid');
+    }
+  });
+  return ok;
+}
+
+els.form.addEventListener('submit', (e)=>{
+  e.preventDefault();
+  if(!validate()) return;
+  const kid = formToKid();
+  upsertKid(kid);
+  render();
+  resetFormToDefaults();
+  els.name.focus();
+});
+
+els.btnCancelEdit.addEventListener('click', ()=>{
+  resetFormToDefaults();
+});
+
+els.btnResetDefaults.addEventListener('click', ()=>{
+  resetFormToDefaults();
+});
+
+els.search.addEventListener('input', render);
+els.filterCabin.addEventListener('change', render);
+
+els.btnExport.addEventListener('click', ()=>{
+  const data = JSON.stringify(loadKids(), null, 2);
+  const blob = new Blob([data], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `camp_kids_${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+});
+
+els.fileImport.addEventListener('change', async (ev)=>{
+  const file = ev.target.files?.[0];
+  if(!file) return;
+  try{
+    const text = await file.text();
+    const incoming = JSON.parse(text);
+    if(!Array.isArray(incoming)) throw new Error('Invalid JSON format (expected an array)');
+    const current = loadKids();
+    // merge by id (if id missing, assign)
+    incoming.forEach(obj=>{
+      if(!obj.id) obj.id = makeId();
+    });
+    const byId = new Map(current.map(k=>[k.id,k]));
+    for(const k of incoming){ byId.set(k.id, {...byId.get(k.id), ...k}); }
+    const merged = Array.from(byId.values());
+    saveKids(merged);
+    render();
+    alert('Import complete.');
+  }catch(err){
+    alert('Import failed: '+err.message);
+  }finally{
+    ev.target.value = '';
+  }
+});
+
+els.btnClearAll.addEventListener('click', ()=>{
+  if(confirm('Delete ALL saved kids? This cannot be undone.')){
+    localStorage.removeItem(LS_KEY);
+    render();
+    resetFormToDefaults();
+  }
+});
+
+els.btnSeed.addEventListener('click', ()=>{
+  const arr = loadKids();
+  const samples = [
+    {name:'Avery Johnson', age:11, gender:'Female', arrival:todayISO(), cabin:'A', allergies:'bees', meds:'EpiPen', guardian:'Morgan Johnson', phone:'555-111-2233', email:'morgan@example.com', notes:'Shy at first; loves archery', consent:true},
+    {name:'Logan Chen', age:9, gender:'Male', arrival:todayISO(), cabin:'B', allergies:'none', meds:'', guardian:'Kai Chen', phone:'555-444-7788', email:'', notes:'Beginner swimmer', consent:false},
+    {name:'Sky Rivera', age:12, gender:'Non-binary', arrival:todayISO(), cabin:'Trailblazers', allergies:'peanuts', meds:'Benadryl PRN', guardian:'Jamie Rivera', phone:'555-999-1010', email:'jamie@home.org', notes:'ASTHMA: rescue inhaler in backpack', consent:true},
+  ];
+  samples.forEach(s=>{
+    upsertKid({ id: makeId(), ...s, createdAt:new Date().toISOString(), updatedAt:new Date().toISOString() });
+  });
+  render();
+});
+
+// Initialize
+(function init(){
+  // if empty, add a single default starter record (requested: “start off with a default info”)
+  if(loadKids().length === 0){
+    const starter = {
+      id: makeId(),
+      name:'New Camper',
+      age: DEFAULTS.age,
+      gender:'',
+      arrival: DEFAULTS.arrival,
+      cabin: DEFAULTS.cabin,
+      allergies: DEFAULTS.allergies,
+      meds:'',
+      guardian:'Parent/Guardian',
+      phone:'(555) 000-0000',
+      email:'',
+      notes:'Replace defaults with real info.',
+      consent:false,
+      createdAt:new Date().toISOString(),
+      updatedAt:new Date().toISOString(),
+    };
+    upsertKid(starter);
+  }
+  resetFormToDefaults();
+  render();
+})();
+</script>
+</body>
+</html>
