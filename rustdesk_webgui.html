@@ -11,21 +11,27 @@
 <style>
   html,body{height:100%}
   body{margin:0}
-  .toolbar{position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid #dee2e6}
-  .table thead th{position:sticky;top:112px;background:#fff;z-index:5}
-  @media (max-width: 768px){ .table thead th{top:164px} }
-  .list-wrap{max-height:calc(100vh - 180px);overflow:auto;border:1px solid #e9ecef;border-radius:.5rem}
+  /* keep the toolbar simple and non-sticky to avoid offset issues */
+  .toolbar{background:#fff;border-bottom:1px solid #dee2e6}
+  /* simple scroll container so the table doesn’t sprawl forever */
+  .list-wrap{max-height:70vh;overflow:auto;border:1px solid #e9ecef;border-radius:.5rem}
   .tag-pill{border:1px solid #ced4da;border-radius:999px;padding:.1rem .5rem;font-size:.8rem}
+  /* make action buttons consistent on small screens */
+  @media (max-width: 576px){
+    .btn-group.btn-group-sm > .btn{padding:.25rem .45rem}
+    .list-wrap{max-height:60vh}
+  }
 </style>
 </head>
 <body>
 
-<!-- Top toolbar -->
+<!-- Top toolbar (non-sticky) -->
 <div class="toolbar">
   <div class="container-fluid py-2">
     <div class="d-flex flex-wrap gap-2 align-items-center">
       <div class="me-auto">
         <span class="h5 mb-0">RustDesk Address Book</span>
+        <div class="small text-muted">Entries: <span id="count">0</span> • “Open App” uses <code>rustdesk://&lt;id&gt;</code></div>
       </div>
 
       <div class="input-group" style="max-width:360px">
@@ -49,10 +55,6 @@
       <button id="exportBtn" class="btn btn-outline-secondary btn-sm">Export</button>
       <button id="addBtn" class="btn btn-primary btn-sm">Add</button>
     </div>
-
-    <div class="small text-muted mt-2">
-      Entries: <span id="count">0</span> • “Open App” uses <code>rustdesk://&lt;id&gt;</code>
-    </div>
   </div>
 </div>
 
@@ -60,7 +62,7 @@
 <div class="container-fluid py-3">
   <div class="list-wrap">
     <table class="table table-sm align-middle mb-0">
-      <thead>
+      <thead class="table-light">
         <tr>
           <th style="width:30%">Name</th>
           <th style="width:22%">ID</th>
@@ -119,7 +121,7 @@
 
 <script>
 /* ===== Storage ===== */
-const LS_KEY = 'rd_address_book_simple_v1';
+const LS_KEY = 'rd_address_book_simple_v2';
 const load = () => { try { const d = JSON.parse(localStorage.getItem(LS_KEY)||'[]'); return Array.isArray(d)?d:[]; } catch { return []; } };
 const save = (arr) => localStorage.setItem(LS_KEY, JSON.stringify(arr));
 
@@ -293,7 +295,6 @@ fileImport.addEventListener('change', async (e)=>{
     const text = await file.text();
     const arr = JSON.parse(text);
     if(!Array.isArray(arr)) throw new Error('Invalid JSON (expected an array).');
-    // normalize & merge by id_internal
     const incoming = arr.map(x=> ({
       id_internal: x.id_internal || uid(),
       name: x.name || '',
