@@ -3,194 +3,143 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>RustDesk Launcher & Address Book — Single File</title>
+<title>RustDesk Web GUI — Simple</title>
 
-<!-- Bootstrap 5.3.3 (your preferred CDN link) -->
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
+  integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
 
 <style>
-  :root{
-    --bg:#0f172a; --panel:#0b1224; --panel2:#0c162d; --text:#e5e7eb; --muted:#94a3b8;
-    --accent:#60a5fa; --ok:#34d399; --warn:#fbbf24; --danger:#f87171; --border:#1f2937;
+  html, body { height: 100%; }
+  body { margin: 0; }
+  .app {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    gap: 0;
+    min-height: 100vh;
   }
-  *{box-sizing:border-box}
-  html,body{height:100%}
-  body{margin:0;background:linear-gradient(160deg,#0b1022,#0f172a 50%,#0b1224 100%);color:var(--text);font-family:system-ui,Segoe UI,Roboto,Ubuntu,Helvetica,Arial}
-  a{color:var(--accent)}
-  .app{display:grid;grid-template-columns: 1fr minmax(380px, 42%);gap:12px;min-height:100vh}
-  header{position:sticky;top:0;z-index:10;background:rgba(11,18,36,.9);backdrop-filter:blur(6px);border-bottom:1px solid var(--border)}
-  .toolbar{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;padding:12px}
-  .toolbar .form-control{background:#0b1224;border-color:#223257;color:var(--text)}
-  .toolbar .form-select{background:#0b1224;border-color:#223257;color:var(--text)}
-  .card{background:var(--panel);border:1px solid var(--border)}
-  .table{color:var(--text)}
-  .table thead th{position:sticky;top:0;background:var(--panel);border-bottom:2px solid #223257;z-index:1}
-  .table>:not(caption)>*>*{border-color:#223257}
-  .badge{font-weight:600}
-  .btn{border-radius:12px}
-  .btn-outline-light{--bs-btn-color:#e9ecef;--bs-btn-border-color:#495466;--bs-btn-hover-bg:#1e293b;--bs-btn-hover-border-color:#64748b}
-  .btn-outline-success{--bs-btn-border-color:#2a7d64}
-  .btn-outline-warning{--bs-btn-border-color:#a07418}
-  .btn-outline-danger{--bs-btn-border-color:#8d2c2c}
-  .right-pane{border-left:1px solid var(--border);background:var(--panel2)}
-  iframe{width:100%;height:calc(100vh - 56px);border:0;background:#000}
-  .muted{color:var(--muted)}
-  .truncate{max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .form-check-input:checked{background-color:#0ea5e9;border-color:#38bdf8}
-  .small-help{font-size:.85rem;color:var(--muted)}
-  .footer-note{font-size:.85rem;color:var(--muted);padding:10px 14px;border-top:1px solid var(--border)}
-  .pill{display:inline-block;padding:.15rem .5rem;border:1px solid #334155;border-radius:999px;color:#cbd5e1;font-size:.75rem}
-  @media (max-width: 1100px){ .app{grid-template-columns:1fr} .right-pane{order:3} }
+  .left {
+    border-right: 1px solid #dee2e6;
+  }
+  .list-wrap {
+    height: calc(100vh - 120px);
+    overflow: auto;
+    border: 1px solid #e9ecef;
+    border-radius: .5rem;
+  }
+  .table thead th {
+    position: sticky; top: 0; background: #fff; z-index: 1;
+  }
+  iframe {
+    width: 100%;
+    height: calc(100vh - 56px);
+    border: 0;
+  }
+  .toolbar { position: sticky; top: 0; background: #fff; z-index: 5; border-bottom: 1px solid #dee2e6; }
+  @media (max-width: 900px){
+    .app { grid-template-columns: 1fr; }
+    .left { border-right: none; border-bottom: 1px solid #dee2e6; }
+  }
 </style>
 </head>
 <body>
 
-<header>
-  <div class="toolbar container-fluid">
-    <div class="d-flex gap-2 me-auto align-items-center">
-      <span class="fs-5 fw-semibold">RustDesk Launcher & Address Book</span>
-      <span class="pill">Local only</span>
-    </div>
-
-    <div class="input-group" style="max-width:420px">
-      <span class="input-group-text">Search</span>
-      <input id="searchBox" class="form-control" placeholder="name, id, tag, notes…" />
-      <button class="btn btn-outline-light" id="clearSearch">Clear</button>
-    </div>
-
-    <div class="d-flex gap-2 ms-2">
-      <button class="btn btn-outline-light" id="addBtn">Add</button>
-      <button class="btn btn-outline-light" id="importBtn">Import</button>
-      <button class="btn btn-outline-light" id="exportBtn">Export</button>
-      <button class="btn btn-outline-light" id="settingsBtn">Settings</button>
+<!-- Top bar -->
+<nav class="toolbar navbar bg-white">
+  <div class="container-fluid">
+    <span class="navbar-brand mb-0 h5">RustDesk Web GUI</span>
+    <div class="d-flex gap-2">
+      <button id="importBtn" class="btn btn-outline-secondary btn-sm">Import</button>
+      <button id="exportBtn" class="btn btn-outline-secondary btn-sm">Export</button>
+      <button id="addBtn" class="btn btn-primary btn-sm">Add</button>
     </div>
   </div>
-</header>
+</nav>
 
 <main class="app">
-  <!-- Left: List -->
-  <section class="p-3">
-    <div class="card">
-      <div class="card-body p-0">
-        <div class="table-responsive" style="max-height:calc(100vh - 120px)">
-          <table class="table align-middle mb-0">
-            <thead>
-              <tr>
-                <th class="ps-3">Name</th>
-                <th>ID</th>
-                <th>Tag</th>
-                <th class="text-center">Actions</th>
-              </tr>
-            </thead>
-            <tbody id="rows"></tbody>
-          </table>
-        </div>
+  <!-- Left column -->
+  <section class="left p-3">
+    <div class="mb-2">
+      <div class="input-group">
+        <span class="input-group-text">Search</span>
+        <input id="searchBox" class="form-control" placeholder="name or id">
+        <button id="clearBtn" class="btn btn-outline-secondary">Clear</button>
       </div>
-      <div class="footer-note">
-        <span class="me-3">Entries: <span id="count">0</span></span>
-        <span class="me-3">Sort:
-          <select id="sortBy" class="form-select form-select-sm d-inline-block" style="width:auto">
-            <option value="name">Name</option>
-            <option value="id">ID</option>
-            <option value="tag">Tag</option>
-            <option value="updated">Recently Updated</option>
-          </select>
-        </span>
-        <span class="small-help">“Open App” tries <code>rustdesk://&lt;id&gt;</code>. “Open in Web” uses the configured Web Client Base URL (iframe at right).</span>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <div>
+        <small class="text-muted">Entries: <span id="count">0</span></small>
       </div>
+      <div class="d-flex align-items-center gap-2">
+        <small class="text-muted">Sort</small>
+        <select id="sortBy" class="form-select form-select-sm" style="width:auto">
+          <option value="name">Name</option>
+          <option value="id">ID</option>
+          <option value="updated">Recently Updated</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="list-wrap">
+      <table class="table table-sm align-middle mb-0">
+        <thead>
+          <tr>
+            <th style="width: 45%;">Name</th>
+            <th style="width: 30%;">ID</th>
+            <th class="text-center" style="width: 25%;">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+
+    <div class="mt-2">
+      <small class="text-muted">
+        “Open App” uses <code>rustdesk://&lt;id&gt;</code>.  
+        The web client is on the right → <code>https://rustdesk.com/web/</code>
+      </small>
     </div>
   </section>
 
-  <!-- Right: Web client iframe -->
-  <aside class="right-pane">
-    <div class="p-2 d-flex gap-2 align-items-center">
-      <span class="fw-semibold">Web Client</span>
-      <span class="small-help">Set in Settings → “Web Client Base URL”</span>
-      <div class="ms-auto">
-        <button id="blankWebBtn" class="btn btn-outline-light btn-sm">Blank</button>
-      </div>
+  <!-- Right column: fixed RustDesk web client -->
+  <section class="right">
+    <div class="px-3 py-2 border-bottom bg-light d-flex align-items-center gap-2">
+      <strong>RustDesk Web Client</strong>
+      <a class="ms-auto btn btn-outline-secondary btn-sm" href="https://rustdesk.com/web/" target="_blank" rel="noopener">Open in new tab</a>
     </div>
-    <iframe id="webFrame" title="RustDesk Web Client"></iframe>
-  </aside>
+    <iframe src="https://rustdesk.com/web/" title="RustDesk Web"></iframe>
+  </section>
 </main>
 
-<!-- Modals -->
+<!-- Add/Edit modal -->
 <div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-scrollable">
-    <div class="modal-content" style="background:#0b1224;color:var(--text);border:1px solid var(--border)">
+  <div class="modal-dialog">
+    <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" id="editTitle">Add Computer</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        <h5 id="editTitle" class="modal-title">Add Computer</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
         <form id="editForm" class="vstack gap-3">
           <div>
             <label class="form-label">Name</label>
-            <input class="form-control" id="f_name" required>
+            <input id="f_name" class="form-control" required>
           </div>
           <div>
             <label class="form-label">RustDesk ID</label>
-            <input class="form-control" id="f_id" required>
-            <div class="small-help">The numeric/alpha ID shown in the RustDesk client.</div>
-          </div>
-          <div>
-            <label class="form-label">Always-On Password (optional)</label>
-            <div class="input-group">
-              <input type="password" class="form-control" id="f_password" autocomplete="new-password">
-              <button class="btn btn-outline-light" type="button" id="togglePw">Show</button>
-            </div>
-            <div class="small-help">Stored locally. For your eyes only on this browser.</div>
-          </div>
-          <div>
-            <label class="form-label">Tag (optional)</label>
-            <input class="form-control" id="f_tag" placeholder="e.g., Home, Lab, Office">
+            <input id="f_id" class="form-control" required>
           </div>
           <div>
             <label class="form-label">Notes (optional)</label>
-            <textarea class="form-control" id="f_notes" rows="3" placeholder="Anything helpful…"></textarea>
+            <textarea id="f_notes" class="form-control" rows="2"></textarea>
           </div>
-          <input type="hidden" id="f_id_internal">
+          <input type="hidden" id="f_internal">
         </form>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-outline-danger me-auto" id="deleteBtn" style="display:none">Delete</button>
-        <button class="btn btn-outline-light" data-bs-dismiss="modal">Cancel</button>
-        <button class="btn btn-outline-success" id="saveBtn">Save</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div class="modal fade" id="settingsModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content" style="background:#0b1224;color:var(--text);border:1px solid var(--border)">
-      <div class="modal-header">
-        <h5 class="modal-title">Settings</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body vstack gap-3">
-        <div>
-          <label class="form-label">Web Client Base URL</label>
-          <input id="s_webbase" class="form-control" placeholder="https://rust.example.com/web/">
-          <div class="small-help">Used by “Open in Web” and iframe at right. Example: <code>https://rust.example.com/web/</code></div>
-        </div>
-        <div>
-          <label class="form-label">Quick Connect Test</label>
-          <div class="input-group">
-            <input id="s_testid" class="form-control" placeholder="enter RustDesk ID to test…" />
-            <button id="s_openApp" class="btn btn-outline-success" type="button">Open App</button>
-            <button id="s_openWeb" class="btn btn-outline-warning" type="button">Open in Web</button>
-          </div>
-          <div class="small-help">Open App uses <code>rustdesk://&lt;id&gt;</code>. Open in Web loads <code>[base] + connect?id=&lt;id&gt;</code> (adjust to your web client).</div>
-        </div>
-        <div class="form-check">
-          <input class="form-check-input" type="checkbox" id="s_confirmDelete">
-          <label class="form-check-label" for="s_confirmDelete">Confirm before deleting an entry</label>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-outline-light" data-bs-dismiss="modal">Close</button>
-        <button class="btn btn-outline-success" id="s_save">Save Settings</button>
+        <button id="deleteBtn" class="btn btn-outline-danger me-auto" style="display:none">Delete</button>
+        <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button id="saveBtn" class="btn btn-primary">Save</button>
       </div>
     </div>
   </div>
@@ -198,288 +147,210 @@
 
 <input id="fileImport" type="file" accept="application/json" hidden />
 
-<!-- Bootstrap JS (no Popper needed for simple modals via data API, but include full for safety) -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+  integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+  crossorigin="anonymous"></script>
 
 <script>
-/* ========= Storage ========= */
-const LS_KEY = 'rd_address_book_v1';
-const LS_SETTINGS = 'rd_settings_v1';
-
-function loadSettings(){
-  const s = JSON.parse(localStorage.getItem(LS_SETTINGS) || '{}');
-  return Object.assign({
-    webBase: '',
-    confirmDelete: true
-  }, s);
-}
-function saveSettings(s){ localStorage.setItem(LS_SETTINGS, JSON.stringify(s)); }
+/* ===== Storage ===== */
+const LS_KEY = 'rd_simple_book_v1';
 
 function loadAll(){
-  try{
+  try {
     const data = JSON.parse(localStorage.getItem(LS_KEY) || '[]');
     return Array.isArray(data) ? data : [];
-  }catch{ return []; }
+  } catch { return []; }
 }
 function saveAll(list){ localStorage.setItem(LS_KEY, JSON.stringify(list)); }
 
-/* ========= State ========= */
-let state = {
-  items: loadAll(),
-  settings: loadSettings(),
-  search: '',
-  sortBy: 'name',
-};
+/* ===== State ===== */
+let items = loadAll();
+let search = '';
+let sortBy = 'name';
 
-/* ========= UI helpers ========= */
+/* ===== Elements ===== */
 const rowsEl = document.getElementById('rows');
 const countEl = document.getElementById('count');
 const searchBox = document.getElementById('searchBox');
-const sortBy = document.getElementById('sortBy');
+const clearBtn = document.getElementById('clearBtn');
+const sortSel = document.getElementById('sortBy');
+const addBtn = document.getElementById('addBtn');
+const exportBtn = document.getElementById('exportBtn');
+const importBtn = document.getElementById('importBtn');
+const fileImport = document.getElementById('fileImport');
+
+/* Modal */
+const m = new bootstrap.Modal(document.getElementById('editModal'));
+const editTitle = document.getElementById('editTitle');
+const f_name = document.getElementById('f_name');
+const f_id = document.getElementById('f_id');
+const f_notes = document.getElementById('f_notes');
+const f_internal = document.getElementById('f_internal');
+const deleteBtn = document.getElementById('deleteBtn');
+const saveBtn = document.getElementById('saveBtn');
 
 function uid(){ return 'id_' + Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
 
+/* ===== Render ===== */
 function render(){
-  const query = state.search.trim().toLowerCase();
-  let filtered = state.items.filter(x=>{
-    const hay = [x.name,x.id,x.tag,x.notes].map(v=> (v||'').toLowerCase()).join(' ');
-    return hay.includes(query);
+  const q = search.trim().toLowerCase();
+  let list = items.filter(x => {
+    const hay = (x.name||'') + ' ' + (x.id||'') + ' ' + (x.notes||'');
+    return hay.toLowerCase().includes(q);
   });
 
-  filtered.sort((a,b)=>{
-    const k = state.sortBy;
-    if(k==='updated'){ return (b.updatedAt||0) - (a.updatedAt||0); }
-    const av = (a[k]||'').toString().toLowerCase();
-    const bv = (b[k]||'').toString().toLowerCase();
+  list.sort((a,b)=>{
+    if (sortBy === 'updated') return (b.updatedAt||0) - (a.updatedAt||0);
+    const av = (a[sortBy]||'').toString().toLowerCase();
+    const bv = (b[sortBy]||'').toString().toLowerCase();
     return av.localeCompare(bv);
   });
 
   rowsEl.innerHTML = '';
-  for(const item of filtered){
+  for(const it of list){
     const tr = document.createElement('tr');
 
-    const nameTd = document.createElement('td');
-    nameTd.className='ps-3';
-    nameTd.innerHTML = `<div class="fw-semibold">${escapeHtml(item.name||'Unnamed')}</div>
-                        <div class="small muted truncate">${escapeHtml(item.notes||'')}</div>`;
-    tr.appendChild(nameTd);
+    const tdName = document.createElement('td');
+    tdName.innerHTML = `<div class="fw-semibold">${escapeHtml(it.name||'')}</div>
+                        <div class="small text-muted">${escapeHtml(it.notes||'')}</div>`;
+    tr.appendChild(tdName);
 
-    const idTd = document.createElement('td');
-    idTd.innerHTML = `<code>${escapeHtml(item.id)}</code>`;
-    tr.appendChild(idTd);
+    const tdId = document.createElement('td');
+    tdId.innerHTML = `<code>${escapeHtml(it.id||'')}</code>`;
+    tr.appendChild(tdId);
 
-    const tagTd = document.createElement('td');
-    tagTd.innerHTML = item.tag ? `<span class="badge text-bg-secondary">${escapeHtml(item.tag)}</span>` : '<span class="muted">—</span>';
-    tr.appendChild(tagTd);
-
-    const actionsTd = document.createElement('td');
-    actionsTd.className='text-center';
-    actionsTd.innerHTML = `
+    const tdActions = document.createElement('td');
+    tdActions.className = 'text-center';
+    tdActions.innerHTML = `
       <div class="btn-group btn-group-sm" role="group">
-        <button class="btn btn-outline-success" title="Open in RustDesk app">Open App</button>
-        <button class="btn btn-outline-warning" title="Open in Web (iframe)">Open in Web</button>
-        <button class="btn btn-outline-light" title="Copy ID">Copy ID</button>
-        <button class="btn btn-outline-light" title="Edit">Edit</button>
-      </div>`;
-    const [btnApp, btnWeb, btnCopy, btnEdit] = actionsTd.querySelectorAll('button');
+        <button class="btn btn-outline-primary" title="Open RustDesk app">Open App</button>
+        <button class="btn btn-outline-secondary" title="Copy ID">Copy</button>
+        <button class="btn btn-outline-dark" title="Edit">Edit</button>
+      </div>
+    `;
+    const [btnApp, btnCopy, btnEdit] = tdActions.querySelectorAll('button');
+    btnApp.addEventListener('click', ()=> openApp(it.id));
+    btnCopy.addEventListener('click', ()=> copyToClipboard(it.id));
+    btnEdit.addEventListener('click', ()=> openEdit(it.id_internal));
+    tr.appendChild(tdActions);
 
-    btnApp.addEventListener('click', ()=> openApp(item.id));
-    btnWeb.addEventListener('click', ()=> openWeb(item.id));
-    btnCopy.addEventListener('click', ()=> copyText(item.id));
-    btnEdit.addEventListener('click', ()=> editEntry(item.id_internal));
-
-    tr.appendChild(actionsTd);
     rowsEl.appendChild(tr);
   }
-  countEl.textContent = filtered.length;
+
+  countEl.textContent = list.length;
 }
 
 function escapeHtml(s){
   return (s??'').replace(/[&<>"']/g, m=> ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 }
 
-/* ========= Actions ========= */
+/* ===== Actions ===== */
 function openApp(id){
-  const url = `rustdesk://${encodeURIComponent(id)}`;
-  // Navigate; most browsers will pass to the OS handler if registered.
-  window.location.href = url;
+  if(!id) return;
+  location.href = 'rustdesk://' + encodeURIComponent(id);
 }
 
-const webFrame = document.getElementById('webFrame');
-function normalizedWebBase(){
-  let base = (state.settings.webBase||'').trim();
-  if(!base) return '';
-  // Ensure trailing slash
-  if(!base.endsWith('/')) base += '/';
-  return base;
-}
-function webConnectUrl(id){
-  // Adjust this path if your web client expects a different route or query.
-  // Common patterns you might try in Settings:
-  //   https://your-hbbs/web/   (then this builds https://your-hbbs/web/connect?id=XXXX)
-  //   https://your-hbbs/#/     (you might change below to '#/connect?id=' if needed)
-  return normalizedWebBase() + 'connect?id=' + encodeURIComponent(id);
-}
-function openWeb(id){
-  const base = normalizedWebBase();
-  if(!base){
-    alert('Please set a Web Client Base URL in Settings first.');
-    return;
-  }
-  const url = webConnectUrl(id);
-  webFrame.src = url;
-}
-
-function copyText(text){
-  navigator.clipboard.writeText(text).then(()=>{
-    toast('Copied ID to clipboard');
-  }).catch(()=>{
-    alert('Copy failed—your browser may block clipboard access.');
-  });
+function copyToClipboard(text){
+  if(!text) return;
+  navigator.clipboard?.writeText(text).then(()=> {
+    toast('ID copied');
+  }).catch(()=> alert('Copy failed.'));
 }
 
 function toast(msg){
-  // Minimal unobtrusive toast
-  const t = document.createElement('div');
-  t.textContent = msg;
-  t.style.position='fixed';
-  t.style.bottom='16px';
-  t.style.left='50%';
-  t.style.transform='translateX(-50%)';
-  t.style.background='#0b1224';
-  t.style.border='1px solid #223257';
-  t.style.padding='8px 12px';
-  t.style.borderRadius='10px';
-  t.style.zIndex='9999';
-  document.body.appendChild(t);
-  setTimeout(()=>{ t.remove(); }, 1300);
+  const el = document.createElement('div');
+  el.textContent = msg;
+  el.className = 'position-fixed start-50 translate-middle-x bottom-0 mb-3 px-3 py-2 rounded border bg-white shadow';
+  el.style.zIndex = 2000;
+  document.body.appendChild(el);
+  setTimeout(()=> el.remove(), 1200);
 }
 
-/* ========= Edit / Add ========= */
-const editModal = new bootstrap.Modal(document.getElementById('editModal'));
-const editTitle = document.getElementById('editTitle');
-const f_name = document.getElementById('f_name');
-const f_id = document.getElementById('f_id');
-const f_password = document.getElementById('f_password');
-const f_tag = document.getElementById('f_tag');
-const f_notes = document.getElementById('f_notes');
-const f_id_internal = document.getElementById('f_id_internal');
-const togglePw = document.getElementById('togglePw');
-const saveBtn = document.getElementById('saveBtn');
-const deleteBtn = document.getElementById('deleteBtn');
-
+/* ===== Edit / Add ===== */
 function clearForm(){
-  f_name.value=''; f_id.value=''; f_password.value='';
-  f_tag.value=''; f_notes.value=''; f_id_internal.value='';
+  f_name.value = '';
+  f_id.value = '';
+  f_notes.value = '';
+  f_internal.value = '';
 }
 
-function addEntry(){
+function openAdd(){
   clearForm();
   editTitle.textContent = 'Add Computer';
-  deleteBtn.style.display='none';
-  editModal.show();
-}
-function editEntry(internalId){
-  const it = state.items.find(x=>x.id_internal===internalId);
-  if(!it) return;
-  f_name.value = it.name||'';
-  f_id.value = it.id||'';
-  f_password.value = it.password||'';
-  f_tag.value = it.tag||'';
-  f_notes.value = it.notes||'';
-  f_id_internal.value = it.id_internal;
-  editTitle.textContent = 'Edit Computer';
-  deleteBtn.style.display='inline-block';
-  editModal.show();
+  deleteBtn.style.display = 'none';
+  m.show();
 }
 
-togglePw.addEventListener('click', ()=>{
-  const isPw = f_password.type === 'password';
-  f_password.type = isPw ? 'text' : 'password';
-  togglePw.textContent = isPw ? 'Hide' : 'Show';
-});
+function openEdit(internalId){
+  const it = items.find(x=> x.id_internal === internalId);
+  if(!it) return;
+  f_name.value = it.name || '';
+  f_id.value = it.id || '';
+  f_notes.value = it.notes || '';
+  f_internal.value = it.id_internal;
+  editTitle.textContent = 'Edit Computer';
+  deleteBtn.style.display = 'inline-block';
+  m.show();
+}
 
 saveBtn.addEventListener('click', ()=>{
-  if(!f_name.value.trim() || !f_id.value.trim()){
-    alert('Name and RustDesk ID are required.');
-    return;
-  }
+  const name = f_name.value.trim();
+  const id = f_id.value.trim();
+  if(!name || !id){ alert('Name and ID are required.'); return; }
   const now = Date.now();
-  const payload = {
-    name: f_name.value.trim(),
-    id: f_id.value.trim(),
-    password: f_password.value,
-    tag: f_tag.value.trim(),
-    notes: f_notes.value.trim(),
-    updatedAt: now
-  };
 
-  if(f_id_internal.value){
-    // update
-    const idx = state.items.findIndex(x=>x.id_internal===f_id_internal.value);
-    if(idx>=0){
-      state.items[idx] = Object.assign({}, state.items[idx], payload);
+  if(f_internal.value){
+    const i = items.findIndex(x=> x.id_internal === f_internal.value);
+    if(i>=0){
+      items[i] = Object.assign({}, items[i], { name, id, notes: f_notes.value.trim(), updatedAt: now });
     }
   }else{
-    // create
-    state.items.push(Object.assign({}, payload, { id_internal: uid(), createdAt: now }));
+    items.push({ id_internal: uid(), name, id, notes: f_notes.value.trim(), createdAt: now, updatedAt: now });
   }
-  saveAll(state.items);
+  saveAll(items);
   render();
-  editModal.hide();
+  m.hide();
 });
 
 deleteBtn.addEventListener('click', ()=>{
-  if(state.settings.confirmDelete){
-    if(!confirm('Delete this entry?')) return;
-  }
-  const idInt = f_id_internal.value;
-  state.items = state.items.filter(x=>x.id_internal!==idInt);
-  saveAll(state.items);
+  if(!confirm('Delete this entry?')) return;
+  const internal = f_internal.value;
+  items = items.filter(x=> x.id_internal !== internal);
+  saveAll(items);
   render();
-  editModal.hide();
+  m.hide();
 });
 
-/* ========= Import / Export ========= */
-const exportBtn = document.getElementById('exportBtn');
-const importBtn = document.getElementById('importBtn');
-const fileImport = document.getElementById('fileImport');
-
+/* ===== Import / Export ===== */
 exportBtn.addEventListener('click', ()=>{
-  const data = JSON.stringify(state.items, null, 2);
+  const data = JSON.stringify(items, null, 2);
   const blob = new Blob([data], {type:'application/json'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url;
-  a.download = 'rustdesk_address_book.json';
-  a.click();
+  a.href = url; a.download = 'rustdesk-contacts.json'; a.click();
   URL.revokeObjectURL(url);
 });
 
 importBtn.addEventListener('click', ()=> fileImport.click());
 fileImport.addEventListener('change', async (e)=>{
-  const file = e.target.files?.[0];
-  if(!file) return;
-  const text = await file.text();
+  const file = e.target.files?.[0]; if(!file) return;
   try{
+    const text = await file.text();
     const arr = JSON.parse(text);
-    if(!Array.isArray(arr)) throw new Error('Invalid file format');
-    // Normalize and keep existing ids if duplicates by id_internal
+    if(!Array.isArray(arr)) throw new Error('Not an array');
+    // Normalize + merge by id_internal if present
     const incoming = arr.map(x=> ({
       id_internal: x.id_internal || uid(),
-      name: x.name||'',
-      id: x.id||'',
-      password: x.password||'',
-      tag: x.tag||'',
-      notes: x.notes||'',
+      name: x.name || '',
+      id: x.id || '',
+      notes: x.notes || '',
       createdAt: x.createdAt || Date.now(),
       updatedAt: x.updatedAt || Date.now()
     }));
-    // Merge by id_internal uniqueness
-    const map = new Map(state.items.map(x=> [x.id_internal, x]));
-    for(const it of incoming){ map.set(it.id_internal, it); }
-    state.items = Array.from(map.values());
-    saveAll(state.items);
+    const map = new Map(items.map(x=> [x.id_internal, x]));
+    for(const it of incoming) map.set(it.id_internal, it);
+    items = Array.from(map.values());
+    saveAll(items);
     render();
     toast('Import complete');
   }catch(err){
@@ -489,60 +360,23 @@ fileImport.addEventListener('change', async (e)=>{
   }
 });
 
-/* ========= Settings ========= */
-const settingsModal = new bootstrap.Modal(document.getElementById('settingsModal'));
-const settingsBtn = document.getElementById('settingsBtn');
-const s_webbase = document.getElementById('s_webbase');
-const s_testid = document.getElementById('s_testid');
-const s_openApp = document.getElementById('s_openApp');
-const s_openWeb = document.getElementById('s_openWeb');
-const s_confirmDelete = document.getElementById('s_confirmDelete');
-const s_save = document.getElementById('s_save');
+/* ===== Controls ===== */
+addBtn.addEventListener('click', openAdd);
+searchBox.addEventListener('input', (e)=> { search = e.target.value; render(); });
+clearBtn.addEventListener('click', ()=> { searchBox.value=''; search=''; render(); });
+sortSel.addEventListener('change', (e)=> { sortBy = e.target.value; render(); });
 
-settingsBtn.addEventListener('click', ()=>{
-  s_webbase.value = state.settings.webBase||'';
-  s_confirmDelete.checked = !!state.settings.confirmDelete;
-  s_testid.value = '';
-  settingsModal.show();
-});
-
-s_openApp.addEventListener('click', ()=>{
-  const id = s_testid.value.trim();
-  if(!id){ alert('Enter an ID'); return; }
-  openApp(id);
-});
-s_openWeb.addEventListener('click', ()=>{
-  const id = s_testid.value.trim();
-  if(!id){ alert('Enter an ID'); return; }
-  openWeb(id);
-});
-s_save.addEventListener('click', ()=>{
-  state.settings.webBase = s_webbase.value.trim();
-  state.settings.confirmDelete = !!s_confirmDelete.checked;
-  saveSettings(state.settings);
-  settingsModal.hide();
-  toast('Settings saved');
-});
-
-/* ========= Top bar controls ========= */
-document.getElementById('addBtn').addEventListener('click', addEntry);
-document.getElementById('clearSearch').addEventListener('click', ()=>{ searchBox.value=''; state.search=''; render(); });
-document.getElementById('blankWebBtn').addEventListener('click', ()=>{ webFrame.removeAttribute('src'); });
-
-searchBox.addEventListener('input', (e)=>{ state.search = e.target.value; render(); });
-sortBy.addEventListener('change', (e)=>{ state.sortBy = e.target.value; render(); });
-
-/* ========= Initial ========= */
-function ensureDemoOnce(){
-  if(state.items.length===0){
-    state.items = [
-      { id_internal: uid(), name:'Office Desktop', id:'123-456-789', tag:'Office', notes:'Main workstation', password:'', createdAt:Date.now(), updatedAt:Date.now() },
-      { id_internal: uid(), name:'Lab NUC', id:'ABCD-9876', tag:'Lab', notes:'Ubuntu host', password:'', createdAt:Date.now(), updatedAt:Date.now() }
+/* ===== Init ===== */
+function ensureDemo(){
+  if(items.length===0){
+    items = [
+      { id_internal: uid(), name:'Office Desktop', id:'123-456-789', notes:'Main workstation', createdAt:Date.now(), updatedAt:Date.now() },
+      { id_internal: uid(), name:'Lab NUC', id:'ABCD-9876', notes:'Ubuntu host', createdAt:Date.now(), updatedAt:Date.now() }
     ];
-    saveAll(state.items);
+    saveAll(items);
   }
 }
-ensureDemoOnce();
+ensureDemo();
 render();
 </script>
 
