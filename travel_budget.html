@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Travel Budget — One-Page Calculator</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#0b1224; --panel2:#0c162d; --text:#e5e7eb; --muted:#94a3b8;
+    --accent:#60a5fa; --ok:#34d399; --warn:#fbbf24; --danger:#f87171; --border:#1f2937;
+    --grid:#1a2642; --grid-bold:#223257;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:linear-gradient(160deg,#0b1022,#0f172a 50%,#0b1224 100%);color:var(--text);font-family:system-ui,Segoe UI,Roboto,Ubuntu,Helvetica,Arial;line-height:1.35}
+  header{position:sticky;top:0;z-index:10;background:rgba(11,16,34,.7);backdrop-filter:blur(6px);border-bottom:1px solid var(--border)}
+  .wrap{max-width:1100px;margin:0 auto;padding:18px}
+  h1{margin:0 0 6px;font-size:22px;letter-spacing:.2px}
+  .sub{color:var(--muted);font-size:13px;margin-top:2px}
+  .grid{display:grid;gap:14px}
+  @media(min-width:920px){ .grid-3{grid-template-columns:1.1fr 1fr 1fr} }
+  .card{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--border);border-radius:14px;padding:14px}
+  label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+  input[type="number"],input[type="text"],select,textarea{
+    width:100%;background:#0b1326;border:1px solid var(--border);color:var(--text);border-radius:10px;padding:10px 12px;
+  }
+  input::placeholder{color:#8091ad}
+  .row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+  .btn{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--border);background:#0e1730;color:var(--text);padding:9px 12px;border-radius:10px;cursor:pointer;font-weight:600}
+  .btn:hover{border-color:#2a3b64}
+  .btn.small{padding:6px 10px;font-size:12px}
+  .btn.ghost{background:transparent}
+  .btn.accent{background:var(--accent);color:#0a1022;border-color:transparent}
+  .btn.warn{background:var(--warn);color:#1b1403;border-color:transparent}
+  .btn.danger{background:#d24d4d;color:#fff;border-color:transparent}
+  .toolbar{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+  table{width:100%;border-collapse:separate;border-spacing:0;border:1px solid var(--border);border-radius:12px;overflow:hidden}
+  thead th{position:sticky;top:62px;background:linear-gradient(180deg,#0b1224,#0b1428);border-bottom:1px solid var(--grid-bold);padding:10px;text-align:left;font-size:12px;color:#b6c2d6;z-index:5}
+  tbody td{border-bottom:1px solid var(--grid);padding:8px}
+  tbody tr:nth-child(even){background:#0c152b}
+  tbody tr:hover{background:#0e1832}
+  .num{text-align:right}
+  .right{margin-left:auto}
+  .pill{display:inline-block;padding:4px 8px;border-radius:999px;font-size:12px;border:1px solid var(--border);color:var(--muted)}
+  .summary{display:grid;gap:10px}
+  .summary .kpi{background:linear-gradient(180deg,#0d1630,#0b1224);border:1px solid var(--border);border-radius:12px;padding:14px}
+  .kpi .label{color:var(--muted);font-size:12px}
+  .kpi .value{font-size:22px;font-weight:800;margin-top:4px}
+  .kpi.ok .value{color:var(--ok)} .kpi.warn .value{color:var(--warn)}
+  details{background:#0b1224;border:1px dashed var(--border);padding:8px 12px;border-radius:10px}
+  details summary{cursor:pointer;color:var(--muted)}
+  .footer{color:var(--muted);font-size:12px;margin-top:14px}
+  .nowrap{white-space:nowrap}
+  .note{font-size:12px;color:var(--muted)}
+  .totals-row{background:#0a1123}
+  .hr{height:1px;background:var(--border);margin:10px 0}
+  @media print{
+    header,.toolbar,details,.footer{display:none !important}
+    body{background:#fff;color:#000}
+    .card,table,.kpi{border-color:#999}
+    thead th{top:0 !important}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>Travel Budget</h1>
+    <div class="sub">Quick rough-estimate trip planner — add items, tweak basis, and see totals update live.</div>
+  </div>
+</header>
+
+<main class="wrap grid" style="margin-top:12px">
+  <section class="card">
+    <div class="row" style="grid-template-columns:repeat(5,1fr);gap:12px">
+      <div>
+        <label>Trip Name</label>
+        <input id="tripName" type="text" placeholder="e.g., Tokyo in March" />
+      </div>
+      <div>
+        <label>Travelers</label>
+        <input id="travelers" type="number" min="1" value="2" />
+      </div>
+      <div>
+        <label>Days</label>
+        <input id="days" type="number" min="1" value="5" />
+      </div>
+      <div>
+        <label>Nights</label>
+        <input id="nights" type="number" min="0" value="4" />
+      </div>
+      <div>
+        <label>Contingency % (buffer)</label>
+        <input id="contingency" type="number" min="0" value="10" />
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <button class="btn small" data-quick="flight">+ Flight (pp)</button>
+      <button class="btn small" data-quick="hotel">+ Hotel (per night)</button>
+      <button class="btn small" data-quick="food">+ Food (pp/day)</button>
+      <button class="btn small" data-quick="rental">+ Rental car (per day)</button>
+      <button class="btn small" data-quick="gas">+ Gas (per trip)</button>
+      <button class="btn small" data-quick="activity">+ Activity (pp)</button>
+      <button class="btn small" data-quick="parking">+ Parking (per day)</button>
+      <button class="btn small" data-quick="souvenir">+ Souvenirs (per trip)</button>
+      <span class="right"></span>
+      <button id="addItem" class="btn accent small">+ Custom Item</button>
+    </div>
+  </section>
+
+  <section class="card" style="grid-column:1/-1">
+    <div style="overflow:auto;max-height:55vh">
+      <table id="items">
+        <thead>
+          <tr>
+            <th style="min-width:180px">Item</th>
+            <th>Basis</th>
+            <th class="num nowrap">Qty</th>
+            <th class="num nowrap">Unit Cost</th>
+            <th>Notes</th>
+            <th class="num nowrap">Subtotal</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+        <tfoot>
+          <tr class="totals-row">
+            <td colspan="5" class="num" style="font-weight:700;padding:12px">Subtotal</td>
+            <td class="num" id="subtotal" style="font-weight:800"></td>
+            <td></td>
+          </tr>
+          <tr>
+            <td colspan="5" class="num" style="padding:10px">Contingency (<span id="contPct">0</span>%)</td>
+            <td class="num" id="contAmt"></td>
+            <td></td>
+          </tr>
+          <tr>
+            <td colspan="5" class="num" style="font-weight:800;padding:12px">Grand Total</td>
+            <td class="num" id="grand"></td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    <div class="hr"></div>
+
+    <div class="summary grid grid-3">
+      <div class="kpi">
+        <div class="label">Per Person</div>
+        <div class="value" id="perPerson">$0</div>
+      </div>
+      <div class="kpi">
+        <div class="label">Per Day (overall)</div>
+        <div class="value" id="perDay">$0</div>
+      </div>
+      <div class="kpi ok">
+        <div class="label">Per Person / Day</div>
+        <div class="value" id="pppd">$0</div>
+      </div>
+    </div>
+
+    <div class="toolbar" style="margin-top:12px">
+      <button id="exportBtn" class="btn">Export JSON</button>
+      <button id="importBtn" class="btn ghost">Import JSON</button>
+      <button id="clearBtn" class="btn danger">Clear</button>
+      <span class="right"></span>
+      <button onclick="window.print()" class="btn warn">Print</button>
+    </div>
+
+    <details style="margin-top:10px">
+      <summary>Show / Paste JSON</summary>
+      <textarea id="jsonArea" rows="8" placeholder='Click "Export JSON" to dump the current plan here, or paste to import.'></textarea>
+    </details>
+
+    <div class="footer">
+      Tip: Use “basis” to scale items automatically by travelers, days, or nights. Everything auto-saves in your browser.
+    </div>
+  </section>
+</main>
+
+<script>
+(function(){
+  const $ = sel => document.querySelector(sel);
+  const $$ = sel => Array.from(document.querySelectorAll(sel));
+  const fmt = n => isFinite(n) ? n.toLocaleString(undefined,{style:'currency',currency:'USD',maximumFractionDigits:0}) : '$0';
+  const storeKey = 'travel_budget_onepager_v1';
+
+  const el = {
+    tripName: $('#tripName'),
+    travelers: $('#travelers'),
+    days: $('#days'),
+    nights: $('#nights'),
+    contingency: $('#contingency'),
+    addItem: $('#addItem'),
+    tbody: $('#tbody'),
+    subtotal: $('#subtotal'),
+    contPct: $('#contPct'),
+    contAmt: $('#contAmt'),
+    grand: $('#grand'),
+    perPerson: $('#perPerson'),
+    perDay: $('#perDay'),
+    pppd: $('#pppd'),
+    exportBtn: $('#exportBtn'),
+    importBtn: $('#importBtn'),
+    clearBtn: $('#clearBtn'),
+    jsonArea: $('#jsonArea')
+  };
+
+  const BASIS = [
+    {key:'perTrip', label:'Per Trip'},
+    {key:'perDay', label:'Per Day'},
+    {key:'perNight', label:'Per Night'},
+    {key:'perPerson', label:'Per Person'},
+    {key:'perPersonPerDay', label:'Per Person / Day'},
+  ];
+
+  let state = {
+    tripName:'',
+    travelers:2,
+    days:5,
+    nights:4,
+    contingency:10,
+    items:[]
+  };
+
+  function basisMultiplier(basis){
+    const t = +el.travelers.value || 0;
+    const d = +el.days.value || 0;
+    const n = +el.nights.value || 0;
+    switch(basis){
+      case 'perTrip': return 1;
+      case 'perDay': return d;
+      case 'perNight': return n;
+      case 'perPerson': return t;
+      case 'perPersonPerDay': return t * d;
+      default: return 1;
+    }
+  }
+
+  function makeRow(item){
+    const tr = document.createElement('tr');
+
+    const tdName = document.createElement('td');
+    const name = document.createElement('input');
+    name.type = 'text';
+    name.value = item.name || '';
+    name.placeholder = 'e.g., Flights, Hotel, Meals';
+    tdName.appendChild(name);
+
+    const tdBasis = document.createElement('td');
+    const basis = document.createElement('select');
+    BASIS.forEach(b=> {
+      const opt = document.createElement('option');
+      opt.value = b.key; opt.textContent = b.label;
+      if(item.basis === b.key) opt.selected = true;
+      basis.appendChild(opt);
+    });
+    tdBasis.appendChild(basis);
+
+    const tdQty = document.createElement('td'); tdQty.className='num';
+    const qty = document.createElement('input');
+    qty.type='number'; qty.min='0'; qty.step='1';
+    qty.value = item.qty ?? 1;
+    tdQty.appendChild(qty);
+
+    const tdUnit = document.createElement('td'); tdUnit.className='num';
+    const unit = document.createElement('input');
+    unit.type='number'; unit.min='0'; unit.step='0.01';
+    unit.value = item.unit ?? 0;
+    tdUnit.appendChild(unit);
+
+    const tdNotes = document.createElement('td');
+    const notes = document.createElement('input');
+    notes.type='text'; notes.placeholder='Optional notes';
+    notes.value = item.notes || '';
+    tdNotes.appendChild(notes);
+
+    const tdSub = document.createElement('td'); tdSub.className='num';
+    tdSub.textContent = '$0';
+
+    const tdDel = document.createElement('td');
+    const del = document.createElement('button');
+    del.className='btn small ghost';
+    del.textContent='Remove';
+    tdDel.appendChild(del);
+
+    tr.append(tdName,tdBasis,tdQty,tdUnit,tdNotes,tdSub,tdDel);
+
+    function update(){
+      item.name = name.value.trim();
+      item.basis = basis.value;
+      item.qty = +qty.value || 0;
+      item.unit = +unit.value || 0;
+      item.notes = notes.value.trim();
+      const mult = basisMultiplier(item.basis);
+      const subtotal = item.qty * item.unit * mult;
+      tdSub.textContent = fmt(subtotal);
+      save();
+      computeTotals();
+    }
+
+    [name,basis,qty,unit,notes].forEach(e=>e.addEventListener('input', update));
+    del.addEventListener('click', ()=>{
+      state.items = state.items.filter(it=>it._id!==item._id);
+      tr.remove();
+      save();
+      computeTotals();
+    });
+
+    // First paint
+    update();
+    return tr;
+  }
+
+  function addItem(item={}){
+    const withDefaults = {
+      _id: crypto.randomUUID(),
+      name: item.name || '',
+      basis: item.basis || 'perTrip',
+      qty: item.qty ?? 1,
+      unit: item.unit ?? 0,
+      notes: item.notes || ''
+    };
+    state.items.push(withDefaults);
+    el.tbody.appendChild(makeRow(withDefaults));
+    save();
+    computeTotals();
+  }
+
+  function computeTotals(){
+    // Update header controls into state
+    state.tripName = el.tripName.value.trim();
+    state.travelers = +el.travelers.value || 0;
+    state.days = +el.days.value || 0;
+    state.nights = +el.nights.value || 0;
+    state.contingency = +el.contingency.value || 0;
+
+    // Items
+    let sub = 0;
+    $$('#tbody tr').forEach((tr,idx)=>{
+      const inputs = tr.querySelectorAll('input,select');
+      const name=inputs[0].value;
+      const basis=inputs[1].value;
+      const qty=+inputs[2].value||0;
+      const unit=+inputs[3].value||0;
+      const mult = basisMultiplier(basis);
+      sub += qty*unit*mult;
+    });
+
+    const cont = sub * (state.contingency/100);
+    const total = sub + cont;
+    el.subtotal.textContent = fmt(sub);
+    el.contPct.textContent = (state.contingency||0);
+    el.contAmt.textContent = fmt(cont);
+    el.grand.textContent = fmt(total);
+
+    const t = Math.max(1, state.travelers||1);
+    const d = Math.max(1, state.days||1);
+
+    el.perPerson.textContent = fmt(total / t);
+    el.perDay.textContent = fmt(total / d);
+    el.pppd.textContent = fmt(total / (t*d));
+  }
+
+  function save(){
+    try{
+      const packed = {
+        tripName: el.tripName.value.trim(),
+        travelers: +el.travelers.value || 0,
+        days: +el.days.value || 0,
+        nights: +el.nights.value || 0,
+        contingency: +el.contingency.value || 0,
+        items: state.items
+      };
+      localStorage.setItem(storeKey, JSON.stringify(packed));
+    }catch(e){}
+  }
+
+  function load(){
+    const raw = localStorage.getItem(storeKey);
+    if(!raw){ // seed with a helpful starter set
+      el.tripName.value = 'Sample Trip';
+      el.travelers.value = 2;
+      el.days.value = 5;
+      el.nights.value = 4;
+      el.contingency.value = 10;
+      addQuick('flight'); addQuick('hotel'); addQuick('food');
+      return;
+    }
+    try{
+      const data = JSON.parse(raw);
+      el.tripName.value = data.tripName||'';
+      el.travelers.value = data.travelers??2;
+      el.days.value = data.days??5;
+      el.nights.value = data.nights??4;
+      el.contingency.value = data.contingency??10;
+      (data.items||[]).forEach(addItem);
+    }catch(e){}
+  }
+
+  function exportJSON(){
+    const packed = {
+      tripName: el.tripName.value.trim(),
+      travelers: +el.travelers.value || 0,
+      days: +el.days.value || 0,
+      nights: +el.nights.value || 0,
+      contingency: +el.contingency.value || 0,
+      items: state.items
+    };
+    const text = JSON.stringify(packed,null,2);
+    el.jsonArea.value = text;
+    el.jsonArea.focus();
+    el.jsonArea.select();
+  }
+
+  function importJSON(){
+    let text = el.jsonArea.value.trim();
+    if(!text){ alert('Paste JSON into the box first.'); return; }
+    try{
+      const data = JSON.parse(text);
+      // reset
+      state.items = [];
+      el.tbody.innerHTML = '';
+      el.tripName.value = data.tripName||'';
+      el.travelers.value = data.travelers??1;
+      el.days.value = data.days??1;
+      el.nights.value = data.nights??0;
+      el.contingency.value = data.contingency??0;
+      (data.items||[]).forEach(addItem);
+      save(); computeTotals();
+      alert('Imported!');
+    }catch(e){
+      alert('Invalid JSON.');
+    }
+  }
+
+  function clearAll(){
+    if(!confirm('Clear everything? This will wipe the page and local save.')) return;
+    localStorage.removeItem(storeKey);
+    state.items = [];
+    el.tbody.innerHTML = '';
+    el.tripName.value = '';
+    el.travelers.value = 1;
+    el.days.value = 1;
+    el.nights.value = 0;
+    el.contingency.value = 0;
+    computeTotals();
+  }
+
+  function addQuick(type){
+    const q = {
+      flight:   {name:'Flights', basis:'perPerson', qty:1, unit:400, notes:'Round trip'},
+      hotel:    {name:'Hotel', basis:'perNight', qty:1, unit:160, notes:'Per room; adjust qty if >1 room'},
+      food:     {name:'Food', basis:'perPersonPerDay', qty:1, unit:45, notes:'Meals & snacks'},
+      rental:   {name:'Rental Car', basis:'perDay', qty:1, unit:55, notes:'Base rental cost'},
+      gas:      {name:'Gas / Transit', basis:'perTrip', qty:1, unit:120, notes:'Fuel, tolls, trains, etc.'},
+      activity: {name:'Activities', basis:'perPerson', qty:1, unit:60, notes:'Tickets, tours'},
+      parking:  {name:'Parking', basis:'perDay', qty:1, unit:15, notes:'Hotel/venue parking'},
+      souvenir: {name:'Souvenirs', basis:'perTrip', qty:1, unit:80, notes:'Gifts & extras'}
+    }[type];
+    if(q) addItem(q);
+  }
+
+  // Events
+  el.addItem.addEventListener('click', ()=>addItem({name:'New Item', basis:'perTrip', qty:1, unit:0}));
+  $$('.btn.small[data-quick]').forEach(b=>{
+    b.addEventListener('click', ()=>addQuick(b.dataset.quick));
+  });
+  ['tripName','travelers','days','nights','contingency'].forEach(id=>{
+    $('#'+id).addEventListener('input', ()=>{ save(); computeTotals(); });
+  });
+  el.exportBtn.addEventListener('click', exportJSON);
+  el.importBtn.addEventListener('click', importJSON);
+  el.clearBtn.addEventListener('click', clearAll);
+
+  // Init
+  load();
+  computeTotals();
+})();
+</script>
+</body>
+</html>
