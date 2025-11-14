@@ -49,7 +49,8 @@ summary{cursor:pointer}
       </div>
       <div style="grid-column:span 3;">
         <label for="branch">Branch override (optional)</label>
-        <input id="branch" placeholder="e.g., main" />
+        <!-- placeholder changed to develop -->
+        <input id="branch" placeholder="e.g., develop" />
       </div>
 
       <div style="grid-column:span 12;" class="controls">
@@ -83,6 +84,10 @@ summary{cursor:pointer}
           <option value="10">Max branches/repo: 10</option>
         </select>
         <label class="small"><input type="checkbox" id="showHistory" /> Show 5 recent completed in details</label>
+
+        <!-- NEW: include-active toggle -->
+        <label class="small"><input type="checkbox" id="scopeActive" checked /> Always include active branches</label>
+
         <label class="small"><input type="checkbox" id="autoRefresh" /> Auto-refresh</label>
         <select id="interval" style="max-width:120px">
           <option value="15">15s</option>
@@ -177,6 +182,64 @@ async function fetchAllPages(baseUrl, token){
   return out;
 }
 
+/* ---------- Jobs (lazy, Option 2) ---------- */
+async function fetchJobsForRun(owner, repo, runId, token) {
+  const all = [];
+  let page = 1;
+  while (true) {
+    const u = new URL(`https://api.github.com/repos/${owner}/${repo}/actions/runs/${runId}/jobs`);
+    u.searchParams.set("per_page", "100");
+    u.searchParams.set("page", String(page));
+    const data = await ghJson(u, token);
+    const chunk = Array.isArray(data.jobs) ? data.jobs : [];
+    if (!chunk.length) break;
+    all.push(...chunk);
+    if (chunk.length < 100) break;
+    page++;
+  }
+  return all;
+}
+function jobsContainerId(owner, repo, runId) {
+  return `jobs-${owner}-${repo}-${runId}`.replace(/[^a-zA-Z0-9_-]/g, "_");
+}
+function renderJobsList(jobs) {
+  if (!jobs || !jobs.length) return `<div class="muted small">No jobs found.</div>`;
+  return jobs.map(j => `
+    <div class="row">
+      ${pillStatus(j.status)}
+      <span>${j.name||""}</span>
+      ${j.conclusion ? pillConclusion(j.conclusion) : ""}
+      <span class="mono">${j.runner_name ? `runner:${j.runner_name}` : ""}</span>
+      <span class="mono">${fmtElapsed(j.started_at||j.created_at)}</span>
+      ${j.html_url ? `<a href="${j.html_url}" target="_blank" rel="noopener">logs</a>` : ""}
+    </div>
+  `).join("");
+}
+function bindLazyJobs(rows) {
+  for (const r of rows) {
+    const detId = `det-${r.owner}-${r.repo}`.replace(/[^a-zA-Z0-9_-]/g, "_");
+    const det = document.getElementById(detId);
+    if (!det) continue;
+    det.addEventListener("toggle", async () => {
+      if (!det.open || det.dataset.jobsLoaded) return;
+      det.dataset.jobsLoaded = "1";
+      const token = $id("token").value.trim();
+      for (const run of r.activeFiltered) {
+        const placeholder = document.getElementById(jobsContainerId(r.owner, r.repo, run.id));
+        if (!placeholder) continue;
+        placeholder.innerHTML = `<div class="small muted">Loading jobs…</div>`;
+        try {
+          const jobs = await fetchJobsForRun(r.owner, r.repo, run.id, token);
+          placeholder.innerHTML = renderJobsList(jobs);
+        } catch (e) {
+          console.error(e);
+          placeholder.innerHTML = `<div class="small err">Failed to load jobs: ${e.message}</div>`;
+        }
+      }
+    }, { once: true });
+  }
+}
+
 // ---------- Repo discovery ----------
 async function fetchRepos(){
   const token=$id("token").value.trim();
@@ -235,7 +298,7 @@ async function collectRecentBranches(owner, repo, hours, cap, token){
   const cutoff = Date.now() - hours*3600*1000;
   const out = [];
   let page=1;
-  while(out.length < cap && page <= 5){ // hard stop at 5 pages (500 runs) for sanity
+  while(out.length < cap && page <= 5){
     const u=new URL(`https://api.github.com/repos/${owner}/${repo}/actions/runs`);
     u.searchParams.set("per_page","100");
     u.searchParams.set("page", String(page));
@@ -245,7 +308,7 @@ async function collectRecentBranches(owner, repo, hours, cap, token){
 
     for(const r of runs){
       const t = new Date(r.created_at || r.run_started_at).getTime();
-      if(t < cutoff) { page = 9999; break; } // older than window; stop early
+      if(t < cutoff) { page = 9999; break; }
       if(r.head_branch && !out.includes(r.head_branch)) out.push(r.head_branch);
       if(out.length>=cap) break;
     }
@@ -255,7 +318,6 @@ async function collectRecentBranches(owner, repo, hours, cap, token){
 }
 
 async function fetchActiveRuns(owner, repo, token){
-  // Fetch by live statuses (no branch param), then filter later
   const all=[];
   for(const st of LIVE_STATUSES){
     const u=new URL(`https://api.github.com/repos/${owner}/${repo}/actions/runs`);
@@ -264,7 +326,6 @@ async function fetchActiveRuns(owner, repo, token){
     const data=await ghJson(u, token);
     if(Array.isArray(data.workflow_runs)) all.push(...data.workflow_runs);
   }
-  // de-dup by id
   const seen=new Set();
   return all.filter(r => !seen.has(r.id) && (seen.add(r.id), true));
 }
@@ -304,17 +365,21 @@ function renderSummary(rows){
               <div class="muted">Branches scanned:</div>
               <div>${r.scannedBranches.length ? r.scannedBranches.map(b=>`<span class="badge mono">${b}</span>`).join(' ') : '<span class="muted">all (no scope)</span>'}</div>
               <div class="muted">Active runs:</div>
-              <div>${r.activeFiltered.length
-                ? r.activeFiltered.map(x=>`<div class="row">
-                    ${pillStatus(x.status)}
-                    <span>${x.name||""}</span>
-                    <span class="mono">#${x.run_number}</span>
-                    <span class="mono">[${x.head_branch||""}]</span>
-                    <span class="mono">${fmtElapsed(x.run_started_at||x.created_at)}</span>
-                    <a href="${x.html_url}" target="_blank" rel="noopener">open</a>
-                  </div>`).join("")
-                : "<span class='muted'>none</span>"}
-              </div>
+              <div>${
+                r.activeFiltered.length
+                  ? r.activeFiltered.map(x=>`
+                    <div class="row">
+                      ${pillStatus(x.status)}
+                      <span>${x.name||""}</span>
+                      <span class="mono">#${x.run_number}</span>
+                      <span class="mono">[${x.head_branch||""}]</span>
+                      <span class="mono">${fmtElapsed(x.run_started_at||x.created_at)}</span>
+                      <a href="${x.html_url}" target="_blank" rel="noopener">open</a>
+                    </div>
+                    <div class="details" id="${jobsContainerId(r.owner, r.repo, x.id)}"></div>
+                  `).join("")
+                  : "<span class='muted'>none</span>"
+              }</div>
               ${r.history && r.history.length ? `
                 <div class="muted">Recent completed:</div>
                 <div>${r.history.map(h=>`
@@ -344,12 +409,13 @@ async function scan(){
   const token=$id("token").value.trim();
   const ownerInput=$id("owner").value.trim();
   const source=$id("repoSource").value;
-  const manualOwner = ownerInput; // when repos belong to same owner
-  const branchOverride=$id("branch").value.trim();
+  const manualOwner = ownerInput;
+  const branchInput=$id("branch").value.trim();
   const include=$id("include").value.trim();
   const exclude=$id("exclude").value.trim();
   const repos=parseRepos($id("repos").value);
   const scopeRecent=$id("scopeRecent").checked;
+  const includeActiveToggle=$id("scopeActive")?.checked !== false;
   const windowHours=parseInt($id("windowHours").value,10)||48;
   const maxBranches=parseInt($id("maxBranches").value,10)||5;
   const showHistory=$id("showHistory").checked;
@@ -359,24 +425,17 @@ async function scan(){
   setStatus("Scanning…");
   const rows=[];
 
-  // Determine owner per repo:
-  // - If owner is provided (org mode), use that.
-  // - If source == mine/manual with mixed owners, we’ll infer owner via a cheap /repos/:owner/:repo GET only if needed.
   async function inferOwner(repo){
     if(manualOwner) return manualOwner;
-    // Try to derive by querying via /user/repos list cache? To keep simple, hit a repo endpoint:
     try{
       const meta = await ghJson(`https://api.github.com/repos/${repo.includes('/')?repo:(ownerInput?ownerInput+"/":"") + repo}`, token);
       return meta.owner?.login || ownerInput || "";
     }catch{
-      // If user provided owner/repo format in textarea, honor that:
       if(repo.includes('/')) return repo.split('/')[0];
-      // fallback to ownerInput if present
       return ownerInput || "";
     }
   }
 
-  // Utility to split "owner/repo" or plain "repo"
   function splitRepo(r, ownerGuess){
     if(r.includes('/')) { const [o,n]=r.split('/'); return {owner:o, repo:n}; }
     return {owner:ownerGuess, repo:r};
@@ -388,49 +447,65 @@ async function scan(){
       const {owner, repo} = splitRepo(r, ownerGuess);
       if(!owner || !repo){ rows.push({owner:"?", repo:r, latest:null, activeFiltered:[], scannedBranches:[], scopeNote:"invalid owner/repo"}); continue; }
 
-      // 1) Latest completed (branch override respected)
-      const latest = await latestCompleted(owner, repo, branchOverride || "", token);
+      // 1) Latest completed — default to 'develop' if branch input is blank
+      const defaultBranch = branchInput || "develop";
+      const latest = await latestCompleted(owner, repo, defaultBranch, token);
 
-      // 2) Active runs (no branch param; cheaper to call once per status and filter)
+      // 2) All active runs
       const activeAll = await fetchActiveRuns(owner, repo, token);
 
-      // 3) Branch scoping list:
+      // 3) Branch scoping list
       let scannedBranches = [];
       let scopeNote = "all branches";
-      if(branchOverride){
-        scannedBranches = [branchOverride];
-        scopeNote = `override: ${branchOverride}`;
+      if(branchInput){
+        scannedBranches = [branchInput];
+        scopeNote = `override: ${branchInput}`;
       } else if(scopeRecent){
         scannedBranches = await collectRecentBranches(owner, repo, windowHours, maxBranches, token);
         scopeNote = scannedBranches.length
           ? `recent ${scannedBranches.length} branch(es) in last ${windowHours}h`
           : `no recent branches in last ${windowHours}h (showing none)`;
       } else {
-        // all branches
-        scannedBranches = [];
         scopeNote = "all branches (no scope)";
       }
 
-      // 4) Filter active runs to scoped branches (or all if no scope / override empty)
-      let activeFiltered = activeAll;
-      if(branchOverride){
-        activeFiltered = activeAll.filter(x=>x.head_branch===branchOverride);
-      } else if(scopeRecent){
-        if(scannedBranches.length>0){
-          const set=new Set(scannedBranches);
-          activeFiltered = activeAll.filter(x=> set.has(x.head_branch));
-        } else {
-          activeFiltered = []; // no recent branches; show none
-        }
-      } // else no scope: keep all
+      // 4) Union: always include active branches (prefer truly running: in_progress)
+      const activeBranches = new Set(
+        activeAll
+          .filter(rr => rr.status === "in_progress" && rr.head_branch)
+          .map(rr => rr.head_branch)
+      );
 
-      // 5) Optional small history list (latest 5 completed)
+      let branchSet = null;
+      if (branchInput) {
+        branchSet = new Set(scannedBranches);
+      } else if (scopeRecent) {
+        branchSet = new Set(scannedBranches);
+      }
+
+      if (includeActiveToggle) {
+        branchSet = branchSet ? new Set([...branchSet, ...activeBranches]) : new Set(activeBranches);
+      }
+
+      // 5) Filter active runs by final branch set; if none, keep all (so truly running work is shown)
+      let activeFiltered = activeAll;
+      if (branchSet && branchSet.size > 0) {
+        activeFiltered = activeAll.filter(x => branchSet.has(x.head_branch));
+        const preview = Array.from(branchSet).sort().slice(0, 10);
+        scopeNote += preview.length
+          ? ` • +active branches (${preview.join(", ")}${branchSet.size > preview.length ? ", …" : ""})`
+          : "";
+      } else if (scopeRecent && !includeActiveToggle) {
+        activeFiltered = [];
+      }
+
+      // 6) Optional small history list
       let history = null;
       if(showHistory){
         const u=new URL(`https://api.github.com/repos/${owner}/${repo}/actions/runs`);
         u.searchParams.set("status","completed");
         u.searchParams.set("per_page","5");
-        if(branchOverride) u.searchParams.set("branch", branchOverride);
+        if(branchInput) u.searchParams.set("branch", branchInput);
         const data=await ghJson(u, token);
         history = (data.workflow_runs||[]).map(h=>({
           conclusion:h.conclusion, when:h.run_started_at||h.created_at, url:h.html_url,
@@ -438,7 +513,7 @@ async function scan(){
         }));
       }
 
-      // 6) Include/exclude repo filters (by name) at the end too (defensive)
+      // 7) Include/exclude repo filters
       if((include && !globMatch(repo, include)) || (exclude && globMatch(repo, exclude))){
         continue;
       }
@@ -463,6 +538,8 @@ async function scan(){
     });
 
     renderSummary(rows);
+    // bind lazy job fetching after DOM is rendered
+    bindLazyJobs(rows);
 
     const activeRepos = rows.filter(r=>r.activeFiltered.length).length;
     const msg = `Scanned ${rows.length} repo(s). ${activeRepos} with active runs.`;
@@ -500,7 +577,7 @@ $id("interval").addEventListener("change", ()=>{
   }
 });
 
-// Live “elapsed” updater for detail panels
+// Live “elapsed” updater for detail panels (placeholder hook)
 setInterval(()=>{
   document.querySelectorAll(".details .row .mono").forEach(() => {}); // no-op placeholder
 }, 1000);
