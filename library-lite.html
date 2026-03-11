@@ -1,0 +1,798 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Single-Page Library Checkout</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #111c33;
+      --muted: #93a4bf;
+      --text: #e6edf7;
+      --border: rgba(255,255,255,0.12);
+      --ok: #22c55e;
+      --warn: #f59e0b;
+      --bad: #ef4444;
+      --btn: #1f2a44;
+      --btn2: #223055;
+      --focus: rgba(59,130,246,0.5);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: var(--sans);
+      background: radial-gradient(1000px 600px at 10% 0%, rgba(59,130,246,0.18), transparent 50%),
+                  radial-gradient(900px 600px at 90% 10%, rgba(34,197,94,0.12), transparent 55%),
+                  var(--bg);
+      color: var(--text);
+    }
+    header {
+      padding: 18px 18px 10px 18px;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      backdrop-filter: blur(10px);
+      background: rgba(15,23,42,0.75);
+      z-index: 10;
+    }
+    header .row {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+    }
+    h1 {
+      font-size: 18px;
+      margin: 0;
+      letter-spacing: 0.2px;
+    }
+    .sub {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 4px;
+    }
+    .wrap { padding: 16px 18px 28px 18px; max-width: 1200px; margin: 0 auto; }
+    .grid {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 14px;
+    }
+    @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+    }
+    .card h2 {
+      font-size: 14px;
+      margin: 0 0 10px 0;
+      color: #dbe7ff;
+      letter-spacing: 0.2px;
+    }
+    .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .col { display: flex; flex-direction: column; gap: 8px; min-width: 230px; flex: 1; }
+    label { font-size: 12px; color: var(--muted); }
+    input, select, textarea {
+      width: 100%;
+      padding: 10px 11px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: rgba(17,28,51,0.55);
+      color: var(--text);
+      outline: none;
+    }
+    input:focus, select:focus, textarea:focus {
+      border-color: rgba(59,130,246,0.75);
+      box-shadow: 0 0 0 3px var(--focus);
+    }
+    textarea { min-height: 70px; resize: vertical; }
+    .btn {
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--btn);
+      color: var(--text);
+      cursor: pointer;
+      font-weight: 600;
+      letter-spacing: 0.2px;
+    }
+    .btn:hover { background: var(--btn2); }
+    .btn.ok { background: rgba(34,197,94,0.18); border-color: rgba(34,197,94,0.45); }
+    .btn.warn { background: rgba(245,158,11,0.18); border-color: rgba(245,158,11,0.45); }
+    .btn.bad { background: rgba(239,68,68,0.18); border-color: rgba(239,68,68,0.45); }
+    .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+    .pill {
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 12px;
+      background: rgba(255,255,255,0.03);
+    }
+    .mono { font-family: var(--mono); }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8px;
+      overflow: hidden;
+      border-radius: 12px;
+    }
+    th, td {
+      text-align: left;
+      padding: 9px 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      font-size: 12px;
+      vertical-align: top;
+    }
+    th { color: var(--muted); font-weight: 700; }
+    tr:hover td { background: rgba(255,255,255,0.03); }
+    .status {
+      font-weight: 800;
+      letter-spacing: 0.2px;
+      font-size: 11px;
+    }
+    .status.in { color: var(--ok); }
+    .status.out { color: var(--warn); }
+    .status.late { color: var(--bad); }
+    .small { font-size: 12px; color: var(--muted); }
+    .rightActions { display:flex; gap:10px; flex-wrap: wrap; justify-content: flex-end; }
+    .footerActions { display:flex; gap:10px; flex-wrap: wrap; }
+    .toast {
+      position: fixed;
+      bottom: 18px;
+      right: 18px;
+      background: rgba(17,28,51,0.92);
+      border: 1px solid var(--border);
+      padding: 10px 12px;
+      border-radius: 12px;
+      max-width: 380px;
+      display: none;
+      z-index: 50;
+    }
+    .toast strong { display:block; font-size: 13px; margin-bottom: 2px; }
+    .toast span { color: var(--muted); font-size: 12px; }
+  </style>
+</head>
+<body>
+<header>
+  <div class="row">
+    <div>
+      <h1>Library Checkout (Single Page)</h1>
+      <div class="sub">Local-only. Uses browser storage. Export/Import JSON for backups.</div>
+    </div>
+    <div class="rightActions">
+      <span class="pill">Patrons: <span id="patronCount" class="mono">0</span></span>
+      <span class="pill">Books: <span id="bookCount" class="mono">0</span></span>
+      <span class="pill">Checked Out: <span id="outCount" class="mono">0</span></span>
+      <button class="btn" id="btnDemo">Load Demo Data</button>
+      <button class="btn" id="btnClear">Clear All</button>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="grid">
+    <div class="card">
+      <h2>Checkout / Return</h2>
+      <div class="row">
+        <div class="col">
+          <label>Patron ID (scan/enter)</label>
+          <input id="patronId" placeholder="e.g. P1001" autocomplete="off" />
+        </div>
+        <div class="col">
+          <label>Book Barcode/ID (scan/enter)</label>
+          <input id="bookId" placeholder="e.g. B90021" autocomplete="off" />
+        </div>
+        <div class="col" style="min-width:180px; max-width:220px;">
+          <label>Loan days</label>
+          <input id="loanDays" type="number" min="1" max="365" value="14" />
+        </div>
+      </div>
+
+      <div class="row" style="margin-top: 10px;">
+        <button class="btn ok" id="btnCheckout">Checkout</button>
+        <button class="btn warn" id="btnReturn">Return</button>
+        <button class="btn" id="btnQuickFind">Quick Find</button>
+        <span class="pill">Tip: press <span class="mono">Enter</span> in Book field to checkout</span>
+      </div>
+
+      <div style="margin-top: 12px;" class="row">
+        <div class="col">
+          <label>Notes (optional, stored in transaction log)</label>
+          <textarea id="note" placeholder="Optional note: condition, special rules, etc."></textarea>
+        </div>
+      </div>
+
+      <div style="margin-top: 12px;">
+        <h2>Currently Checked Out</h2>
+        <div class="small">Shows all items with due dates and who has them.</div>
+        <table>
+          <thead>
+            <tr>
+              <th>Book</th>
+              <th>Title</th>
+              <th>Patron</th>
+              <th>Due</th>
+              <th>Status</th>
+              <th style="width: 220px;">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="outTable"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Catalog + Patrons</h2>
+
+      <div class="row">
+        <div class="col">
+          <label>Search</label>
+          <input id="search" placeholder="Search patrons/books (ID, name, title, author)" autocomplete="off" />
+        </div>
+      </div>
+
+      <div class="row" style="margin-top: 12px;">
+        <div class="col">
+          <h2>Add Patron</h2>
+          <label>Patron ID</label>
+          <input id="newPatronId" placeholder="e.g. P1002" autocomplete="off" />
+          <label>Name</label>
+          <input id="newPatronName" placeholder="e.g. Gene Smith" autocomplete="off" />
+          <button class="btn" id="btnAddPatron">Add Patron</button>
+        </div>
+
+        <div class="col">
+          <h2>Add Book</h2>
+          <label>Book ID / Barcode</label>
+          <input id="newBookId" placeholder="e.g. B12345" autocomplete="off" />
+          <label>Title</label>
+          <input id="newBookTitle" placeholder="e.g. The Art of DevOps" autocomplete="off" />
+          <label>Author</label>
+          <input id="newBookAuthor" placeholder="e.g. A. Frank" autocomplete="off" />
+          <button class="btn" id="btnAddBook">Add Book</button>
+        </div>
+      </div>
+
+      <div style="margin-top: 14px;">
+        <h2>Search Results</h2>
+        <div class="small">Click an item to fill the checkout fields.</div>
+        <table>
+          <thead>
+            <tr>
+              <th>Type</th>
+              <th>ID</th>
+              <th>Name/Title</th>
+              <th>Extra</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="searchTable"></tbody>
+        </table>
+      </div>
+
+      <div style="margin-top: 14px;">
+        <h2>Data</h2>
+        <div class="footerActions">
+          <button class="btn" id="btnExport">Export JSON</button>
+          <button class="btn" id="btnImport">Import JSON</button>
+          <input type="file" id="importFile" accept="application/json" style="display:none;" />
+          <button class="btn" id="btnExportCSV">Export Transactions CSV</button>
+        </div>
+        <div class="small" style="margin-top:8px;">
+          Storage key: <span class="mono">library_checkout_v1</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">
+  <strong id="toastTitle">Saved</strong>
+  <span id="toastMsg">OK</span>
+</div>
+
+<script>
+(() => {
+  const STORAGE_KEY = "library_checkout_v1";
+
+  /** Data shape:
+   * patrons: { [patronId]: { id, name, createdAt } }
+   * books: { [bookId]: { id, title, author, createdAt } }
+   * loans: { [bookId]: { bookId, patronId, outAt, dueAt, returnedAt?: string|null } }  // only active loans stored here
+   * tx: Array<{ ts, type, patronId, bookId, note }>
+   */
+  const nowISO = () => new Date().toISOString();
+  const dateOnly = (iso) => {
+    if (!iso) return "";
+    const d = new Date(iso);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth()+1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  };
+  const addDaysISO = (startISO, days) => {
+    const d = new Date(startISO);
+    d.setDate(d.getDate() + Number(days));
+    return d.toISOString();
+  };
+  const isPast = (iso) => new Date(iso).getTime() < Date.now();
+
+  const $ = (id) => document.getElementById(id);
+
+  function load() {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) {
+      return { patrons: {}, books: {}, loans: {}, tx: [] };
+    }
+    try {
+      const parsed = JSON.parse(raw);
+      // basic hardening
+      parsed.patrons ??= {};
+      parsed.books ??= {};
+      parsed.loans ??= {};
+      parsed.tx ??= [];
+      return parsed;
+    } catch {
+      return { patrons: {}, books: {}, loans: {}, tx: [] };
+    }
+  }
+
+  function save(state) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state, null, 2));
+    updateBadges(state);
+  }
+
+  function toast(title, msg) {
+    const t = $("toast");
+    $("toastTitle").textContent = title;
+    $("toastMsg").textContent = msg;
+    t.style.display = "block";
+    clearTimeout(toast._timer);
+    toast._timer = setTimeout(() => { t.style.display = "none"; }, 2200);
+  }
+
+  function normId(s) {
+    return String(s || "").trim();
+  }
+
+  function requireId(label, val) {
+    if (!val) throw new Error(`${label} is required.`);
+  }
+
+  function updateBadges(state) {
+    $("patronCount").textContent = Object.keys(state.patrons).length;
+    $("bookCount").textContent = Object.keys(state.books).length;
+    $("outCount").textContent = Object.keys(state.loans).length;
+  }
+
+  function statusForBook(state, bookId) {
+    if (state.loans[bookId]) {
+      const due = state.loans[bookId].dueAt;
+      if (isPast(due)) return "late";
+      return "out";
+    }
+    return "in";
+  }
+
+  function renderOutTable(state) {
+    const tbody = $("outTable");
+    tbody.innerHTML = "";
+    const active = Object.values(state.loans)
+      .sort((a, b) => new Date(a.dueAt) - new Date(b.dueAt));
+
+    if (active.length === 0) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td colspan="6" class="small">No active checkouts.</td>`;
+      tbody.appendChild(tr);
+      return;
+    }
+
+    for (const loan of active) {
+      const book = state.books[loan.bookId] || { id: loan.bookId, title: "(unknown)", author: "" };
+      const patron = state.patrons[loan.patronId] || { id: loan.patronId, name: "(unknown)" };
+      const st = isPast(loan.dueAt) ? "late" : "out";
+      const stLabel = st === "late" ? "OVERDUE" : "OUT";
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="mono">${escapeHtml(book.id)}</td>
+        <td>${escapeHtml(book.title)}</td>
+        <td>${escapeHtml(patron.name)} <span class="small mono">(${escapeHtml(patron.id)})</span></td>
+        <td class="mono">${escapeHtml(dateOnly(loan.dueAt))}</td>
+        <td><span class="status ${st}">${stLabel}</span></td>
+        <td>
+          <button class="btn warn" data-action="return" data-book="${escapeAttr(book.id)}">Return</button>
+          <button class="btn" data-action="fill" data-book="${escapeAttr(book.id)}" data-patron="${escapeAttr(patron.id)}">Fill</button>
+          <button class="btn bad" data-action="deleteLoan" data-book="${escapeAttr(book.id)}">Delete Loan</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    }
+  }
+
+  function renderSearch(state) {
+    const q = $("search").value.trim().toLowerCase();
+    const tbody = $("searchTable");
+    tbody.innerHTML = "";
+
+    const patronRows = Object.values(state.patrons).map(p => ({
+      type: "Patron",
+      id: p.id,
+      label: p.name,
+      extra: "",
+      status: "",
+      onClick: () => { $("patronId").value = p.id; $("patronId").focus(); }
+    }));
+
+    const bookRows = Object.values(state.books).map(b => ({
+      type: "Book",
+      id: b.id,
+      label: b.title,
+      extra: b.author || "",
+      status: statusForBook(state, b.id),
+      onClick: () => { $("bookId").value = b.id; $("bookId").focus(); }
+    }));
+
+    let rows = patronRows.concat(bookRows);
+
+    if (q) {
+      rows = rows.filter(r =>
+        r.type.toLowerCase().includes(q) ||
+        r.id.toLowerCase().includes(q) ||
+        (r.label || "").toLowerCase().includes(q) ||
+        (r.extra || "").toLowerCase().includes(q)
+      );
+    } else {
+      rows = rows.slice(0, 18);
+    }
+
+    if (rows.length === 0) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td colspan="5" class="small">No matches.</td>`;
+      tbody.appendChild(tr);
+      return;
+    }
+
+    for (const r of rows) {
+      const st = r.status;
+      let stHtml = "";
+      if (r.type === "Book") {
+        if (st === "in") stHtml = `<span class="status in">IN</span>`;
+        if (st === "out") stHtml = `<span class="status out">OUT</span>`;
+        if (st === "late") stHtml = `<span class="status late">OVERDUE</span>`;
+      }
+      const tr = document.createElement("tr");
+      tr.style.cursor = "pointer";
+      tr.innerHTML = `
+        <td>${escapeHtml(r.type)}</td>
+        <td class="mono">${escapeHtml(r.id)}</td>
+        <td>${escapeHtml(r.label)}</td>
+        <td>${escapeHtml(r.extra)}</td>
+        <td>${stHtml}</td>
+      `;
+      tr.addEventListener("click", r.onClick);
+      tbody.appendChild(tr);
+    }
+  }
+
+  function addPatron(state) {
+    const id = normId($("newPatronId").value);
+    const name = normId($("newPatronName").value);
+    requireId("Patron ID", id);
+    requireId("Name", name);
+    if (state.patrons[id]) throw new Error(`Patron ${id} already exists.`);
+    state.patrons[id] = { id, name, createdAt: nowISO() };
+    state.tx.unshift({ ts: nowISO(), type: "ADD_PATRON", patronId: id, bookId: "", note: "" });
+    $("newPatronId").value = "";
+    $("newPatronName").value = "";
+    toast("Patron added", `${name} (${id})`);
+  }
+
+  function addBook(state) {
+    const id = normId($("newBookId").value);
+    const title = normId($("newBookTitle").value);
+    const author = normId($("newBookAuthor").value);
+    requireId("Book ID", id);
+    requireId("Title", title);
+    if (state.books[id]) throw new Error(`Book ${id} already exists.`);
+    state.books[id] = { id, title, author, createdAt: nowISO() };
+    state.tx.unshift({ ts: nowISO(), type: "ADD_BOOK", patronId: "", bookId: id, note: "" });
+    $("newBookId").value = "";
+    $("newBookTitle").value = "";
+    $("newBookAuthor").value = "";
+    toast("Book added", `${title} (${id})`);
+  }
+
+  function checkout(state) {
+    const patronId = normId($("patronId").value);
+    const bookId = normId($("bookId").value);
+    const loanDays = Number($("loanDays").value || 14);
+    const note = normId($("note").value);
+
+    requireId("Patron ID", patronId);
+    requireId("Book ID", bookId);
+
+    if (!state.patrons[patronId]) throw new Error(`Unknown patron: ${patronId}. Add them first.`);
+    if (!state.books[bookId]) throw new Error(`Unknown book: ${bookId}. Add it first.`);
+    if (state.loans[bookId]) throw new Error(`Book ${bookId} is already checked out.`);
+
+    const outAt = nowISO();
+    const dueAt = addDaysISO(outAt, loanDays);
+
+    state.loans[bookId] = { bookId, patronId, outAt, dueAt, returnedAt: null };
+    state.tx.unshift({ ts: outAt, type: "CHECKOUT", patronId, bookId, note });
+
+    $("note").value = "";
+    toast("Checked out", `${bookId} → ${patronId} (due ${dateOnly(dueAt)})`);
+  }
+
+  function doReturn(state, bookIdOverride = "") {
+    const bookId = normId(bookIdOverride || $("bookId").value);
+    const note = normId($("note").value);
+
+    requireId("Book ID", bookId);
+    const loan = state.loans[bookId];
+    if (!loan) throw new Error(`Book ${bookId} is not currently checked out.`);
+
+    const returnedAt = nowISO();
+    delete state.loans[bookId];
+    state.tx.unshift({ ts: returnedAt, type: "RETURN", patronId: loan.patronId, bookId, note });
+
+    $("note").value = "";
+    toast("Returned", `${bookId} (was ${loan.patronId})`);
+  }
+
+  function quickFind(state) {
+    const patronId = normId($("patronId").value);
+    const bookId = normId($("bookId").value);
+
+    if (!patronId && !bookId) {
+      $("search").focus();
+      toast("Quick Find", "Type a patron ID or book ID (or use Search).");
+      return;
+    }
+
+    if (patronId && state.patrons[patronId]) {
+      const p = state.patrons[patronId];
+      $("search").value = patronId;
+      renderSearch(state);
+      toast("Patron", `${p.name} (${p.id})`);
+      return;
+    }
+
+    if (bookId && state.books[bookId]) {
+      const b = state.books[bookId];
+      const st = statusForBook(state, bookId);
+      $("search").value = bookId;
+      renderSearch(state);
+      toast("Book", `${b.title} (${b.id}) is ${st.toUpperCase()}`);
+      return;
+    }
+
+    toast("Not found", "No match. Add patron/book first.");
+  }
+
+  function exportJSON(state) {
+    const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `library_checkout_backup_${dateOnly(nowISO())}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    toast("Exported", "JSON backup downloaded.");
+  }
+
+  function importJSON(file, setState) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(String(reader.result || ""));
+        // Minimal validation
+        if (!parsed || typeof parsed !== "object") throw new Error("Invalid JSON structure.");
+        parsed.patrons ??= {};
+        parsed.books ??= {};
+        parsed.loans ??= {};
+        parsed.tx ??= [];
+        setState(parsed);
+        toast("Imported", "Data restored from JSON.");
+      } catch (e) {
+        toast("Import failed", e.message || "Could not parse JSON.");
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  function exportCSV(state) {
+    const header = ["timestamp","type","patronId","bookId","note"];
+    const rows = [header].concat(state.tx.map(t => [
+      t.ts || "",
+      t.type || "",
+      t.patronId || "",
+      t.bookId || "",
+      (t.note || "").replace(/\r?\n/g, " ").trim()
+    ]));
+    const csv = rows.map(r => r.map(csvEscape).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `library_transactions_${dateOnly(nowISO())}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    toast("Exported", "Transactions CSV downloaded.");
+  }
+
+  function csvEscape(v) {
+    const s = String(v ?? "");
+    if (/[,"\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+    return s;
+  }
+
+  function escapeHtml(s) {
+    return String(s ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+  function escapeAttr(s) { return escapeHtml(s); }
+
+  function loadDemo(state) {
+    state.patrons = {
+      "P1001": { id: "P1001", name: "Frank A.", createdAt: nowISO() },
+      "P1002": { id: "P1002", name: "Gene S.", createdAt: nowISO() },
+      "P1003": { id: "P1003", name: "Sam R.", createdAt: nowISO() }
+    };
+    state.books = {
+      "B90021": { id: "B90021", title: "DevOps in Plain English", author: "J. Doe", createdAt: nowISO() },
+      "B90022": { id: "B90022", title: "Godot 4 Game Patterns", author: "K. Lane", createdAt: nowISO() },
+      "B90023": { id: "B90023", title: "Practical Homelab", author: "R. Park", createdAt: nowISO() },
+      "B90024": { id: "B90024", title: "Systems Thinking", author: "D. Nguyen", createdAt: nowISO() }
+    };
+    state.loans = {};
+    state.tx = [];
+    toast("Demo data loaded", "Try checkout: P1001 + B90021");
+  }
+
+  function wireUI() {
+    let state = load();
+    updateBadges(state);
+    renderOutTable(state);
+    renderSearch(state);
+
+    const setState = (s) => {
+      state = s;
+      save(state);
+      renderOutTable(state);
+      renderSearch(state);
+    };
+
+    $("btnAddPatron").addEventListener("click", () => {
+      try {
+        addPatron(state);
+        save(state);
+        renderSearch(state);
+      } catch (e) { toast("Error", e.message); }
+    });
+
+    $("btnAddBook").addEventListener("click", () => {
+      try {
+        addBook(state);
+        save(state);
+        renderSearch(state);
+      } catch (e) { toast("Error", e.message); }
+    });
+
+    $("btnCheckout").addEventListener("click", () => {
+      try {
+        checkout(state);
+        save(state);
+        renderOutTable(state);
+        renderSearch(state);
+      } catch (e) { toast("Error", e.message); }
+    });
+
+    $("btnReturn").addEventListener("click", () => {
+      try {
+        doReturn(state);
+        save(state);
+        renderOutTable(state);
+        renderSearch(state);
+      } catch (e) { toast("Error", e.message); }
+    });
+
+    $("btnQuickFind").addEventListener("click", () => quickFind(state));
+
+    $("search").addEventListener("input", () => renderSearch(state));
+
+    // Enter in book field => checkout (fast scanning workflow)
+    $("bookId").addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter") {
+        ev.preventDefault();
+        try {
+          checkout(state);
+          save(state);
+          renderOutTable(state);
+          renderSearch(state);
+          $("bookId").select();
+        } catch (e) { toast("Error", e.message); }
+      }
+    });
+
+    $("outTable").addEventListener("click", (ev) => {
+      const btn = ev.target.closest("button[data-action]");
+      if (!btn) return;
+      const action = btn.getAttribute("data-action");
+      const bookId = btn.getAttribute("data-book") || "";
+      if (action === "return") {
+        try {
+          doReturn(state, bookId);
+          save(state);
+          renderOutTable(state);
+          renderSearch(state);
+        } catch (e) { toast("Error", e.message); }
+      } else if (action === "fill") {
+        const patronId = btn.getAttribute("data-patron") || "";
+        $("bookId").value = bookId;
+        $("patronId").value = patronId;
+        $("bookId").focus();
+        toast("Filled", `Book ${bookId}, Patron ${patronId}`);
+      } else if (action === "deleteLoan") {
+        if (!confirm(`Delete active loan for ${bookId}? (This does not add a return transaction.)`)) return;
+        delete state.loans[bookId];
+        save(state);
+        renderOutTable(state);
+        renderSearch(state);
+        toast("Deleted", `Loan removed for ${bookId}`);
+      }
+    });
+
+    $("btnExport").addEventListener("click", () => exportJSON(state));
+
+    $("btnImport").addEventListener("click", () => $("importFile").click());
+    $("importFile").addEventListener("change", (ev) => {
+      const file = ev.target.files && ev.target.files[0];
+      if (!file) return;
+      importJSON(file, setState);
+      ev.target.value = "";
+    });
+
+    $("btnExportCSV").addEventListener("click", () => exportCSV(state));
+
+    $("btnDemo").addEventListener("click", () => {
+      if (!confirm("Load demo data? This overwrites current data.")) return;
+      loadDemo(state);
+      save(state);
+      renderOutTable(state);
+      renderSearch(state);
+    });
+
+    $("btnClear").addEventListener("click", () => {
+      if (!confirm("Clear ALL data (patrons, books, loans, transactions)?")) return;
+      state = { patrons: {}, books: {}, loans: {}, tx: [] };
+      save(state);
+      renderOutTable(state);
+      renderSearch(state);
+      toast("Cleared", "All data removed.");
+    });
+  }
+
+  wireUI();
+})();
+</script>
+</body>
+</html>
